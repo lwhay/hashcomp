@@ -330,6 +330,7 @@ if (WITH_ZT_TEST)
             PREFIX "${PMWCAS_PREFIX}"
             GIT_REPOSITORY https://github.com/HaoPatrick/pmwcas.git
             GIT_TAG master
+            UPDATE_COMMAND ""
             INSTALL_COMMAND ""
             BUILD_COMMAND $(MAKE)
             CMAKE_ARGS -DPMEM_BACKEND=${PMEM_BACKEND} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DDESC_CAP=16 -DBUILD_APPS=${BUILD_TESTS} -DGOOGLE_FRAMEWORK=${GOOGLE_FRAMEWORK}
@@ -411,6 +412,7 @@ if (WITH_JUNCTION)
             GIT_REPOSITORY https://github.com/preshing/junction
             UPDATE_COMMAND git clone https://github.com/preshing/turf.git && rm -rf ../turf && mv turf ..
             GIT_TAG master
+            UPDATE_COMMAND ""
             INSTALL_COMMAND ""
             BUILD_COMMAND $(MAKE) -j8
             CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
@@ -455,6 +457,7 @@ if (WITH_LIBCUCKOO)
             PREFIX "${LIBCUCKOO_PREFIX}"
             GIT_REPOSITORY https://github.com/efficient/libcuckoo
             GIT_TAG master
+            UPDATE_COMMAND ""
             INSTALL_COMMAND ""
             BUILD_COMMAND $(MAKE) -j8
             CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} cmake -DCMAKE_INSTALL_PREFIX=../install -DBUILD_EXAMPLES=1 -DBUILD_TESTS=1
@@ -495,6 +498,7 @@ if (WITH_FOLLY)
             PREFIX "${FOLLY_PREFIX}"
             GIT_REPOSITORY https://github.com/facebook/folly
             GIT_TAG master
+            UPDATE_COMMAND ""
             INSTALL_COMMAND ""
             BUILD_COMMAND $(MAKE) -j8
             CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
