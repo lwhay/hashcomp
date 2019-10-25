@@ -11,6 +11,7 @@ cmake_minimum_required(VERSION 3.6)
 message(${CMAKE_CURRENT_BINARY_DIR})
 
 include_directories(src/quantile)
+include_directories(src/utils)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../../src/bench)
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
@@ -47,7 +48,8 @@ endif ()
 
 set(STREAM_EFFICIENCYTEST
         tests/GK_EfficiencyTest.cpp
-        tests/ZipfianVerification.cpp)
+        tests/ZipfianVerification.cpp
+        tests/ClickStreamStatistics.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
