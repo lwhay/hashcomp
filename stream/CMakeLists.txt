@@ -49,7 +49,8 @@ endif ()
 set(STREAM_EFFICIENCYTEST
         tests/GK_EfficiencyTest.cpp
         tests/ZipfianVerification.cpp
-        tests/ClickStreamStatistics.cpp)
+        tests/ClickStreamStatistics.cpp
+        tests/ClickStreamGenerator.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)

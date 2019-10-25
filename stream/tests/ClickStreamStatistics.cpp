@@ -11,7 +11,10 @@
 
 using namespace std;
 
-char *path = "../../res/realKVdata/clickstream.tsv";
+string path("../../res/realKVdata/clickstream.tsv");
+
+template<typename type>
+void print(pair<type, uint64_t> p) { cout << p.first << "\t" << p.second << endl; }
 
 int main(int argc, char **argv) {
     int pos = 1;
@@ -19,20 +22,15 @@ int main(int argc, char **argv) {
     if (argc > 2) pos = std::atoi(argv[2]);
     ifstream input;
     input.open(path);
-    FCCount<const char *> fcCount;
+    FCCount<string> fcCount;
     char line[256];
     while (input.getline(line, 256)) {
         vector<string> fields = split(line, "\t");
-        cout << line << endl;
-        cout << fields.size() << "\t";
-        for (int i = 0; i < fields.size(); i++) cout << fields[i] << "\t";
-        fcCount.offer(fields[pos].c_str());
-        cout << endl;
+        fcCount.offer(fields[pos]);
     }
-    cout << fcCount.volume();
-    unordered_map<const char*, uint64_t>::iterator iter = fcCount.get().begin();
-    while (iter != fcCount.get().end()) {
-        cout << iter++->first << endl;
-    }
+    fcCount.wind();
+    for_each(fcCount.get().begin(), fcCount.get().end(), print<string>);
+    cout << "***************************" << fcCount.volume() << " ***************************" << endl;
+    for_each(fcCount.final().begin(), fcCount.final().end(), print<uint64_t>);
     input.close();
 }
