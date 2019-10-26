@@ -51,7 +51,8 @@ set(STREAM_EFFICIENCYTEST
         tests/ZipfianVerification.cpp
         tests/QuantilePointGenerator.cpp
         tests/ClickStreamStatistics.cpp
-        tests/ClickStreamGenerator.cpp)
+        tests/ClickStreamGenerator.cpp
+        tests/SerialSSTest.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
