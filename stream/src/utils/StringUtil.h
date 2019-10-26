@@ -27,4 +27,11 @@ std::vector<std::string> split(const std::string &str, const std::string &delim)
     return res;
 }
 
+bool isIntegeric(const char *str) {
+    int i;
+    bool ret = true;
+    for (i = 0; str[i] != '\0'; i++) { ret = ret && (str[i] >= '0' && str[i] <= '9'); }
+    return ret;
+}
+
 #endif //HASHCOMP_STRINGUTIL_H

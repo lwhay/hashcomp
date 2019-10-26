@@ -49,6 +49,7 @@ endif ()
 set(STREAM_EFFICIENCYTEST
         tests/GK_EfficiencyTest.cpp
         tests/ZipfianVerification.cpp
+        tests/QuantilePointGenerator.cpp
         tests/ClickStreamStatistics.cpp
         tests/ClickStreamGenerator.cpp)
 
