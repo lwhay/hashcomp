@@ -23,8 +23,8 @@ int main(int argc, char **argv) {
     ifstream input;
     input.open(path);
     FCCount<string> fcCount;
-    char line[256];
-    while (input.getline(line, 256)) {
+    char line[4096];
+    while (input.getline(line, 4096)) {
         vector<string> fields = split(line, "\t");
         fcCount.offer(fields[pos]);
     }
