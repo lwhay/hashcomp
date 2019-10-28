@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
         frequent.add(keys[i]);
     }
     cout << "Cplusplus Frequency: " << tracer.getRunTime() << ":" << frequent.size() << endl;
-#ifndef _NDEBUG
+#ifndef NDEBUG
     Node *head = frequent.header();
     while (head->getNext() != nullptr) {
         cout << head->getNext()->getIndex() << ":" << head->getNext()->getFreq() << endl;
