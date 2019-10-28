@@ -5,7 +5,6 @@
 #include <chrono>
 #include <iostream>
 #include "generator.h"
-#include "random.h"
 #include "GK.h"
 #include "tracer.h"
 

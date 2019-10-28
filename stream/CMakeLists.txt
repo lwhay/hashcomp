@@ -52,7 +52,7 @@ set(STREAM_EFFICIENCYTEST
         tests/QuantilePointGenerator.cpp
         tests/ClickStreamStatistics.cpp
         tests/ClickStreamGenerator.cpp
-        tests/SerialSSTest.cpp)
+        tests/SerialHeaveyHitterTest.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
@@ -66,17 +66,18 @@ foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${Boost_LIBRARIES})
 endforeach (sourcefile ${STREAM_EFFICIENCYTEST})
 
-#set(STREAM_UNITTEST
-#        tests/GK_UnitTest.cpp)
-#
-#foreach (sourcefile ${STREAM_UNITTEST})
-#    get_filename_component(exename ${sourcefile} NAME_WE)
-#    add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile})
-#    set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
-#            PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
-#            EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
-#            EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
-#            OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
-#            )
-#    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest)
-#endforeach (sourcefile ${STREAM_TEST})
+set(STREAM_UNITTEST
+        tests/quantile/Frequency_UnitTest.cpp
+        tests/quantile/GK_UnitTest.cpp)
+
+foreach (sourcefile ${STREAM_UNITTEST})
+    get_filename_component(exename ${sourcefile} NAME_WE)
+    add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile})
+    set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
+            PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
+            EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
+            EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
+            OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
+            )
+    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest)
+endforeach (sourcefile ${STREAM_TEST})

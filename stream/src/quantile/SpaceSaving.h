@@ -270,7 +270,6 @@ public:
     ASS(int capacity) : m(capacity) {
 
     }
-
 };
 
 #endif //HASHCOMP_SPACESAVING_H

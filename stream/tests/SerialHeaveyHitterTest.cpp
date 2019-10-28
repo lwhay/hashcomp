@@ -7,6 +7,7 @@
 #include "tracer.h"
 #include "generator.h"
 #include "SpaceSaving.h"
+#include "Frequency.h"
 
 using namespace std;
 
@@ -25,5 +26,11 @@ int main(int argc, char **argv) {
     for (int i = 0; i < (1 << 28); i++) {
         ss.put(keys[i]);
     }
-    cout << tracer.getRunTime() << ":" << ss.getCounterNumber() << endl;
+    cout << "Original SS:" << tracer.getRunTime() << ":" << ss.getCounterNumber() << endl;
+    freq_type *ft = Freq_Init(0.01);
+    tracer.startTime();
+    for (int i = 0; i < (1 << 28); i++) {
+        Freq_Update(ft, i);
+    }
+    cout << "Original Frequency: " << tracer.getRunTime() << ":" << Freq_Size(ft) << endl;
 }
