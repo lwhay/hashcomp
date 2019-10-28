@@ -28,6 +28,14 @@ public:
         delete head;
     }
 
+#ifndef NDEBUG
+
+    Node *header() { return head; }
+
+#endif
+
+    int size() { return fasttbl.size(); }
+
     void add(int v) {
         auto cur = fasttbl.find(v);
         if (cur != fasttbl.end()) {

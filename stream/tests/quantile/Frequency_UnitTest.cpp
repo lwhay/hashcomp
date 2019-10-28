@@ -20,6 +20,13 @@ TEST(FrequentUnitTest, Operations) {
     for (int i = 0; i < 100000; i++) {
         fqt.add(i);
     }
+#ifndef NDEBUG
+    Node *n = fqt.header();
+    while (n->getNext() != nullptr) {
+        cout << n->getIndex() << ":" << n->getFreq() << endl;
+        n = n->getNext();
+    }
+#endif
 }
 
 int main(int argc, char **argv) {

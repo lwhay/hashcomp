@@ -8,6 +8,7 @@
 #include "generator.h"
 #include "SpaceSaving.h"
 #include "Frequency.h"
+#include "Frequent.h"
 
 using namespace std;
 
@@ -33,4 +34,16 @@ int main(int argc, char **argv) {
         Freq_Update(ft, i);
     }
     cout << "Original Frequency: " << tracer.getRunTime() << ":" << Freq_Size(ft) << endl;
+    Frequent frequent(1000);
+    for (int i = 0; i < (1 << 28); i++) {
+        frequent.add(keys[i]);
+    }
+    cout << "Cplusplus Frequency: " << tracer.getRunTime() << ":" << frequent.size() << endl;
+#ifndef _NDEBUG
+    Node *head = frequent.header();
+    while (head->getNext() != nullptr) {
+        cout << head->getNext()->getIndex() << ":" << head->getNext()->getFreq() << endl;
+        head = head->getNext();
+    }
+#endif
 }
