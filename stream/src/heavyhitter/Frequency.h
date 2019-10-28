@@ -708,7 +708,6 @@ int Freq_Size(freq_type *freq) {
 
     size = 2 * (freq->tblsz) * sizeof(ITEMLIST *) + (freq->k + 1) * sizeof(ITEMLIST) + (freq->k) * sizeof(GC_GROUP);
     return size;
-
 }
 
 void Freq_Destroy(freq_type *freq) {

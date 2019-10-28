@@ -13,6 +13,14 @@ TEST(FrequencyUnitTest, Operations) {
     for (int i = 0; i < 100000; i++) {
         Freq_Update(ft, i);
     }
+#ifndef NDEBUG
+    ITEMLIST *il;
+    FirstGroup(ft, il);
+    while (il->nexting != nullptr) {
+        cout << il->item << ":" << endl;
+        il = il->nexting;
+    }
+#endif
 }
 
 TEST(FrequentUnitTest, Operations) {
