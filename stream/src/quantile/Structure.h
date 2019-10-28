@@ -20,9 +20,11 @@ public:
 
     int getIndex() { return index; }
 
-    void setFrequency(int freq) { frequency = freq; }
+    void setFreq(int freq) { frequency = freq; }
 
-    int getFrequency() { return frequency; }
+    int getFreq() { return frequency; }
+
+    int increase(int n = 1) { frequency += n; }
 
     void setE1(int e) { e1 = e; }
 
