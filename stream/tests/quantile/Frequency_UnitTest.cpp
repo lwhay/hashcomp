@@ -2,11 +2,20 @@
 // Created by Michael on 10/28/2019.
 //
 
+#include "../../src/heavyhitter/SpaceSaving.h"
 #include "../../src/heavyhitter/Frequency.h"
 #include "../../src/heavyhitter/Frequent.h"
 #include "gtest/gtest.h"
 
 using namespace std;
+
+TEST(SSUnitTest, Operations) {
+    SS<int> ss(100);
+    for (int i = 0; i < 100000; i++) {
+        ss.put(i);
+    }
+    ASSERT_EQ(ss.getCounterNumber(), 100);
+}
 
 TEST(FrequencyUnitTest, Operations) {
     freq_type *ft = Freq_Init(0.01);
@@ -28,6 +37,7 @@ TEST(FrequentUnitTest, Operations) {
     for (int i = 0; i < 100000; i++) {
         fqt.add(i);
     }
+    ASSERT_EQ(fqt.size(), 100);
 #ifndef NDEBUG
     Node *n = fqt.header();
     while (n->getNext() != nullptr) {

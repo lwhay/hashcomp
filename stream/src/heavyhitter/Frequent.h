@@ -73,7 +73,7 @@ public:
                         int index = iter->getIndex();
                         fasttbl.erase(index);
                         iter->setFreq(iter->getFreq() - 1);
-                        fasttbl.insert(std::make_pair(v, iter));
+                        fasttbl.insert(std::make_pair(index, iter));
                         iter = iter->getPrev();
                     }
                 }

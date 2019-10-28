@@ -5,6 +5,7 @@
 #ifndef HASHCOMP_SPACESAVING_H
 #define HASHCOMP_SPACESAVING_H
 
+#include <iostream>
 #include <map>
 #include <vector>
 #include <queue>

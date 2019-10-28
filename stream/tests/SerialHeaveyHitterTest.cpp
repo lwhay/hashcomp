@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < total_round; i++) {
         keys.push_back(gen(mt));
     }
-    cout << tracer.getRunTime() << endl;
+    cout << tracer.getRunTime() << " with " << keys.size() << endl;
     tracer.getRunTime();
     for (int i = 0; i < total_round; i++) {
         ss.put(keys[i]);
