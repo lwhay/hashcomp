@@ -6,25 +6,30 @@
 #include <vector>
 #include "tracer.h"
 #include "generator.h"
-#include "SpaceSaving.h"
-#include "Frequency.h"
-#include "Frequent.h"
+#include "../src/heavyhitter/SpaceSaving.h"
+#include "../src/heavyhitter/Frequency.h"
+#include "../src/heavyhitter/Frequent.h"
 
 using namespace std;
 
+uint64_t total_round = (1 << 28);
+
 int main(int argc, char **argv) {
+    if (argc > 1) {
+        total_round = std::atol(argv[1]);
+    }
     zipf_distribution<uint64_t> gen((1LLU << 32), 1.5);
     std::mt19937 mt;
     vector<uint64_t> keys;
     SS<uint64_t> ss(1000);
     Tracer tracer;
     tracer.startTime();
-    for (int i = 0; i < (1 << 28); i++) {
+    for (int i = 0; i < total_round; i++) {
         keys.push_back(gen(mt));
     }
     cout << tracer.getRunTime() << endl;
     tracer.getRunTime();
-    for (int i = 0; i < (1 << 28); i++) {
+    for (int i = 0; i < total_round; i++) {
         ss.put(keys[i]);
     }
     cout << "Original SS:" << tracer.getRunTime() << ":" << ss.getCounterNumber() << endl;
@@ -35,7 +40,7 @@ int main(int argc, char **argv) {
     }
     cout << "Original Frequency: " << tracer.getRunTime() << ":" << Freq_Size(ft) << endl;
     Frequent frequent(1000);
-    for (int i = 0; i < (1 << 28); i++) {
+    for (int i = 0; i < total_round; i++) {
         frequent.add(keys[i]);
     }
     cout << "Cplusplus Frequency: " << tracer.getRunTime() << ":" << frequent.size() << endl;

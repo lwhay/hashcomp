@@ -2,8 +2,8 @@
 // Created by Michael on 10/28/2019.
 //
 
-#include "Frequency.h"
-#include "Frequent.h"
+#include "../../src/heavyhitter/Frequency.h"
+#include "../../src/heavyhitter/Frequent.h"
 #include "gtest/gtest.h"
 
 using namespace std;

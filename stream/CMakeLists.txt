@@ -10,6 +10,7 @@ cmake_minimum_required(VERSION 3.6)
 #endif ()
 message(${CMAKE_CURRENT_BINARY_DIR})
 
+include_directories(src/heavyhitter)
 include_directories(src/quantile)
 include_directories(src/utils)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../../src/bench)
