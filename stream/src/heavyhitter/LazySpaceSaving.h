@@ -115,6 +115,7 @@ public:
         _size = (1 + k) | 1;
         hashsize = LCL_HASHMULT * _size;
         hashtable = (Counter **) new Counter *[hashsize];
+        std::memset(hashtable, 0, sizeof(Counter *) * hashsize);
         counters = (Counter *) new Counter[_size];
 
         hasha = 151261303;
@@ -179,6 +180,16 @@ public:
         root->setDelta(root->getCount());
         root->setCount(value + root->getDelta());
         Heapify(1);
+    }
+
+    Counter *find(int item) {
+        int hashval = (int) hash31(hasha, hashb, item) % hashsize;
+        Counter *hashptr = hashtable[hashval];
+        while (hashptr) {
+            if (hashptr->getItem() == item) break;
+            else hashptr = hashptr->getNext();
+        }
+        return hashptr;
     }
 };
 

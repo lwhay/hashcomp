@@ -27,6 +27,39 @@ TEST(LazySSUnitTest, Operations) {
     ASSERT_EQ(lss.size(), 44180);
     ASSERT_EQ(lss.volume(), 1003);
     ASSERT_EQ(lss.range(), 3009);
+    ASSERT_EQ(lss.find(0), nullptr);
+    ASSERT_EQ(lss.find(998994), nullptr);
+    int reserved = 1000000;
+    int min1 = 10000000;
+    int min2 = 10000000;
+    int min3 = 10000000;
+    int min4 = 10000000;
+    int min5 = 10000000;
+    uint64_t total = 0;
+    for (int i = 0; i < 999991; i++) {
+        if (lss.find(i) != nullptr) {
+            ASSERT_EQ(lss.find(i)->getCount(), 997);
+            total += lss.find(i)->getCount();
+            if (i < min1) min1 = i;
+            else if (i < min2) min2 = i;
+            else if (i < min3) min3 = i;
+            else if (i < min4) min4 = i;
+            else if (i < min5) min5 = i;
+        } else {
+            reserved--;
+        }
+    }
+    for (int i = 999991; i <= 999999; i++) {
+        ASSERT_EQ(lss.find(i)->getCount(), 998);
+        total += lss.find(i)->getCount();
+    }
+    ASSERT_EQ(min1, 998989);
+    ASSERT_EQ(min2, 998991);
+    ASSERT_EQ(min3, 998992);
+    ASSERT_EQ(min4, 998993);
+    ASSERT_EQ(min5, 998995);
+    ASSERT_EQ(total, 1000000);
+    ASSERT_EQ(reserved, 1003);
 }
 
 int main(int argc, char **argv) {
