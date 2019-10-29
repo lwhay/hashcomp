@@ -7,6 +7,7 @@
 #include "tracer.h"
 #include "generator.h"
 #include "../src/heavyhitter/GroupFrequent.h"
+#include "../src/heavyhitter/LazySpaceSaving.h"
 #include "../src/heavyhitter/SpaceSaving.h"
 #include "../src/cfrequent/Frequency.h"
 #include "../src/heavyhitter/Frequent.h"
@@ -59,6 +60,12 @@ int main(int argc, char **argv) {
         gf.put(keys[i]);
     }
     cout << "GroupFrequent: " << tracer.getRunTime() << ":" << gf.size() << endl;
+    LazySpaceSaving lss(0.00001);
+    tracer.startTime();
+    for (int i = 0; i < total_round; i++) {
+        lss.put(keys[i]);
+    }
+    cout << "LazySS: " << tracer.getRunTime() << ":" << lss.size() << endl;
     Frequent frequent(1000);
     for (int i = 0; i < total_round; i++) {
         frequent.add(keys[i]);
