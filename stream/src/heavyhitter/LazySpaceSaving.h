@@ -1,0 +1,8 @@
+//
+// Created by iclab on 10/29/19.
+//
+
+#ifndef HASHCOMP_LAZYSPACESAVING_H
+#define HASHCOMP_LAZYSPACESAVING_H
+
+#endif //HASHCOMP_LAZYSPACESAVING_H

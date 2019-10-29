@@ -75,7 +75,8 @@ endforeach (sourcefile ${STREAM_EFFICIENCYTEST})
 
 set(STREAM_UNITTEST
         tests/quantile/Frequency_UnitTest.cpp
-        tests/quantile/GK_UnitTest.cpp)
+        tests/quantile/GK_UnitTest.cpp
+        tests/quantile/OPTHH_UnitTest.cpp)
 
 foreach (sourcefile ${STREAM_UNITTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
