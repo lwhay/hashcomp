@@ -8,7 +8,10 @@
 
 TEST(GFreqUnitTest, Operations) {
     GroupFrequent gf(0.001);
-    //gf.put(1);
+    for (int i = 0; i < 1000000; i++) gf.put(i);
+    ASSERT_EQ(gf.size(), 112048);
+    ASSERT_EQ(gf.volume(), 1000);
+    ASSERT_EQ(gf.range(), 2000);
 }
 
 TEST(LazySSUnitTest, Operations) {
