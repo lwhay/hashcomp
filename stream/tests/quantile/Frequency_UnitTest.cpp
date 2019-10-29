@@ -3,7 +3,7 @@
 //
 
 #include "../../src/heavyhitter/SpaceSaving.h"
-#include "../../src/heavyhitter/Frequency.h"
+#include "../../src/cfrequent/Frequency.h"
 #include "../../src/heavyhitter/Frequent.h"
 #include "gtest/gtest.h"
 

@@ -10,6 +10,7 @@ cmake_minimum_required(VERSION 3.6)
 #endif ()
 message(${CMAKE_CURRENT_BINARY_DIR})
 
+include_directories(src/cfrequent)
 include_directories(src/heavyhitter)
 include_directories(src/quantile)
 include_directories(src/utils)
@@ -48,6 +49,10 @@ else ()
     link_directories(${Boost_LIBRARY_DIR})
 endif ()
 
+set(CFREQUENT_LIBS
+        src/cfrequent/prng.cc
+        src/cfrequent/rand48.cc)
+
 set(STREAM_EFFICIENCYTEST
         tests/GK_EfficiencyTest.cpp
         tests/ZipfianVerification.cpp
@@ -58,7 +63,7 @@ set(STREAM_EFFICIENCYTEST
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
-    add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile})
+    add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile} ${CFREQUENT_LIBS})
     set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
             PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
             EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
@@ -74,7 +79,7 @@ set(STREAM_UNITTEST
 
 foreach (sourcefile ${STREAM_UNITTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
-    add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile})
+    add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile} ${CFREQUENT_LIBS})
     set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
             PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
             EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1

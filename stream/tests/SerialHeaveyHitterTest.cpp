@@ -7,8 +7,9 @@
 #include "tracer.h"
 #include "generator.h"
 #include "../src/heavyhitter/SpaceSaving.h"
-#include "../src/heavyhitter/Frequency.h"
+#include "../src/cfrequent/Frequency.h"
 #include "../src/heavyhitter/Frequent.h"
+#include "../src/cfrequent/LossyCount.h"
 
 using namespace std;
 
@@ -33,12 +34,24 @@ int main(int argc, char **argv) {
         ss.put(keys[i]);
     }
     cout << "Original SS:" << tracer.getRunTime() << ":" << ss.getCounterNumber() << endl;
-    freq_type *ft = Freq_Init(0.01);
+    freq_type *ft = Freq_Init(0.001);
     tracer.startTime();
-    for (int i = 0; i < (1 << 28); i++) {
-        Freq_Update(ft, i);
+    for (int i = 0; i < total_round; i++) {
+        Freq_Update(ft, keys[i]);
     }
-    cout << "Original Frequency: " << tracer.getRunTime() << ":" << Freq_Size(ft) << endl;
+    cout << "CFrequency: " << tracer.getRunTime() << ":" << Freq_Size(ft) << endl;
+    /*Freq_Output(ft, 0);*/
+    Freq_Destroy(ft);
+    LCL_type *lcl = LCL_Init(0.001);
+    tracer.startTime();
+    for (int i = 0; i < total_round; i++) {
+        LCL_Update(lcl, keys[i], 1);
+    }
+    cout << "CLSLazy: " << tracer.getRunTime() << ":" << LCL_Size(lcl) << endl;
+    /*LCL_Output(lcl);
+    LCL_ShowHash(lcl);
+    LCL_ShowHeap(lcl);*/
+    LCL_Destroy(lcl);
     Frequent frequent(1000);
     for (int i = 0; i < total_round; i++) {
         frequent.add(keys[i]);
