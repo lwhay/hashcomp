@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <random>
 
 constexpr uint32_t LCL_HASHMULT = 3;
