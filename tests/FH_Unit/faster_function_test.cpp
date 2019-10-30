@@ -125,7 +125,7 @@ TEST(ContextVerify, ConcurrentRUMultiBytes) {
     auto updater = [](Value *loads, store_t *store, atomic<uint64_t> *tick, atomic_bool *begin) {
         while (!begin->load()) this_thread::yield();
         uint8_t buffer[insize];
-        for (int i = 0; i < rounds; i++) {
+        for (int i = 0; i < rounds / update_number; i++) {
             auto callback = [](IAsyncContext *ctxt, Status result) {
                 CallbackContext<UpsertContext> context{ctxt};
             };
