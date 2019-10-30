@@ -298,7 +298,9 @@ public:
             output_length = value.length_;
             output_bytes = new uint8_t[output_length];
             std::memcpy(output_bytes, value.buffer(), output_length);
-            after = value.gen_lock_.load();
+            do {
+                after = value.gen_lock_.load();
+            } while (after.locked || after.replaced);
         } while (before.gen_number != after.gen_number);
     }
 
