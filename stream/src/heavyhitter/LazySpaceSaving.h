@@ -5,6 +5,8 @@
 #ifndef HASHCOMP_LAZYSPACESAVING_H
 #define HASHCOMP_LAZYSPACESAVING_H
 
+#include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -47,6 +49,10 @@ public:
 
     Counter *getNext() { return next; }
 };
+
+bool comp(Counter &a, Counter &b) {
+    return a.getCount() > b.getCount();
+}
 
 /*constexpr int MOD = 2147483647;
 
@@ -191,6 +197,30 @@ public:
             else hashptr = hashptr->getNext();
         }
         return hashptr;
+    }
+
+    Counter *output(bool sorting = false) {
+        if (sorting) std::sort(counters + 1, counters + _size, comp);
+        return counters;
+    }
+
+    Counter *merge(LazySpaceSaving &lss) {
+        assert(lss.volume() == _size);
+        Counter *merged = new Counter[_size];
+        std::sort(counters + 1, counters + _size, comp);
+        for (int i = 0; i < _size; i++) {
+            Counter *cptr = lss.find(counters[i].getItem());
+            if (cptr != nullptr) {
+                merged[i].setitem(counters[i].getItem());
+                merged[i].setCount(counters[i].getCount() + cptr->getCount());
+                merged[i].setDelta(counters[i].getDelta() + cptr->getDelta());
+            } else {
+                merged[i].setitem(counters[i].getItem());
+                merged[i].setCount(counters[i].getCount());
+                merged[i].setDelta(counters[i].getDelta());
+            }
+        }
+        return merged;
     }
 };
 
