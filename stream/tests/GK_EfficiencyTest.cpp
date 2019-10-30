@@ -16,6 +16,8 @@ uint64_t total_count = 10000000;
 
 int usingzipf = 1;
 
+int reverseorder = 0;
+
 bool comp(uint32_t a, uint32_t b) {
     return a < b;
 }
@@ -36,13 +38,14 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         total_count = std::atol(argv[1]);
         usingzipf = std::atoi(argv[2]);
+        reverseorder = std::atoi(argv[3]);
     }
     Tracer tracer;
     tracer.startTime();
     std::mt19937 mt;
     vector<uint32_t> v;
     if (usingzipf != 0) {
-        zipf_distribution<uint32_t> gen(10000000, 1.0);
+        zipf_distribution<uint32_t> gen(1000000000, 1.0);
         for (int i = 0; i < total_count; i++) {
             v.push_back(gen(mt));
         }
@@ -56,7 +59,10 @@ int main(int argc, char **argv) {
     tracer.startTime();
     GK<uint32_t> gk(0.001, 1000000000);
     for (int i = 0; i < total_count; i++) {
-        gk.feed(v[i]);
+        if (reverseorder != 0)
+            gk.feed(v[total_count - i - 1]);
+        else
+            gk.feed(v[i]);
     }
     cout << tracer.getRunTime() << endl;
     tracer.startTime();
