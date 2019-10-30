@@ -5,6 +5,7 @@
 #ifndef HASHCOMP_GK_H
 #define HASHCOMP_GK_H
 
+#include <cmath>
 #include <map>
 #include <vector>
 #include <algorithm>
