@@ -13,7 +13,7 @@
 #include <random>
 
 constexpr uint32_t LCL_HASHMULT = 3;
-constexpr uint32_t LCL_NULLITEM = 0x7ffffffff;
+constexpr uint32_t LCL_NULLITEM = 0x7FFFFFFF;
 
 class Counter {
 private:
@@ -90,7 +90,6 @@ private:
             minchild = &counters[mc];
 
             if (cpt->getCount() < minchild->getCount()) break;
-
             tmp = *cpt;
             *cpt = *minchild;
             *minchild = tmp;
@@ -123,7 +122,8 @@ public:
         hashsize = LCL_HASHMULT * _size;
         hashtable = (Counter **) new Counter *[hashsize];
         std::memset(hashtable, 0, sizeof(Counter *) * hashsize);
-        counters = (Counter *) new Counter[_size];
+        counters = (Counter *) new Counter[1 + _size];
+        std::memset(counters, 0, sizeof(Counter) * (1 + _size));
 
         hasha = 151261303;
         hashb = 6722461;
@@ -204,9 +204,10 @@ public:
         return counters;
     }
 
-    Counter *merge(LazySpaceSaving &lss) {
+    Counter *merge(LazySpaceSaving &lss, bool overwrite = false) {
         assert(lss.volume() == _size);
-        Counter *merged = new Counter[_size];
+        Counter *merged = counters;
+        if (!overwrite) merged = new Counter[_size];
         std::sort(counters + 1, counters + _size, comp);
         for (int i = 0; i < _size; i++) {
             Counter *cptr = lss.find(counters[i].getItem());

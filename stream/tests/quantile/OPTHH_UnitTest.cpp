@@ -106,6 +106,36 @@ TEST(LazySSUnitTest, MergeTest) {
                   << output[i].getCount() - output[i].getDelta() << ":" << counters.find(output[i].getItem())->second
                   << std::endl;
     }
+    delete[] output;
+}
+
+TEST(LazySSUnitTest, IterativeMergeTest) {
+    zipf_distribution<uint32_t> gen((1 << 31), 1.0);
+    std::mt19937 mt;
+    LazySpaceSaving lss(0.0001);
+    std::unordered_map<uint32_t, uint32_t> counters;
+    for (int i = 0; i < 100000; i++) {
+        uint32_t v = gen(mt);
+        if (counters.find(v) == counters.end()) counters.insert(std::make_pair(v, 0));
+        counters.find(v)->second++;
+        lss.put(v, 1);
+    }
+    Counter *output;
+    for (int r = 0; r < 10; r++) {
+        LazySpaceSaving opr(0.0001);
+        for (int i = 0; i < 100000; i++) {
+            uint32_t v = gen(mt);
+            if (counters.find(v) == counters.end()) counters.insert(std::make_pair(v, 0));
+            counters.find(v)->second++;
+            opr.put(v, 1);
+        }
+        output = lss.merge(opr, true);
+    }
+    for (int i = 1; i < lss.volume(); i++) {
+        std::cout << output[i].getItem() << ":" << output[i].getCount() << ":" << output[i].getDelta() << ":"
+                  << output[i].getCount() - output[i].getDelta() << ":" << counters.find(output[i].getItem())->second
+                  << std::endl;
+    }
 }
 
 int main(int argc, char **argv) {
