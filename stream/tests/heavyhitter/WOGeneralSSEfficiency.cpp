@@ -25,7 +25,7 @@ template<typename IT>
 void funcCall() {
     uint64_t max = ((uint64_t) std::numeric_limits<IT>::max() <= (1LLU << 48))
                    ? (uint64_t) std::numeric_limits<IT>::max() : (1LLU << 48);
-    zipf_distribution<IT> gen(max, 1.0);
+    zipf_distribution<IT> gen(max, 1.5);
     std::mt19937 mt;
     vector<IT> keys;
     Tracer tracer;
