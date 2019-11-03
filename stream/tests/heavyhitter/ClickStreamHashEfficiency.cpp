@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
         uint64_t hash;
         switch (field) {
             case 1: {
-                hash = CityHash64(fields[0].c_str(), std::strlen(fields[1].c_str()));
+                hash = CityHash64(fields[0].c_str(), std::strlen(fields[0].c_str()));
                 break;
             }
             case 2: {
