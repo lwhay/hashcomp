@@ -51,7 +51,8 @@ endif ()
 
 set(CFREQUENT_LIBS
         src/cfrequent/prng.cc
-        src/cfrequent/rand48.cc)
+        src/cfrequent/rand48.cc
+        ../src/mhash/util/City.cpp)
 
 set(STREAM_EFFICIENCYTEST
         tests/GK_EfficiencyTest.cpp
@@ -60,7 +61,8 @@ set(STREAM_EFFICIENCYTEST
         tests/ClickStreamStatistics.cpp
         tests/ClickStreamGenerator.cpp
         tests/SerialHeaveyHitterTest.cpp
-        tests/heavyhitter/WOGeneralSSEfficiency.cpp)
+        tests/heavyhitter/WOGeneralSSEfficiency.cpp
+        tests/heavyhitter/ClickStreamHashEfficiency.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
