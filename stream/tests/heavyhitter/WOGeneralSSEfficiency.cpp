@@ -11,34 +11,63 @@
 
 using namespace std;
 
-uint64_t total_round = (1 << 24);
+uint64_t watch = (1 << 24);
 
-int main(int argc, char **argv) {
-    if (argc > 1) {
-        total_round = std::atol(argv[1]);
-    }
-    zipf_distribution<uint64_t> gen((1LLU << 32), 1.5);
+template<typename IT>
+void funcCall() {
+    uint64_t max = ((uint64_t) std::numeric_limits<IT>::max() <= (1LLU << 48))
+                   ? (uint64_t) std::numeric_limits<IT>::max() : (1LLU << 48);
+    zipf_distribution<IT> gen(max, 1.5);
     std::mt19937 mt;
-    vector<uint64_t> keys;
+    vector<IT> keys;
     Tracer tracer;
     tracer.startTime();
-    for (int i = 0; i < total_round; i++) {
+    for (int i = 0; i < watch; i++) {
         keys.push_back(gen(mt));
     }
     cout << tracer.getRunTime() << " with " << keys.size() << endl;
     for (int i = 0; i < 10; i++) {
-        LazySpaceSaving lss(0.00001);
+        LazySpaceSaving lss(0.0001);
         tracer.startTime();
-        for (int i = 0; i < total_round; i++) {
+        for (int i = 0; i < watch; i++) {
             lss.put(keys[i]);
         }
         cout << "LazySS: " << tracer.getRunTime() << ":" << lss.size() << endl;
 
-        GeneralLazySS<uint32_t> glss(0.00001);
+        GeneralLazySS<IT> glss(0.0001);
         tracer.startTime();
-        for (int i = 0; i < total_round; i++) {
+        for (int i = 0; i < watch; i++) {
             glss.put(keys[i]);
         }
         cout << "GLSS: " << tracer.getRunTime() << ":" << lss.size() << endl;
+    }
+}
+
+int main(int argc, char **argv) {
+    if (argc > 2) {
+        watch = std::atol(argv[1]);
+        int type = std::atoi(argv[2]);
+        cout << "command watch=" << watch << " type=" << type << endl;
+        switch (type) {
+            case 0: {
+                funcCall<uint8_t>();
+                break;
+            }
+            case 1: {
+                funcCall<uint16_t>();
+                break;
+            }
+            case 2: {
+                funcCall<uint32_t>();
+                break;
+            }
+            case 3: {
+                funcCall<uint64_t>();
+                break;
+            }
+            default:
+                cout << "type 0: uint8_t, 1: uint16_t, 2: uint32_t, 3: uint64_t" << endl;
+                return -1;
+        }
     }
 }

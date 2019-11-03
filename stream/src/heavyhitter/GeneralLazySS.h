@@ -7,16 +7,18 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <random>
 
 template<typename IT>
 class Item {
 private:
     IT item;
-    int hash;
+    IT hash;
     int count;
     int delta;
     Item *prev, *next;
@@ -25,9 +27,9 @@ public:
 
     IT getItem() { return item; }
 
-    void setHash(int hash) { this->hash = hash; }
+    void setHash(IT hash) { this->hash = hash; }
 
-    int getHash() { return hash; }
+    IT getHash() { return hash; }
 
     void setCount(int count) { this->count = count; }
 
@@ -55,32 +57,32 @@ public:
 template<typename IT>
 class GeneralLazySS {
     constexpr static uint32_t GLSS_HASHMULT = 3;
-    constexpr static uint32_t GLSS_NULLITEM = 0x7FFFFFFF;
-    constexpr static int GLSS_MOD = 2147483647;
-    constexpr static int GLSS_HL = 31;
+    constexpr static IT GLSS_NULLITEM = std::numeric_limits<IT>::max();
+    constexpr static IT GLSS_MOD = std::numeric_limits<IT>::max() / 2;
+    constexpr static int GLSS_HL = 8 * sizeof(IT) - 1;
 private:
     int n;
-    int hasha, hashb, hashsize;
+    IT hasha, hashb, hashsize;
     int _size;
     Item<IT> *root;
     Item<IT> *counters;
     Item<IT> **hashtable;
 
-    inline long hash31(int64_t a, int64_t b, int64_t x) {
-        int64_t result;
-        long lresult;
+    inline IT hash(IT a, IT b, IT x) {
+        IT result;
+        IT lresult;
         result = (a * x) + b;
         result = ((result >> GLSS_HL) + result) & GLSS_MOD;
-        lresult = (long) result;
+        lresult = result;
 
         return (lresult);
     }
 
 private:
-    void Heapify(int ptr) {
+    inline void Heapify(IT ptr) {
         Item<IT> tmp;
         Item<IT> *cpt, *minchild;
-        int mc;
+        IT mc;
         while (1) {
             if ((ptr << 1) + 1 > _size) break;
 
@@ -124,8 +126,9 @@ public:
         counters = (Item<IT> *) new Item<IT>[1 + _size];
         std::memset(counters, 0, sizeof(Item<IT>) * (1 + _size));
 
-        hasha = 151261303;
-        hashb = 6722461;
+        srand(time(NULL));
+        hasha = (IT) lrand48();
+        hashb = (IT) lrand48();
         n = 0;
 
         for (int i = 0; i <= _size; i++) {
@@ -151,16 +154,16 @@ public:
     }
 
     int size() {
-        return sizeof(GeneralLazySS) + hashsize * sizeof(int) + _size * sizeof(Item<IT>);
+        return sizeof(GeneralLazySS) + hashsize * sizeof(IT) + _size * sizeof(Item<IT>);
     }
 
-    void put(int item, int value = 1) {
-        int hashval;
+    inline void put(IT item, int value = 1) {
+        IT hashval;
         Item<IT> *hashptr;
 
         n += value;
         counters->setitem(0);
-        hashval = (int) hash31(hasha, hashb, item) % hashsize;
+        hashval = hash(hasha, hashb, item) % hashsize;
         hashptr = hashtable[hashval];
 
         while (hashptr) {
@@ -170,6 +173,7 @@ public:
                 return;
             } else hashptr = hashptr->getNext();
         }
+
         if (!root->getPrev()) hashtable[root->getHash()] = root->getNext();
         else root->getPrev()->setNext(root->getNext());
 
@@ -188,8 +192,8 @@ public:
         Heapify(1);
     }
 
-    Item<IT> *find(int item) {
-        int hashval = (int) hash31(hasha, hashb, item) % hashsize;
+    Item<IT> *find(IT item) {
+        IT hashval = hash(hasha, hashb, item) % hashsize;
         Item<IT> *hashptr = hashtable[hashval];
         while (hashptr) {
             if (hashptr->getItem() == item) break;
