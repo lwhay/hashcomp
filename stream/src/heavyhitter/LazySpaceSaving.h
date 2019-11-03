@@ -54,9 +54,9 @@ bool comp(Counter &a, Counter &b) {
     return a.getCount() > b.getCount();
 }
 
-/*constexpr int MOD = 2147483647;
+constexpr int LSS_MOD = 2147483647;
 
-constexpr int HL = 31;*/
+constexpr int LSS_HL = 31;
 
 class LazySpaceSaving {
 private:
@@ -71,7 +71,7 @@ private:
         int64_t result;
         long lresult;
         result = (a * x) + b;
-        result = ((result >> HL) + result) & MOD;
+        result = ((result >> LSS_HL) + result) & LSS_MOD;
         lresult = (long) result;
 
         return (lresult);

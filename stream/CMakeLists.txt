@@ -59,7 +59,8 @@ set(STREAM_EFFICIENCYTEST
         tests/QuantilePointGenerator.cpp
         tests/ClickStreamStatistics.cpp
         tests/ClickStreamGenerator.cpp
-        tests/SerialHeaveyHitterTest.cpp)
+        tests/SerialHeaveyHitterTest.cpp
+        tests/heavyhitter/WOGeneralSSEfficiency.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
@@ -74,9 +75,10 @@ foreach (sourcefile ${STREAM_EFFICIENCYTEST})
 endforeach (sourcefile ${STREAM_EFFICIENCYTEST})
 
 set(STREAM_UNITTEST
-        tests/quantile/Frequency_UnitTest.cpp
+        tests/heavyhitter/Frequency_UnitTest.cpp
         tests/quantile/GK_UnitTest.cpp
-        tests/quantile/OPTHH_UnitTest.cpp)
+        tests/heavyhitter/OPTHH_UnitTest.cpp
+        tests/heavyhitter/GeneralLazySS_UnitTest.cpp)
 
 foreach (sourcefile ${STREAM_UNITTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)

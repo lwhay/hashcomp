@@ -2,8 +2,8 @@
 // Created by iclab on 10/29/19.
 //
 
-#ifndef HASHCOMP_LAZYSPACESAVING_H
-#define HASHCOMP_LAZYSPACESAVING_H
+#ifndef HASHCOMP_GENERALLAZYSPACESAVING_H
+#define HASHCOMP_GENERALLAZYSPACESAVING_H
 
 #include <algorithm>
 #include <cassert>
@@ -12,20 +12,18 @@
 #include <cstring>
 #include <random>
 
-constexpr uint32_t LCL_HASHMULT = 3;
-constexpr uint32_t LCL_NULLITEM = 0x7FFFFFFF;
-
-class Counter {
+template<typename IT>
+class Item {
 private:
-    uint32_t item;
+    IT item;
     int hash;
     int count;
     int delta;
-    Counter *prev, *next;
+    Item *prev, *next;
 public:
-    void setitem(uint32_t item) { this->item = item; }
+    void setitem(IT item) { this->item = item; }
 
-    uint32_t getItem() { return item; }
+    IT getItem() { return item; }
 
     void setHash(int hash) { this->hash = hash; }
 
@@ -41,37 +39,38 @@ public:
 
     int getDelta() { return delta; }
 
-    void setPrev(Counter *counter) { prev = counter; }
+    void setPrev(Item *counter) { prev = counter; }
 
-    Counter *getPrev() { return prev; }
+    Item *getPrev() { return prev; }
 
-    void setNext(Counter *counter) { next = counter; }
+    void setNext(Item *counter) { next = counter; }
 
-    Counter *getNext() { return next; }
+    Item *getNext() { return next; }
+
+    static bool comp(Item<IT> &a, Item<IT> &b) {
+        return a.getCount() > b.getCount();
+    }
 };
 
-bool comp(Counter &a, Counter &b) {
-    return a.getCount() > b.getCount();
-}
-
-/*constexpr int MOD = 2147483647;
-
-constexpr int HL = 31;*/
-
-class LazySpaceSaving {
+template<typename IT>
+class GeneralLazySS {
+    constexpr static uint32_t GLSS_HASHMULT = 3;
+    constexpr static uint32_t GLSS_NULLITEM = 0x7FFFFFFF;
+    constexpr static int GLSS_MOD = 2147483647;
+    constexpr static int GLSS_HL = 31;
 private:
     int n;
     int hasha, hashb, hashsize;
     int _size;
-    Counter *root;
-    Counter *counters;
-    Counter **hashtable;
+    Item<IT> *root;
+    Item<IT> *counters;
+    Item<IT> **hashtable;
 
     inline long hash31(int64_t a, int64_t b, int64_t x) {
         int64_t result;
         long lresult;
         result = (a * x) + b;
-        result = ((result >> HL) + result) & MOD;
+        result = ((result >> GLSS_HL) + result) & GLSS_MOD;
         lresult = (long) result;
 
         return (lresult);
@@ -79,8 +78,8 @@ private:
 
 private:
     void Heapify(int ptr) {
-        Counter tmp;
-        Counter *cpt, *minchild;
+        Item<IT> tmp;
+        Item<IT> *cpt, *minchild;
         int mc;
         while (1) {
             if ((ptr << 1) + 1 > _size) break;
@@ -101,7 +100,7 @@ private:
                 cpt->setNext(tmp.getNext());
             } else {
                 if (!cpt->getPrev()) {
-                    if (cpt->getItem() != LCL_NULLITEM) hashtable[cpt->getHash()] = cpt;
+                    if (cpt->getItem() != GLSS_NULLITEM) hashtable[cpt->getHash()] = cpt;
                 } else cpt->getPrev()->setNext(cpt);
 
                 if (cpt->getNext()) cpt->getNext()->setPrev(cpt);
@@ -116,14 +115,14 @@ private:
     }
 
 public:
-    LazySpaceSaving(double fPhi) {
+    GeneralLazySS(double fPhi) {
         int k = 1 + (int) 1.0 / fPhi;
         _size = (1 + k) | 1;
-        hashsize = LCL_HASHMULT * _size;
-        hashtable = (Counter **) new Counter *[hashsize];
-        std::memset(hashtable, 0, sizeof(Counter *) * hashsize);
-        counters = (Counter *) new Counter[1 + _size];
-        std::memset(counters, 0, sizeof(Counter) * (1 + _size));
+        hashsize = GLSS_HASHMULT * _size;
+        hashtable = (Item<IT> **) new Item<IT> *[hashsize];
+        std::memset(hashtable, 0, sizeof(Item<IT> *) * hashsize);
+        counters = (Item<IT> *) new Item<IT>[1 + _size];
+        std::memset(counters, 0, sizeof(Item<IT>) * (1 + _size));
 
         hasha = 151261303;
         hashb = 6722461;
@@ -132,13 +131,13 @@ public:
         for (int i = 0; i <= _size; i++) {
             counters[i].setNext(nullptr);
             counters[i].setPrev(nullptr);
-            counters[i].setitem(LCL_NULLITEM);
+            counters[i].setitem(GLSS_NULLITEM);
         }
 
         root = &counters[1];
     }
 
-    ~LazySpaceSaving() {
+    ~GeneralLazySS() {
         delete[] hashtable;
         delete[] counters;
     }
@@ -152,12 +151,12 @@ public:
     }
 
     int size() {
-        return sizeof(LazySpaceSaving) + hashsize * sizeof(int) + _size * sizeof(Counter);
+        return sizeof(GeneralLazySS) + hashsize * sizeof(int) + _size * sizeof(Item<IT>);
     }
 
     void put(int item, int value = 1) {
         int hashval;
-        Counter *hashptr;
+        Item<IT> *hashptr;
 
         n += value;
         counters->setitem(0);
@@ -189,9 +188,9 @@ public:
         Heapify(1);
     }
 
-    Counter *find(int item) {
+    Item<IT> *find(int item) {
         int hashval = (int) hash31(hasha, hashb, item) % hashsize;
-        Counter *hashptr = hashtable[hashval];
+        Item<IT> *hashptr = hashtable[hashval];
         while (hashptr) {
             if (hashptr->getItem() == item) break;
             else hashptr = hashptr->getNext();
@@ -199,18 +198,18 @@ public:
         return hashptr;
     }
 
-    Counter *output(bool sorting = false) {
-        if (sorting) std::sort(counters + 1, counters + _size, comp);
+    Item<IT> *output(bool sorting = false) {
+        if (sorting) std::sort(counters + 1, counters + _size, Item<IT>::comp);
         return counters;
     }
 
-    Counter *merge(LazySpaceSaving &lss, bool overwrite = false) {
+    Item<IT> *merge(GeneralLazySS &lss, bool overwrite = false) {
         assert(lss.volume() == _size);
-        Counter *merged = counters;
-        if (!overwrite) merged = new Counter[_size];
-        std::sort(counters + 1, counters + _size, comp);
+        Item<IT> *merged = counters;
+        if (!overwrite) merged = new Item<IT>[_size];
+        std::sort(counters + 1, counters + _size, Item<IT>::comp);
         for (int i = 0; i < _size; i++) {
-            Counter *cptr = lss.find(counters[i].getItem());
+            Item<IT> *cptr = lss.find(counters[i].getItem());
             if (cptr != nullptr) {
                 merged[i].setitem(counters[i].getItem());
                 merged[i].setCount(counters[i].getCount() + cptr->getCount());
@@ -225,4 +224,4 @@ public:
     }
 };
 
-#endif //HASHCOMP_LAZYSPACESAVING_H
+#endif //HASHCOMP_GENERALLAZYSPACESAVING_H

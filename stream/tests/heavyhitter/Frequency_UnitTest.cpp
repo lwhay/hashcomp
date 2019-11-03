@@ -2,9 +2,9 @@
 // Created by Michael on 10/28/2019.
 //
 
-#include "../../src/heavyhitter/SpaceSaving.h"
-#include "../../src/cfrequent/Frequency.h"
-#include "../../src/heavyhitter/Frequent.h"
+#include "SpaceSaving.h"
+#include "Frequency.h"
+#include "Frequent.h"
 #include "gtest/gtest.h"
 
 using namespace std;
