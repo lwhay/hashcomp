@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
     for (uint64_t key : ids) {
         glss.put(key, 1);
     }
-    cout << "GLSS: " << tracer.getRunTime() << " size: " << counters32.size();
+    cout << "GLSS: " << tracer.getRunTime() << " size: " << counters.size();
 
     Item<uint64_t> *items = glss.output(true);
     size = (counters.size() < 100) ? counters.size() : 100;
