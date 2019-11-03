@@ -9,6 +9,14 @@
 #include "../../src/heavyhitter/LazySpaceSaving.h"
 #include "../../src/heavyhitter/GeneralLazySS.h"
 
+#define PERMUTATION false
+
+#if PERMUTATION
+
+#include <unordered_map>
+
+#endif
+
 using namespace std;
 
 uint64_t watch = (1 << 24);
@@ -17,13 +25,26 @@ template<typename IT>
 void funcCall() {
     uint64_t max = ((uint64_t) std::numeric_limits<IT>::max() <= (1LLU << 48))
                    ? (uint64_t) std::numeric_limits<IT>::max() : (1LLU << 48);
-    zipf_distribution<IT> gen(max, 1.5);
+    zipf_distribution<IT> gen(max, 1.0);
     std::mt19937 mt;
     vector<IT> keys;
     Tracer tracer;
     tracer.startTime();
+#if PERMUTATION
+    unordered_map<IT, IT> keymap;
+    for (int i = 0; i < 10000; i++) {
+        IT key = (IT) rand();
+        if (key != (IT) 0) keymap.insert(make_pair((IT) i, key));
+    }
+#endif
     for (int i = 0; i < watch; i++) {
+#if PERMUTATION
+        IT key = gen(mt);
+        if (keymap.find(key) != keymap.end()) keys.push_back(keymap.find(key)->second);
+        else keys.push_back(key);
+#else
         keys.push_back(gen(mt));
+#endif
     }
     cout << tracer.getRunTime() << " with " << keys.size() << endl;
     for (int i = 0; i < 10; i++) {
