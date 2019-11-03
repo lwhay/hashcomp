@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
                 std::strcpy(line, fields[0].c_str());
                 std::strcpy(line + fields[0].size(), fields[1].c_str());
                 hash = CityHash64(line, std::strlen(line));
-                cout << fields[0] << " " << fields[1] << " " << line << " " << hash << endl;
+                //cout << fields[0] << " " << fields[1] << " " << line << " " << hash << endl;
                 break;
             }
             default:
