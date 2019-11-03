@@ -126,9 +126,11 @@ public:
         counters = (Item<IT> *) new Item<IT>[1 + _size];
         std::memset(counters, 0, sizeof(Item<IT>) * (1 + _size));
 
-        srand(time(NULL));
+        /*srand(time(NULL));
         hasha = (IT) lrand48();
-        hashb = (IT) lrand48();
+        hashb = (IT) lrand48();*/
+        hasha = (IT) (151261303 % std::numeric_limits<IT>::max());
+        hashb = (IT) (6722461 % std::numeric_limits<IT>::max());
         n = 0;
 
         for (int i = 0; i <= _size; i++) {
