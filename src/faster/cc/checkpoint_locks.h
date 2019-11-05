@@ -92,9 +92,7 @@ public:
     }
 
 private:
-    union {
-        std::atomic<uint64_t> control_;
-    };
+    std::atomic<uint64_t> control_;
 };
 
 static_assert(sizeof(AtomicCheckpointLock) == 8, "sizeof(AtomicCheckpointLock) != 8");
@@ -119,8 +117,7 @@ public:
         }
         size_ = size;
         locks_ = reinterpret_cast<AtomicCheckpointLock *>(faster_aligned_alloc(Constants::kCacheLineBytes,
-                                                                               size_ *
-                                                                               sizeof(AtomicCheckpointLock)));
+                                                                               size_ * sizeof(AtomicCheckpointLock)));
         std::memset(locks_, 0, size_ * sizeof(AtomicCheckpointLock));
     }
 
@@ -128,9 +125,9 @@ public:
         assert(locks_);
 #ifdef _DEBUG
         for(uint64_t idx = 0; idx < size_; ++idx) {
-          assert(!locks_[idx].old_locked());
-          assert(!locks_[idx].new_locked());
-        }
+      assert(!locks_[idx].old_locked());
+      assert(!locks_[idx].new_locked());
+    }
 #endif
         faster_aligned_free(locks_);
         size_ = 0;

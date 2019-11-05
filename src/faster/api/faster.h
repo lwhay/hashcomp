@@ -44,7 +44,6 @@ using namespace FASTER::core;
 using namespace FASTER::io;
 
 /// The FASTER key-value store, and related classes.
-
 namespace FASTER {
 namespace api {
 
@@ -104,9 +103,10 @@ public:
     typedef AsyncPendingDeleteContext<key_t> async_pending_delete_context_t;
     typedef AsyncPendingRmwContext<key_t> async_pending_rmw_context_t;
 
-    FasterKv(uint64_t table_size, uint64_t log_size, const std::string &filename, double log_mutable_fraction = 0.9)
+    FasterKv(uint64_t table_size, uint64_t log_size, const std::string &filename, double log_mutable_fraction = 0.9,
+             bool pre_allocate_log = false)
             : min_table_size_{table_size}, disk{filename, epoch_},
-              hlog{log_size, epoch_, disk, disk.log(), log_mutable_fraction},
+              hlog{log_size, epoch_, disk, disk.log(), log_mutable_fraction, pre_allocate_log},
               system_state_{Action::None, Phase::REST, 1}, num_pending_ios{0} {
         if (!Utility::IsPowerOfTwo(table_size)) {
             throw std::invalid_argument{" Size is not a power of 2"};
@@ -144,7 +144,7 @@ public:
     inline Status Rmw(MC &context, AsyncCallback callback, uint64_t monotonic_serial_num);
 
     template<class DC>
-    inline Status Delete(DC &context, AsyncCallback callback, uint64_t lsn);
+    inline Status Delete(DC &context, AsyncCallback callback, uint64_t monotonic_serial_num);
 
     inline bool CompletePending(bool wait = false);
 
@@ -204,12 +204,13 @@ private:
     OperationStatus InternalContinuePendingRmw(ExecutionContext &ctx, AsyncIOContext &io_context);
 
     // Find the hash bucket entry, if any, corresponding to the specified hash.
-    inline const AtomicHashBucketEntry *FindEntry(KeyHash hash) const;
+    // The caller can use the "expected_entry" to CAS its desired address into the entry.
+    inline const AtomicHashBucketEntry *FindEntry(KeyHash hash, HashBucketEntry &expected_entry) const;
 
     // If a hash bucket entry corresponding to the specified hash exists, return it; otherwise,
     // create a new entry. The caller can use the "expected_entry" to CAS its desired address into
     // the entry.
-    inline AtomicHashBucketEntry *FindOrCreateEntry(KeyHash hash, HashBucketEntry &expected_entry, HashBucket *&bucket);
+    inline AtomicHashBucketEntry *FindOrCreateEntry(KeyHash hash, HashBucketEntry &expected_entry);
 
     inline Address TraceBackForKeyMatch(const key_t &key, Address from_address, Address min_offset) const;
 
@@ -411,7 +412,9 @@ inline void FasterKv<K, V, D>::StopSession() {
 }
 
 template<class K, class V, class D>
-inline const AtomicHashBucketEntry *FasterKv<K, V, D>::FindEntry(KeyHash hash) const {
+inline const AtomicHashBucketEntry *FasterKv<K, V, D>::FindEntry(KeyHash hash,
+                                                                 HashBucketEntry &expected_entry) const {
+    expected_entry = HashBucketEntry::kInvalidEntry;
     // Truncate the hash to get a bucket page_index < state[version].size.
     uint32_t version = resize_info_.version;
     const HashBucket *bucket = &state_[version].bucket(hash);
@@ -430,6 +433,7 @@ inline const AtomicHashBucketEntry *FasterKv<K, V, D>::FindEntry(KeyHash hash) c
                 // log_2(table size) address bits.)
                 if (!entry.tentative()) {
                     // If (final key, return immediately)
+                    expected_entry = entry;
                     return &bucket->entries[entry_idx];
                 }
             }
@@ -535,15 +539,13 @@ bool FasterKv<K, V, D>::HasConflictingEntry(KeyHash hash, const HashBucket *buck
 }
 
 template<class K, class V, class D>
-inline AtomicHashBucketEntry *
-FasterKv<K, V, D>::FindOrCreateEntry(KeyHash hash, HashBucketEntry &expected_entry, HashBucket *&bucket) {
-    bucket = nullptr;
+inline AtomicHashBucketEntry *FasterKv<K, V, D>::FindOrCreateEntry(KeyHash hash, HashBucketEntry &expected_entry) {
     // Truncate the hash to get a bucket page_index < state[version].size.
-    uint32_t version = resize_info_.version;
+    const uint32_t version = resize_info_.version;
     assert(version <= 1);
 
     while (true) {
-        bucket = &state_[version].bucket(hash);
+        HashBucket *bucket = &state_[version].bucket(hash);
         assert(reinterpret_cast<size_t>(bucket) % Constants::kCacheLineBytes == 0);
 
         AtomicHashBucketEntry *atomic_entry = FindTentativeEntry(hash, bucket, version, expected_entry);
@@ -649,25 +651,26 @@ inline Status FasterKv<K, V, D>::Rmw(MC &context, AsyncCallback callback, uint64
 
 template<class K, class V, class D>
 template<class DC>
-inline Status FasterKv<K, V, D>::Delete(DC &context, AsyncCallback callback, uint64_t lsn) {
+inline Status FasterKv<K, V, D>::Delete(DC &context, AsyncCallback callback, uint64_t monotonic_serial_num) {
     typedef DC delete_context_t;
     typedef PendingDeleteContext<DC> pending_delete_context_t;
     static_assert(std::is_base_of<value_t, typename delete_context_t::value_t>::value,
                   "value_t is not a base class of delete_context_t::value_t");
     static_assert(alignof(value_t) == alignof(typename delete_context_t::value_t),
-                  "alignof(value) != (typename delete_context_t::value_t");
+                  "alignof(value_t) != alignof(typename delete_context_t::value_t)");
 
-    pending_delete_context_t pending_context(context, callback);
+    pending_delete_context_t pending_context{context, callback};
     OperationStatus internal_status = InternalDelete(pending_context);
     Status status;
-
     if (internal_status == OperationStatus::SUCCESS) {
         status = Status::Ok;
+    } else if (internal_status == OperationStatus::NOT_FOUND) {
+        status = Status::NotFound;
     } else {
         bool async;
         status = HandleOperationStatus(thread_ctx(), pending_context, internal_status, async);
     }
-    thread_ctx().serial_num = lsn;
+    thread_ctx().serial_num = monotonic_serial_num;
     return status;
 }
 
@@ -784,13 +787,13 @@ inline OperationStatus FasterKv<K, V, D>::InternalRead(C &pending_context) const
 
     const key_t &key = pending_context.key();
     KeyHash hash = key.GetHash();
-    const AtomicHashBucketEntry *atomic_entry = FindEntry(hash);
+    HashBucketEntry entry;
+    const AtomicHashBucketEntry *atomic_entry = FindEntry(hash, entry);
     if (!atomic_entry) {
         // no record found
         return OperationStatus::NOT_FOUND;
     }
 
-    HashBucketEntry entry = atomic_entry->load();
     Address address = entry.address();
     Address begin_address = hlog.begin_address.load();
     Address head_address = hlog.head_address.load();
@@ -825,11 +828,17 @@ inline OperationStatus FasterKv<K, V, D>::InternalRead(C &pending_context) const
     if (address >= safe_read_only_address) {
         // Mutable or fuzzy region
         // concurrent read
+        if (reinterpret_cast<const record_t *>(hlog.Get(address))->header.tombstone) {
+            return OperationStatus::NOT_FOUND;
+        }
         pending_context.GetAtomic(hlog.Get(address));
         return OperationStatus::SUCCESS;
     } else if (address >= head_address) {
         // Immutable region
         // single-thread read
+        if (reinterpret_cast<const record_t *>(hlog.Get(address))->header.tombstone) {
+            return OperationStatus::NOT_FOUND;
+        }
         pending_context.Get(hlog.Get(address));
         return OperationStatus::SUCCESS;
     } else if (address >= begin_address) {
@@ -854,8 +863,7 @@ inline OperationStatus FasterKv<K, V, D>::InternalUpsert(C &pending_context) {
     const key_t &key = pending_context.key();
     KeyHash hash = key.GetHash();
     HashBucketEntry expected_entry;
-    HashBucket *bucket;
-    AtomicHashBucketEntry *atomic_entry = FindOrCreateEntry(hash, expected_entry, bucket);
+    AtomicHashBucketEntry *atomic_entry = FindOrCreateEntry(hash, expected_entry);
 
     // (Note that address will be Address::kInvalidAddress, if the atomic_entry was created.)
     Address address = expected_entry.address();
@@ -878,7 +886,7 @@ inline OperationStatus FasterKv<K, V, D>::InternalUpsert(C &pending_context) {
     // The common case
     if (thread_ctx().phase == Phase::REST && address >= read_only_address) {
         record_t *record = reinterpret_cast<record_t *>(hlog.Get(address));
-        if (pending_context.PutAtomic(record)) {
+        if (!record->header.tombstone && pending_context.PutAtomic(record)) {
             return OperationStatus::SUCCESS;
         } else {
             // Must retry as RCU.
@@ -943,9 +951,9 @@ inline OperationStatus FasterKv<K, V, D>::InternalUpsert(C &pending_context) {
             // Some other thread may have RCUed the record before we locked it; try again.
             return OperationStatus::RETRY_NOW;
         }
-        // We acquired the necessary locks, so so we can update the record's bucket atomically.
+        // We acquired the necessary locks, so we can update the record's bucket atomically.
         record_t *record = reinterpret_cast<record_t *>(hlog.Get(address));
-        if (pending_context.PutAtomic(record)) {
+        if (!record->header.tombstone && pending_context.PutAtomic(record)) {
             // Host successfully replaced record, atomically.
             return OperationStatus::SUCCESS;
         } else {
@@ -993,8 +1001,7 @@ inline OperationStatus FasterKv<K, V, D>::InternalRmw(C &pending_context, bool r
     const key_t &key = pending_context.key();
     KeyHash hash = key.GetHash();
     HashBucketEntry expected_entry;
-    HashBucket *bucket;
-    AtomicHashBucketEntry *atomic_entry = FindOrCreateEntry(hash, expected_entry, bucket);
+    AtomicHashBucketEntry *atomic_entry = FindOrCreateEntry(hash, expected_entry);
 
     // (Note that address will be Address::kInvalidAddress, if the atomic_entry was created.)
     Address address = expected_entry.address();
@@ -1019,7 +1026,7 @@ inline OperationStatus FasterKv<K, V, D>::InternalRmw(C &pending_context, bool r
     // The common case.
     if (phase == Phase::REST && address >= read_only_address) {
         record_t *record = reinterpret_cast<record_t *>(hlog.Get(address));
-        if (pending_context.RmwAtomic(record)) {
+        if (!record->header.tombstone && pending_context.RmwAtomic(record)) {
             // In-place RMW succeeded.
             return OperationStatus::SUCCESS;
         } else {
@@ -1100,14 +1107,15 @@ inline OperationStatus FasterKv<K, V, D>::InternalRmw(C &pending_context, bool r
         }
         // We acquired the necessary locks, so so we can update the record's bucket atomically.
         record_t *record = reinterpret_cast<record_t *>(hlog.Get(address));
-        if (pending_context.RmwAtomic(record)) {
+        if (!record->header.tombstone && pending_context.RmwAtomic(record)) {
             // In-place RMW succeeded.
             return OperationStatus::SUCCESS;
         } else {
             // Must retry as RCU.
             goto create_record;
         }
-    } else if (address >= safe_read_only_address) {
+    } else if (address >= safe_read_only_address &&
+               !reinterpret_cast<record_t *>(hlog.Get(address))->header.tombstone) {
         // Fuzzy Region: Must go pending due to lost-update anomaly
         if (!retrying) {
             pending_context.go_async(phase, version, address, expected_entry);
@@ -1132,7 +1140,17 @@ inline OperationStatus FasterKv<K, V, D>::InternalRmw(C &pending_context, bool r
 
     // Create a record and attempt RCU.
     create_record:
-    uint32_t record_size = record_t::size(key, pending_context.value_size());
+    const record_t *old_record = nullptr;
+    if (address >= head_address) {
+        old_record = reinterpret_cast<const record_t *>(hlog.Get(address));
+        if (old_record->header.tombstone) {
+            old_record = nullptr;
+        }
+    }
+    uint32_t record_size = old_record != nullptr ?
+                           record_t::size(key, pending_context.value_size(old_record)) :
+                           record_t::size(key, pending_context.value_size());
+
     Address new_address = BlockAllocate(record_size);
     record_t *new_record = reinterpret_cast<record_t *>(hlog.Get(new_address));
 
@@ -1150,10 +1168,9 @@ inline OperationStatus FasterKv<K, V, D>::InternalRmw(C &pending_context, bool r
                     static_cast<uint16_t>(version), true, false, false,
                     expected_entry.address()},
             key};
-    if (address < hlog.begin_address.load()) {
+    if (old_record == nullptr || address < hlog.begin_address.load()) {
         pending_context.RmwInitial(new_record);
     } else if (address >= head_address) {
-        const record_t *old_record = reinterpret_cast<const record_t *>(hlog.Get(address));
         pending_context.RmwCopy(old_record, new_record);
     } else {
         // The block we allocated for the new record caused the head address to advance beyond
@@ -1183,73 +1200,92 @@ inline OperationStatus FasterKv<K, V, D>::InternalRmw(C &pending_context, bool r
 }
 
 template<class K, class V, class D>
+inline OperationStatus FasterKv<K, V, D>::InternalRetryPendingRmw(
+        async_pending_rmw_context_t &pending_context) {
+    OperationStatus status = InternalRmw(pending_context, true);
+    if (status == OperationStatus::SUCCESS && pending_context.version != thread_ctx().version) {
+        status = OperationStatus::SUCCESS_UNMARK;
+    }
+    return status;
+}
+
+template<class K, class V, class D>
 template<class C>
 inline OperationStatus FasterKv<K, V, D>::InternalDelete(C &pending_context) {
     typedef C pending_delete_context_t;
 
     if (thread_ctx().phase != Phase::REST) {
-        const_cast<faster_t *>(this)->HeavyEnter();
+        HeavyEnter();
     }
 
     const key_t &key = pending_context.key();
-    HashBucketEntry expected_entry;
     KeyHash hash = key.GetHash();
-    HashBucket *bucket;
-    AtomicHashBucketEntry *atomic_entry = FindOrCreateEntry(hash, expected_entry, bucket);
-
+    HashBucketEntry expected_entry;
+    AtomicHashBucketEntry *atomic_entry = const_cast<AtomicHashBucketEntry *>(FindEntry(hash, expected_entry));
     if (!atomic_entry) {
+        // no record found
         return OperationStatus::NOT_FOUND;
     }
 
     Address address = expected_entry.address();
-    Address begin_address = hlog.begin_address.load();
     Address head_address = hlog.head_address.load();
-    Address safe_read_only_address = hlog.safe_read_only_address.load();
     Address read_only_address = hlog.read_only_address.load();
+    Address begin_address = hlog.begin_address.load();
     uint64_t latest_record_version = 0;
 
     if (address >= head_address) {
-        record_t *record = reinterpret_cast<record_t *> (hlog.Get(address));
+        const record_t *record = reinterpret_cast<const record_t *>(hlog.Get(address));
         latest_record_version = record->header.checkpoint_version;
         if (key != record->key()) {
             address = TraceBackForKeyMatch(key, record->header.previous_address(), head_address);
         }
     }
 
-    CheckpointLockGuard lock_guard(checkpoint_locks_, hash);
+    CheckpointLockGuard lock_guard{checkpoint_locks_, hash};
+
+    // NO optimization for most common case
+
+    // Acquire necessary locks.
     switch (thread_ctx().phase) {
         case Phase::PREPARE:
+            // Working on old version (v).
             if (!lock_guard.try_lock_old()) {
                 pending_context.go_async(thread_ctx().phase, thread_ctx().version, address, expected_entry);
                 return OperationStatus::CPR_SHIFT_DETECTED;
-            } else {
-                if (latest_record_version > thread_ctx().version) {
-                    pending_context.go_async(thread_ctx().phase, thread_ctx().version, address, expected_entry);
-                    return OperationStatus::CPR_SHIFT_DETECTED;
-                }
+            } else if (latest_record_version > thread_ctx().version) {
+                // CPR shift detected: we are in the "PREPARE" phase, and a record has a version later than
+                // what we've seen.
+                pending_context.go_async(thread_ctx().phase, thread_ctx().version, address, expected_entry);
+                return OperationStatus::CPR_SHIFT_DETECTED;
             }
             break;
         case Phase::IN_PROGRESS:
+            // All other threads are in phase {PREPARE,IN_PROGRESS,WAIT_PENDING}.
             if (latest_record_version < thread_ctx().version) {
+                // Will create new record or update existing record to new version (v+1).
                 if (!lock_guard.try_lock_new()) {
                     pending_context.go_async(thread_ctx().phase, thread_ctx().version, address, expected_entry);
                     return OperationStatus::RETRY_LATER;
                 } else {
+                    // Update to new version (v+1) requires RCU.
                     goto create_record;
                 }
             }
             break;
         case Phase::WAIT_PENDING:
+            // All other threads are in phase {IN_PROGRESS,WAIT_PENDING,WAIT_FLUSH}.
             if (latest_record_version < thread_ctx().version) {
                 if (lock_guard.old_locked()) {
                     pending_context.go_async(thread_ctx().phase, thread_ctx().version, address, expected_entry);
                     return OperationStatus::RETRY_LATER;
                 } else {
+                    // Update to new version (v+1) requires RCU.
                     goto create_record;
                 }
             }
             break;
         case Phase::WAIT_FLUSH:
+            // All other threads are in phase {WAIT_PENDING,WAIT_FLUSH,PERSISTENCE_CALLBACK}.
             if (latest_record_version < thread_ctx().version) {
                 goto create_record;
             }
@@ -1258,24 +1294,19 @@ inline OperationStatus FasterKv<K, V, D>::InternalDelete(C &pending_context) {
             break;
     }
 
+    // Mutable Region: Update the record in-place
     if (address >= read_only_address) {
-        record_t *record = reinterpret_cast<record_t *> (hlog.Get(address));
-        if (atomic_entry->load().address() == address &&
-            record->header.previous_address() < hlog.begin_address.load()) {
-            //atomic_entry->store(HashBucketEntry::kInvalidEntry);
-            Address address;
-            record_t *record = reinterpret_cast<record_t *> (hlog.Get(address));
-            if (record->header.previous_address() == HashBucketEntry::kInvalidEntry)
-                address = HashBucketEntry::kInvalidEntry;
-            else
-                address = record->header.previous_address();
-
-            HashBucketEntry entry(address, 0, false);
-            if (atomic_entry->compare_exchange_strong(expected_entry, entry)) {
-                return OperationStatus::SUCCESS;
+        record_t *record = reinterpret_cast<record_t *>(hlog.Get(address));
+        // If the record is the head of the hash chain, try to update the hash chain and completely
+        // elide record only if the previous address points to invalid address
+        if (expected_entry.address() == address) {
+            Address previous_address = record->header.previous_address();
+            if (previous_address < begin_address) {
+                atomic_entry->compare_exchange_strong(expected_entry, HashBucketEntry::kInvalidEntry);
             }
         }
-        return InternalDelete(pending_context);
+        record->header.tombstone = true;
+        return OperationStatus::SUCCESS;
     }
 
     create_record:
@@ -1284,10 +1315,9 @@ inline OperationStatus FasterKv<K, V, D>::InternalDelete(C &pending_context) {
     record_t *record = reinterpret_cast<record_t *>(hlog.Get(new_address));
     new(record) record_t{
             RecordInfo{
-                    static_cast<uint16_t>(thread_ctx().version), true, false, false,
+                    static_cast<uint16_t>(thread_ctx().version), true, true, false,
                     expected_entry.address()},
             key};
-    pending_context.Put(record);
 
     HashBucketEntry updated_entry{new_address, hash.tag(), false};
 
@@ -1297,17 +1327,8 @@ inline OperationStatus FasterKv<K, V, D>::InternalDelete(C &pending_context) {
     } else {
         // Try again.
         record->header.invalid = true;
-        return InternalDelete(pending_context);
+        return OperationStatus::RETRY_NOW;
     }
-}
-
-template<class K, class V, class D>
-inline OperationStatus FasterKv<K, V, D>::InternalRetryPendingRmw(async_pending_rmw_context_t &pending_context) {
-    OperationStatus status = InternalRmw(pending_context, true);
-    if (status == OperationStatus::SUCCESS && pending_context.version != thread_ctx().version) {
-        status = OperationStatus::SUCCESS_UNMARK;
-    }
-    return status;
 }
 
 template<class K, class V, class D>
@@ -1356,6 +1377,8 @@ inline Status FasterKv<K, V, D>::HandleOperationStatus(ExecutionContext &ctx, pe
 
             if (internal_status == OperationStatus::SUCCESS) {
                 return Status::Ok;
+            } else if (internal_status == OperationStatus::NOT_FOUND) {
+                return Status::NotFound;
             } else {
                 return HandleOperationStatus(ctx, pending_context, internal_status, async);
             }
@@ -1529,6 +1552,10 @@ OperationStatus FasterKv<K, V, D>::InternalContinuePendingRead(ExecutionContext 
         async_pending_read_context_t *pending_context = static_cast<async_pending_read_context_t *>(
                 io_context.caller_context);
         record_t *record = reinterpret_cast<record_t *>(io_context.record.GetValidPointer());
+        if (record->header.tombstone) {
+            return (thread_ctx().version > context.version) ? OperationStatus::NOT_FOUND_UNMARK
+                                                            : OperationStatus::NOT_FOUND;
+        }
         pending_context->Get(record);
         assert(!kCopyReadsToTail);
         return (thread_ctx().version > context.version) ? OperationStatus::SUCCESS_UNMARK : OperationStatus::SUCCESS;
@@ -1546,8 +1573,7 @@ OperationStatus FasterKv<K, V, D>::InternalContinuePendingRmw(ExecutionContext &
     const key_t &key = pending_context->key();
     KeyHash hash = key.GetHash();
     HashBucketEntry expected_entry;
-    HashBucket *bucket;
-    AtomicHashBucketEntry *atomic_entry = FindOrCreateEntry(hash, expected_entry, bucket);
+    AtomicHashBucketEntry *atomic_entry = FindOrCreateEntry(hash, expected_entry);
 
     // (Note that address will be Address::kInvalidAddress, if the atomic_entry was created.)
     Address address = expected_entry.address();
@@ -1569,21 +1595,32 @@ OperationStatus FasterKv<K, V, D>::InternalContinuePendingRmw(ExecutionContext &
     assert(address < hlog.begin_address.load() || address == pending_context->entry.address());
 
     // We have to do copy-on-write/RCU and write the updated value to the tail of the log.
-    uint32_t record_size = record_t::size(key, pending_context->value_size());
-    Address new_address = BlockAllocate(record_size);
-    record_t *new_record = reinterpret_cast<record_t *>(hlog.Get(new_address));
-
-    new(new_record) record_t{
-            RecordInfo{
-                    static_cast<uint16_t>(context.version), true, false, false,
-                    expected_entry.address()},
-            key};
+    Address new_address;
+    record_t *new_record;
     if (io_context.address < hlog.begin_address.load()) {
         // The on-disk trace back failed to find a key match.
+        uint32_t record_size = record_t::size(key, pending_context->value_size());
+        new_address = BlockAllocate(record_size);
+        new_record = reinterpret_cast<record_t *>(hlog.Get(new_address));
+
+        new(new_record) record_t{
+                RecordInfo{
+                        static_cast<uint16_t>(context.version), true, false, false,
+                        expected_entry.address()},
+                key};
         pending_context->RmwInitial(new_record);
     } else {
         // The record we read from disk.
         const record_t *disk_record = reinterpret_cast<const record_t *>(io_context.record.GetValidPointer());
+        uint32_t record_size = record_t::size(key, pending_context->value_size(disk_record));
+        new_address = BlockAllocate(record_size);
+        new_record = reinterpret_cast<record_t *>(hlog.Get(new_address));
+
+        new(new_record) record_t{
+                RecordInfo{
+                        static_cast<uint16_t>(context.version), true, false, false,
+                        expected_entry.address()},
+                key};
         pending_context->RmwCopy(disk_record, new_record);
     }
 
@@ -1999,8 +2036,7 @@ Status FasterKv<K, V, D>::RecoverFromPage(Address from_address, Address to_addre
         const key_t &key = record->key();
         KeyHash hash = key.GetHash();
         HashBucketEntry expected_entry;
-        HashBucket *bucket;
-        AtomicHashBucketEntry *atomic_entry = FindOrCreateEntry(hash, expected_entry, bucket);
+        AtomicHashBucketEntry *atomic_entry = FindOrCreateEntry(hash, expected_entry);
 
         if (record->header.checkpoint_version <= checkpoint_.log_metadata.version) {
             HashBucketEntry new_entry{address, hash.tag(), false};
@@ -2110,7 +2146,8 @@ bool FasterKv<K, V, D>::CleanHashTableBuckets() {
 }
 
 template<class K, class V, class D>
-void FasterKv<K, V, D>::AddHashEntry(HashBucket *&bucket, uint32_t &next_idx, uint8_t version, HashBucketEntry entry) {
+void FasterKv<K, V, D>::AddHashEntry(HashBucket *&bucket, uint32_t &next_idx, uint8_t version,
+                                     HashBucketEntry entry) {
     if (next_idx == HashBucket::kNumEntries) {
         // Need to allocate a new bucket, first.
         FixedPageAddress new_bucket_addr = overflow_buckets_allocator_[version].Allocate();
@@ -2124,8 +2161,8 @@ void FasterKv<K, V, D>::AddHashEntry(HashBucket *&bucket, uint32_t &next_idx, ui
 }
 
 template<class K, class V, class D>
-Address FasterKv<K, V, D>::TraceBackForOtherChainStart(uint64_t old_size, uint64_t new_size, Address from_address,
-                                                       Address min_address, uint8_t side) {
+Address FasterKv<K, V, D>::TraceBackForOtherChainStart(uint64_t old_size, uint64_t new_size,
+                                                       Address from_address, Address min_address, uint8_t side) {
     assert(side == 0 || side == 1);
     // Search back as far as min_address.
     while (from_address >= min_address) {
@@ -2724,12 +2761,11 @@ bool FasterKv<K, V, D>::CheckpointHybridLog(void(*hybrid_log_persistence_callbac
     disk.CreateCprCheckpointDirectory(token);
     // Obtain tail address for fuzzy index checkpoint
     if (!fold_over_snapshot) {
-        checkpoint_.InitializeHybridLogCheckpoint(token, desired.version, true,
-                                                  hlog.flushed_until_address.load(),
+        checkpoint_.InitializeHybridLogCheckpoint(token, desired.version, true, hlog.flushed_until_address.load(),
                                                   hybrid_log_persistence_callback);
     } else {
-        checkpoint_.InitializeHybridLogCheckpoint(token, desired.version, false,
-                                                  Address::kInvalidAddress, hybrid_log_persistence_callback);
+        checkpoint_.InitializeHybridLogCheckpoint(token, desired.version, false, Address::kInvalidAddress,
+                                                  hybrid_log_persistence_callback);
     }
     InitializeCheckpointLocks();
     // Let other threads know that the checkpoint has started.

@@ -283,7 +283,11 @@ public:
     /// in-place update.
     virtual bool RmwAtomic(void *rec) = 0;
 
+    /// Get value size for initial value or in-place update
     virtual uint32_t value_size() const = 0;
+
+    /// Get value size for RCU
+    virtual uint32_t value_size(const void *old_rec) const = 0;
 };
 
 /// A synchronous Rmw() context preserves its type information.
@@ -344,8 +348,15 @@ public:
         return rmw_context().RmwAtomic(record->value());
     }
 
+    /// Get value size for initial value or in-place update
     inline constexpr uint32_t value_size() const final {
         return rmw_context().value_size();
+    }
+
+    /// Get value size for RCU
+    inline constexpr uint32_t value_size(const void *old_rec) const final {
+        const record_t *old_record = reinterpret_cast<const record_t *>(old_rec);
+        return rmw_context().value_size(old_record->value());
     }
 };
 
@@ -355,7 +366,7 @@ public:
     typedef K key_t;
 protected:
     AsyncPendingDeleteContext(IAsyncContext &caller_context_, AsyncCallback caller_callback_)
-            : PendingContext<key_t>(OperationType::Upsert, caller_context_, caller_callback_) {
+            : PendingContext<key_t>(OperationType::Delete, caller_context_, caller_callback_) {
     }
 
     /// The deep copy constructor.
@@ -364,8 +375,7 @@ protected:
     }
 
 public:
-    virtual void Put(void *rec) = 0;
-
+    /// Get value size for initial value
     virtual uint32_t value_size() const = 0;
 };
 
@@ -381,6 +391,7 @@ public:
             : AsyncPendingDeleteContext<key_t>(caller_context_, caller_callback_) {
     }
 
+    /// The deep copy constructor.
     PendingDeleteContext(PendingDeleteContext &other, IAsyncContext *caller_context_)
             : AsyncPendingDeleteContext<key_t>(other, caller_context_) {
     }
@@ -391,26 +402,23 @@ protected:
     }
 
 private:
-    inline const delete_context_t &delete_context() const {
+    const delete_context_t &delete_context() const {
         return *static_cast<const delete_context_t *>(PendingContext<key_t>::caller_context);
     }
 
-    inline delete_context_t &delete_context() {
+    delete_context_t &delete_context() {
         return *static_cast<delete_context_t *>(PendingContext<key_t>::caller_context);
     }
 
 public:
+    /// Accessors.
     inline const key_t &key() const final {
         return delete_context().key();
     }
 
-    inline constexpr uint32_t value_size() const final {
+    /// Get value size for initial value
+    inline uint32_t value_size() const final {
         return delete_context().value_size();
-    }
-
-    inline void Put(void *rec) final {
-        record_t *record = reinterpret_cast<record_t *>(rec);
-        delete_context().Put(record->value());
     }
 };
 

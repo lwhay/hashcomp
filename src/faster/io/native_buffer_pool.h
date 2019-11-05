@@ -175,8 +175,7 @@ inline SectorAlignedMemory NativeSectorAlignedBufferPool::Get(uint32_t numRecord
     if (queue_[level].try_pop(buffer)) {
         return SectorAlignedMemory{buffer, level, this};
     } else {
-        uint8_t *buffer = reinterpret_cast<uint8_t *>(faster_aligned_alloc(sector_size_,
-                                                                           sector_size_ * (1 << level)));
+        uint8_t *buffer = reinterpret_cast<uint8_t *>(aligned_alloc(sector_size_, sector_size_ * (1 << level)));
         return SectorAlignedMemory{buffer, level, this};
     }
 }

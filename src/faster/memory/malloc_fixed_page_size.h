@@ -217,7 +217,7 @@ public:
 
     inline page_t *AddPage(uint64_t page_idx) {
         assert(page_idx < size);
-        void *buffer = faster_aligned_alloc(alignment, sizeof(page_t));
+        void *buffer = aligned_alloc(alignment, sizeof(page_t));
         page_t *new_page = new(buffer) page_t{};
         page_t *expected = nullptr;
         if (pages()[page_idx].compare_exchange_strong(expected, new_page, std::memory_order_release)) {

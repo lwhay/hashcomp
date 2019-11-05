@@ -10,6 +10,7 @@
 
 #include "faster.h"
 #include "null_disk.h"
+#include "basickvtypes.h"
 
 using namespace FASTER::api;
 using namespace FASTER::io;
@@ -1208,61 +1209,8 @@ TEST(InMemFaster, UpsertRead_ResizeValue_Concurrent) {
 }
 
 TEST(InMemFaster, Rmw) {
-    class Key {
-    public:
-        Key(uint64_t key)
-                : key_{key} {
-        }
-
-        inline static constexpr uint32_t size() {
-            return static_cast<uint32_t>(sizeof(Key));
-        }
-
-        inline KeyHash GetHash() const {
-            std::hash<uint64_t> hash_fn;
-            return KeyHash{hash_fn(key_)};
-        }
-
-        /// Comparison operators.
-        inline bool operator==(const Key &other) const {
-            return key_ == other.key_;
-        }
-
-        inline bool operator!=(const Key &other) const {
-            return key_ != other.key_;
-        }
-
-    private:
-        uint64_t key_;
-    };
-
-    class RmwContext;
-    class ReadContext;
-
-    class Value {
-    public:
-        Value()
-                : value_{0} {
-        }
-
-        Value(const Value &other)
-                : value_{other.value_} {
-        }
-
-        inline static constexpr uint32_t size() {
-            return static_cast<uint32_t>(sizeof(Value));
-        }
-
-        friend class RmwContext;
-
-        friend class ReadContext;
-
-    private:
-        union {
-            int32_t value_;
-            std::atomic<int32_t> atomic_value_;
-        };
-    };
+    using Key = FixedSizeKey<uint64_t>;
+    using Value = SimpleAtomicValue<uint32_t>;
 
     class RmwContext : public IAsyncContext {
     public:
@@ -1292,15 +1240,15 @@ TEST(InMemFaster, Rmw) {
         }
 
         inline void RmwInitial(Value &value) {
-            value.value_ = incr_;
+            value.value = incr_;
         }
 
         inline void RmwCopy(const Value &old_value, Value &value) {
-            value.value_ = old_value.value_ + incr_;
+            value.value = old_value.value + incr_;
         }
 
         inline bool RmwAtomic(Value &value) {
-            value.atomic_value_.fetch_add(incr_);
+            value.atomic_value.fetch_add(incr_);
             return true;
         }
 
@@ -1340,7 +1288,7 @@ TEST(InMemFaster, Rmw) {
         }
 
         inline void GetAtomic(const Value &value) {
-            output = value.atomic_value_.load();
+            output = value.atomic_value.load();
         }
 
     protected:
@@ -1408,61 +1356,8 @@ TEST(InMemFaster, Rmw) {
 }
 
 TEST(InMemFaster, Rmw_Concurrent) {
-    class Key {
-    public:
-        Key(uint64_t key)
-                : key_{key} {
-        }
-
-        inline static constexpr uint32_t size() {
-            return static_cast<uint32_t>(sizeof(Key));
-        }
-
-        inline KeyHash GetHash() const {
-            std::hash<uint64_t> hash_fn;
-            return KeyHash{hash_fn(key_)};
-        }
-
-        /// Comparison operators.
-        inline bool operator==(const Key &other) const {
-            return key_ == other.key_;
-        }
-
-        inline bool operator!=(const Key &other) const {
-            return key_ != other.key_;
-        }
-
-    private:
-        uint64_t key_;
-    };
-
-    class RmwContext;
-    class ReadContext;
-
-    class Value {
-    public:
-        Value()
-                : value_{0} {
-        }
-
-        Value(const Value &other)
-                : value_{other.value_} {
-        }
-
-        inline static constexpr uint32_t size() {
-            return static_cast<uint32_t>(sizeof(Value));
-        }
-
-        friend class RmwContext;
-
-        friend class ReadContext;
-
-    private:
-        union {
-            int64_t value_;
-            std::atomic<int64_t> atomic_value_;
-        };
-    };
+    using Key = FixedSizeKey<uint64_t>;
+    using Value = SimpleAtomicValue<int64_t>;
 
     class RmwContext : public IAsyncContext {
     public:
@@ -1492,15 +1387,15 @@ TEST(InMemFaster, Rmw_Concurrent) {
         }
 
         inline void RmwInitial(Value &value) {
-            value.value_ = incr_;
+            value.value = incr_;
         }
 
         inline void RmwCopy(const Value &old_value, Value &value) {
-            value.value_ = old_value.value_ + incr_;
+            value.value = old_value.value + incr_;
         }
 
         inline bool RmwAtomic(Value &value) {
-            value.atomic_value_.fetch_add(incr_);
+            value.atomic_value.fetch_add(incr_);
             return true;
         }
 
@@ -1540,7 +1435,7 @@ TEST(InMemFaster, Rmw_Concurrent) {
         }
 
         inline void GetAtomic(const Value &value) {
-            output = value.atomic_value_.load();
+            output = value.atomic_value.load();
         }
 
     protected:
@@ -1559,8 +1454,7 @@ TEST(InMemFaster, Rmw_Concurrent) {
     static constexpr size_t kNumRmws = 2048;
     static constexpr size_t kRange = 512;
 
-    auto rmw_worker = [](FasterKv<Key, Value, FASTER::io::NullDisk> *store_,
-                         int64_t incr) {
+    auto rmw_worker = [](FasterKv<Key, Value, FASTER::io::NullDisk> *store_, int64_t incr) {
         store_->StartSession();
 
         for (size_t idx = 0; idx < kNumRmws; ++idx) {
@@ -1632,33 +1526,7 @@ TEST(InMemFaster, Rmw_Concurrent) {
 }
 
 TEST(InMemFaster, Rmw_ResizeValue_Concurrent) {
-    class Key {
-    public:
-        Key(uint64_t key)
-                : key_{key} {
-        }
-
-        inline static constexpr uint32_t size() {
-            return static_cast<uint32_t>(sizeof(Key));
-        }
-
-        inline KeyHash GetHash() const {
-            std::hash<uint64_t> hash_fn;
-            return KeyHash{hash_fn(key_)};
-        }
-
-        /// Comparison operators.
-        inline bool operator==(const Key &other) const {
-            return key_ == other.key_;
-        }
-
-        inline bool operator!=(const Key &other) const {
-            return key_ != other.key_;
-        }
-
-    private:
-        uint64_t key_;
-    };
+    using Key = FixedSizeKey<uint64_t>;
 
     class RmwContext;
     class ReadContext;
@@ -1901,8 +1769,7 @@ TEST(InMemFaster, Rmw_ResizeValue_Concurrent) {
     static constexpr size_t kNumRmws = 2048;
     static constexpr size_t kRange = 512;
 
-    auto rmw_worker = [](FasterKv<Key, Value, FASTER::io::NullDisk> *store_,
-                         int8_t incr, uint32_t value_length) {
+    auto rmw_worker = [](FasterKv<Key, Value, FASTER::io::NullDisk> *store_, int8_t incr, uint32_t value_length) {
         store_->StartSession();
 
         for (size_t idx = 0; idx < kNumRmws; ++idx) {
@@ -1978,33 +1845,7 @@ TEST(InMemFaster, Rmw_ResizeValue_Concurrent) {
 }
 
 TEST(InMemFaster, Rmw_GrowString_Concurrent) {
-    class Key {
-    public:
-        Key(uint64_t key)
-                : key_{key} {
-        }
-
-        inline static constexpr uint32_t size() {
-            return static_cast<uint32_t>(sizeof(Key));
-        }
-
-        inline KeyHash GetHash() const {
-            std::hash<uint64_t> hash_fn;
-            return KeyHash{hash_fn(key_)};
-        }
-
-        /// Comparison operators.
-        inline bool operator==(const Key &other) const {
-            return key_ == other.key_;
-        }
-
-        inline bool operator!=(const Key &other) const {
-            return key_ != other.key_;
-        }
-
-    private:
-        uint64_t key_;
-    };
+    using Key = FixedSizeKey<uint64_t>;
 
     class RmwContext;
     class ReadContext;

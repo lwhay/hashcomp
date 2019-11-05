@@ -53,12 +53,13 @@ TEST(LockComparison, AtomGenLockMutexTest) {
         ASSERT_EQ(middle.locked, 1);
         ASSERT_EQ(middle.replaced, 0);
         ASSERT_EQ(middle.gen_number, 0);
-        ASSERT_NE(before.control_, middle.control_);
+        ASSERT_EQ(before.control_, middle.control_);
         sleep(2);
         GenLock after = lock->load();
         ASSERT_EQ(after.locked, 0);
         ASSERT_EQ(after.replaced, 0);
         ASSERT_EQ(after.gen_number, 1);
+        ASSERT_NE(before.control_, after.control_);
     };
 
     AtomicGenLock lock;
