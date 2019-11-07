@@ -61,6 +61,7 @@ set(STREAM_EFFICIENCYTEST
         tests/ClickStreamStatistics.cpp
         tests/ClickStreamGenerator.cpp
         tests/SerialHeaveyHitterTest.cpp
+        tests/cfrequent/QuantileVerification.cpp
         tests/heavyhitter/WOGeneralSSEfficiency.cpp
         tests/heavyhitter/ClickStreamHashEfficiency.cpp)
 

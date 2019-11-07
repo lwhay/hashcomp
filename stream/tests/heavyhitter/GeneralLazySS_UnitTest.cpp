@@ -4,6 +4,7 @@
 
 #include <thread>
 #include <unordered_map>
+#include <random>
 #include "gtest/gtest.h"
 #include "generator.h"
 #include "LazySpaceSaving.h"
@@ -108,6 +109,41 @@ TEST(GeneralLazySSTest, parallelTest) {
         ASSERT_EQ(actualmaxcount[t], itemsize + 1);
     }
     delete[] glsses;
+}
+
+class DummyElement {
+public:
+    static int counter;
+
+    DummyElement(const char *mark) {
+        std::cout << mark << " " << counter++ << std::endl;
+    }
+};
+
+int DummyElement::counter = 0;
+
+TEST(GeneralLazySSTest, vectorAllocationTest) {
+    std::vector<DummyElement> woPtr(thread_number, DummyElement("withoutPtr"));
+    for (auto &e: woPtr) std::cout << "\t" << e.counter << std::endl;
+    std::vector<DummyElement *> wtihPtr(thread_number, new DummyElement("withPtr"));
+    for (int i = 0; i < thread_number; i++) woPtr.push_back(DummyElement("stupidInit"));
+}
+
+TEST(GeneralLazySSTest, parallelPtrTest) {
+    std::vector<GeneralLazySS<uint64_t> *> glss;
+    for (int i = 0; i < thread_number; i++) glss.push_back(new GeneralLazySS<uint64_t>(0.0001));
+    std::vector<std::thread> threads(thread_number);
+    size_t i = 0;
+    for (auto &t: threads) {
+        t = std::thread([](GeneralLazySS<uint64_t> *glss) {
+            std::uniform_int_distribution<uint64_t> gen(0, 1000000000);
+            std::mt19937 mt;
+            for (size_t k = 0; k < 1000000; k++) {
+                glss->put(gen(mt));
+            }
+        }, std::ref(glss[i++]));
+    }
+    for (auto &t: threads) t.join();
 }
 
 int main(int argc, char **argv) {
