@@ -75,7 +75,7 @@ foreach (sourcefile ${STREAM_EFFICIENCYTEST})
             EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
             OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
             )
-    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${Boost_LIBRARIES})
+    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${Boost_LIBRARIES} ${PTHREAD})
 endforeach (sourcefile ${STREAM_EFFICIENCYTEST})
 
 set(STREAM_UNITTEST
