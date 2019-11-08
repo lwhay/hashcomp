@@ -63,7 +63,8 @@ set(STREAM_EFFICIENCYTEST
         tests/SerialHeaveyHitterTest.cpp
         tests/cfrequent/QuantileVerification.cpp
         tests/heavyhitter/WOGeneralSSEfficiency.cpp
-        tests/heavyhitter/ClickStreamHashEfficiency.cpp)
+        tests/heavyhitter/ClickStreamHashEfficiency.cpp
+        tests/heavyhitter/ParallelGLSSEfficiency.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
