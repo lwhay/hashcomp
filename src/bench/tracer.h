@@ -103,7 +103,7 @@ public:
                     array[i] = static_cast<R>(dis(engine));
                 }
             } else {
-                zipf_distribution<R> engine(std::numeric_limits<R>::max(), skew);
+                zipf_distribution<R> engine(range, skew);
                 mt19937 mt;
                 for (size_t i = 0; i < count; i++) {
                     array[i] = engine(mt);
