@@ -212,12 +212,12 @@ void multiWorkers() {
     output = new stringstream[thread_number];
     Tracer tracer;
     tracer.startTime();
-    for (int i = 0; i < thread_number; i++) {
+    /*for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], nullptr, insertWorker, &parms[i]);
     }
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], nullptr);
-    }
+    }*/
     cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     Timer timer;
     timer.start();
