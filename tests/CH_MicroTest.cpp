@@ -45,6 +45,8 @@ int thread_number = DEFAULT_THREAD_NUM;
 
 int key_range = DEFAULT_KEYS_RANGE;
 
+double skew = 0.0;
+
 stringstream *output;
 
 atomic<int> stopMeasure(0);
@@ -172,15 +174,16 @@ void multiWorkers() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 3) {
+    if (argc > 4) {
         thread_number = std::atol(argv[1]);
         key_range = std::atol(argv[2]);
         total_count = std::atol(argv[3]);
+        skew = std::atof(argv[4]);
     }
     store = new cmap(100000000);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count);
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
     prepare();
     cout << "simple" << endl;
     simpleInsert();
