@@ -184,7 +184,8 @@ int main(int argc, char **argv) {
         skew = std::atof(argv[5]);
     }
     store = new cmap(100000000);
-    cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << endl;
+    cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
+         << timer_range << " skew: " << skew << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
     prepare();
