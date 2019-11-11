@@ -249,10 +249,10 @@ int main(int argc, char **argv) {
          << timer_range << endl;
 #if CONTEXT_TYPE == 0
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
-    UniformGen<uint64_t>::generate(loads, key_range, total_count);
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count);
 #else
     loads = (uint32_t *) calloc(total_count, sizeof(uint32_t));
-    UniformGen<uint32_t>::generate(loads, key_range, total_count);
+    RandomGenerator<uint32_t>::generate(loads, key_range, total_count);
 #endif
     prepare();
     cout << "simple" << endl;

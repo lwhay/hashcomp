@@ -18,6 +18,7 @@
 template<class IntType = unsigned long, class RealType = double>
 class zipf_distribution {
 public:
+    static constexpr RealType epsilon = 1e-8;
     typedef RealType input_type;
     typedef IntType result_type;
 
@@ -82,8 +83,6 @@ private:
     const RealType h(const RealType x) {
         return std::exp(-q * std::log(x));
     }
-
-    static constexpr RealType epsilon = 1e-8;
 
     IntType n;     ///< Number of elements
     RealType q;     ///< Exponent

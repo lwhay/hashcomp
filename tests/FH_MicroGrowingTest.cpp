@@ -222,7 +222,7 @@ int main(int argc, char **argv) {
     }
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
-    UniformGen<uint64_t>::generate(loads, key_range, total_count);
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count);
     prepare();
     cout << "multiinsert" << endl;
     initWorkers();

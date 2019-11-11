@@ -58,6 +58,8 @@ uint64_t total_count = DEFAULT_KEYS_COUNT;
 
 uint64_t timer_range = default_timer_range;
 
+double skew = 0.0;
+
 int thread_number = DEFAULT_THREAD_NUM;
 
 int key_range = DEFAULT_KEYS_RANGE;
@@ -235,16 +237,17 @@ void multiWorkers() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 4) {
+    if (argc > 5) {
         thread_number = std::atol(argv[1]);
         key_range = std::atol(argv[2]);
         total_count = std::atol(argv[3]);
         timer_range = std::atol(argv[4]);
+        skew = std::atof(argv[5]);
     }
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " time: "
-         << timer_range << endl;
+         << timer_range << " skew: " << skew << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
-    UniformGen<uint64_t>::generate(loads, key_range, total_count);
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
     prepare();
     cout << "simple" << endl;
     simpleInsert();

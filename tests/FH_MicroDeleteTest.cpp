@@ -251,7 +251,7 @@ int main(int argc, char **argv) {
     cout << "Before insertion: " << -1 << " keyspace: " << init_size << " storesize: " << store->Size() << " elipsed: "
          << tracer.getRunTime() << " " << store->hlog.GetTailAddress().offset() << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
-    UniformGen<uint64_t>::generate(loads, key_range, total_count);
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count);
     prepare();
     for (int r = 0; r < max_iter_per_round; r++) {
         operateWorkers();

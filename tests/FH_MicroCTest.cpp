@@ -234,7 +234,7 @@ int main(int argc, char **argv) {
     }
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << endl;
     loads = (uint32_t *) calloc(total_count, sizeof(uint32_t));
-    UniformGen<uint32_t>::generate(loads, key_range, total_count);
+    RandomGenerator<uint32_t>::generate(loads, key_range, total_count);
     prepare();
     cout << "simple" << endl;
     simpleInsert();

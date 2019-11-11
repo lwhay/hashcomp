@@ -26,6 +26,8 @@ uint64_t failure = 0;
 
 uint64_t total_count = DEFAULT_KEYS_COUNT;
 
+double skew = 0.0;
+
 int thread_number = DEFAULT_THREAD_NUM;
 
 int key_range = DEFAULT_KEYS_RANGE;
@@ -233,14 +235,16 @@ void multiWorkers() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 3) {
+    if (argc > 4) {
         thread_number = std::atol(argv[1]);
         key_range = std::atol(argv[2]);
         total_count = std::atol(argv[3]);
+        skew = std::atof(argv[4]);
     }
-    cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << endl;
+    cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " skew: " << skew
+         << endl;
     loads = (uint8_t *) calloc(DEFAULT_KEY_LENGTH * total_count, sizeof(uint8_t));
-    UniformGen<uint8_t>::generate(loads, DEFAULT_KEY_LENGTH, key_range, total_count);
+    RandomGenerator<uint8_t>::generate(loads, DEFAULT_KEY_LENGTH, key_range, total_count, skew);
     levelHash = level_init(level_calculate(key_range));
     cout << "simple" << endl;
     simpleInsert();
