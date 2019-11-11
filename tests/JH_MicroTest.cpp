@@ -48,6 +48,8 @@ uint64_t failure = 0;
 
 uint64_t total_count = DEFAULT_KEYS_COUNT;
 
+uint64_t timer_range = default_timer_range;
+
 int thread_number = DEFAULT_THREAD_NUM;
 
 int key_range = DEFAULT_KEYS_RANGE;
@@ -158,19 +160,19 @@ void multiWorkers() {
     output = new stringstream[thread_number];
     Tracer tracer;
     tracer.startTime();
-    for (int i = 0; i < thread_number; i++) {
+    /*for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], nullptr, insertWorker, &parms[i]);
     }
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], nullptr);
-    }
+    }*/
     cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     Timer timer;
     timer.start();
     for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], nullptr, measureWorker, &parms[i]);
     }
-    while (timer.elapsedSeconds() < default_timer_range) {
+    while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
@@ -183,11 +185,12 @@ void multiWorkers() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 4) {
+    if (argc > 5) {
         thread_number = std::atol(argv[1]);
         key_range = std::atol(argv[2]);
         total_count = std::atol(argv[3]);
-        skew = std::stof(argv[4]);
+        timer_range = std::atol(argv[4]);
+        skew = std::stof(argv[5]);
     }
     store = new maptype(100000000);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << endl;
