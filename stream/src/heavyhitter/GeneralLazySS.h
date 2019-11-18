@@ -52,6 +52,14 @@ public:
     static bool comp(Item<IT> &a, Item<IT> &b) {
         return a.getCount() > b.getCount();
     }
+
+    static bool prec(Item<IT> &a, Item<IT> &b) {
+        return a.getItem() < b.getItem();
+    }
+
+    bool operator==(Item<IT> &target) const {
+        return item == target.getItem();
+    }
 };
 
 template<typename IT>
