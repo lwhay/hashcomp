@@ -14,7 +14,7 @@
 
 size_t key_range = (1llu << 30);
 
-size_t total_count = (1 << 20);
+size_t total_count = (1 << 27);
 
 size_t counter_size = (1 << 16);
 
@@ -67,9 +67,9 @@ int main(int argc, char **argv) {
     counter *counters = new counter[counter_size];
     std::memset(counters, 0, sizeof(counter) * counter_size);
 #if increasing
-    for (int i = 0; i < glss.volume() > 0; i++) {
+    for (int i = 0; i < /*glss.volume()*/counter_size; i++) {
 #else
-    for (int i = glss.volume() - 1; i >= 0; i--) {
+    for (int i = /*glss.volume()*/counter_size - 1; i >= 0; i--) {
 #endif
         uint64_t fastkey = bins[i].getItem() % counter_size;
         if (counters[fastkey].key != bins[i].getItem()) {
@@ -94,14 +94,10 @@ int main(int argc, char **argv) {
               << " hitkey4: " << keyhit4 << std::endl;
 
     double averagehit = 0.0;
-    std::memset(counters, 0, sizeof(counter) * counter_size);
+    for (int i = 0; i < counter_size; i++) counters[i].cnt = 0;
     for (int i = 0; i < total_count; i++) {
         uint64_t fastkey = keys[i] % counter_size;
-        if (counters[fastkey].key != keys[i]) {
-            counters[fastkey].key = keys[i];
-            counters[fastkey].cnt = 0;
-        }
-        counters[fastkey].cnt++;
+        if (counters[fastkey].key == keys[i]) counters[fastkey].cnt++;
     }
     for (int i = 0; i < counter_size; i++) {
         averagehit += counters[i].cnt;
