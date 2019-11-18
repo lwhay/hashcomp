@@ -43,8 +43,6 @@ bool binarySearch(T array[], uint64_t size, uint64_t key) {
         return true; //Returnig to main
     else
         return false; //Returnig to main
-
-    cout << "\n\n\n";
 } // binarySearch Function Ends Here
 
 int main(int argc, char **argv) {
