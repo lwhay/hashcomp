@@ -6,13 +6,15 @@
 #include <iostream>
 #include <random>
 #include <vector>
-#include "generator.h"
+#include <unordered_set>
 #include "GeneralLazySS.h"
 #include "tracer.h"
 
 #define increasing 0
 
-size_t key_range = (1llu << 30);
+#define freshinput 0
+
+size_t key_range = (1llu << 32);
 
 size_t total_count = (1 << 27);
 
@@ -46,14 +48,28 @@ bool binarySearch(T array[], uint64_t size, uint64_t key) {
 } // binarySearch Function Ends Here
 
 int main(int argc, char **argv) {
-    zipf_distribution<uint64_t> gen(key_range, zipf);
-    std::mt19937 mt;
+    if (argc == 5) {
+        key_range = std::atol(argv[1]);
+        total_count = std::atol(argv[2]);
+        counter_size = std::atol(argv[3]);
+        zipf = std::atof(argv[4]);
+    }
     uint64_t *keys = new uint64_t[total_count];
+
+#if freshinput
+    std::remove(existingFilePath);
+#endif
 
     Tracer tracer;
     tracer.startTime();
-    for (int i = 0; i < total_count; i++) keys[i] = gen(mt);
+    RandomGenerator<uint64_t>::generate(keys, key_range, total_count, zipf);
     std::cout << "Generate: " << tracer.getRunTime() << std::endl;
+
+    std::unordered_set<uint64_t> noters;
+    tracer.startTime();
+    for (int i = 0; i < total_count; i++) noters.insert(keys[i]);
+    std::cout << "Distinct: " << tracer.getRunTime() << " number: " << noters.size() << " out of: " << total_count
+              << std::endl;
 
     GeneralLazySS<uint64_t> glss(0.00001);
     tracer.startTime();
@@ -122,5 +138,6 @@ int main(int argc, char **argv) {
     }
     std::cout << "Actualhit: " << (averagehit / total_count) << " search time: " << tracer.getRunTime() << std::endl;
 
-    delete keys;
+    delete[] keys;
+    delete[] counters;
 }
