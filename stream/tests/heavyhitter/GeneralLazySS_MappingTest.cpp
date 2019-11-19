@@ -117,10 +117,10 @@ int main(int argc, char **argv) {
         if (counters[i].cnt > 1) keyhit2++;
         if (counters[i].cnt > 2) keyhit3++;
         if (counters[i].cnt > 3) keyhit4++;
-        if (counters[i].cnt > 3) keyhit5++;
+        if (counters[i].cnt > 4) keyhit5++;
     }
     std::cout << "Hitkeys: " << keyhit << " hitkey2: " << keyhit2 << " hitkey3: " << keyhit3 << " hitkey4: " << keyhit4
-              << " hitkey4: " << keyhit4 << std::endl;
+              << " hitkey5: " << keyhit5 << std::endl;
 
     double averagehit = 0.0;
     for (int i = 0; i < counter_size; i++) counters[i].cnt = 0;
