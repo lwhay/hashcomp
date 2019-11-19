@@ -8,11 +8,14 @@
 #include <vector>
 #include <unordered_set>
 #include "GeneralLazySS.h"
+#include "RealKVKeyToHash.h"
 #include "tracer.h"
 
 #define increasing 0
 
 #define freshinput 0
+
+#define datasource 2  // 0: random, 1: ycsb, 2: clickstream
 
 size_t key_range = (1llu << 32);
 
@@ -62,7 +65,17 @@ int main(int argc, char **argv) {
 
     Tracer tracer;
     tracer.startTime();
+#if datasource == 0
     RandomGenerator<uint64_t>::generate(keys, key_range, total_count, zipf);
+#elif datasource == 1
+    delete[] keys;
+    keys = RealWorkload::ycsbKeyToUint64(total_count);
+#elif datasource == 2
+    delete[] keys;
+    keys = RealWorkload::clickstreamKeyToUint64(total_count);
+#else
+    std::perror("0: random, 1: ycsb, 2: clickstream");
+#endif
     std::cout << "Generate: " << tracer.getRunTime() << std::endl;
 
     std::unordered_set<uint64_t> noters;
