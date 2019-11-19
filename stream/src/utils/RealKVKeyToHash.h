@@ -23,7 +23,6 @@ public:
         size_t count = 0;
         while (input.getline(line, 4096)) {
             std::vector<std::string> fields = split(line, " ");
-            int ret = fields[0].compare("INSERT");
             if (fields.size() < 4 || (fields[0].compare("INSERT") != 0 && fields[0].compare("READ") != 0 &&
                                       fields[0].compare("UPDATE") != 0))
                 continue;

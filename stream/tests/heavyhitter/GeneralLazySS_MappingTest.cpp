@@ -15,7 +15,7 @@
 
 #define freshinput 0
 
-#define datasource 2  // 0: random, 1: ycsb, 2: clickstream
+#define datasource 1  // 0: random, 1: ycsb, 2: clickstream
 
 size_t key_range = (1llu << 32);
 
