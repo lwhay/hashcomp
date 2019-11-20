@@ -217,7 +217,21 @@ public:
         return counters;
     }
 
-    Item<IT> *merge(GeneralLazySS &lss, bool overwrite = false) {
+    Item<IT> *merge(GeneralLazySS &lss) {
+        assert(lss.volume() == _size);
+        Item<IT> *merged = new Item<IT>[_size];
+        std::sort(counters + 1, counters + _size, Item<IT>::comp);
+        Item<IT> *target = lss.output(true);
+        size_t i = 1, j = 1;
+        while (i < _size) {
+            while (j < _size) {
+
+            }
+        }
+        return merged;
+    }
+
+    Item<IT> *merge1(GeneralLazySS &lss, bool overwrite = false) {
         assert(lss.volume() == _size);
         Item<IT> *merged = counters;
         if (!overwrite) merged = new Item<IT>[_size];
