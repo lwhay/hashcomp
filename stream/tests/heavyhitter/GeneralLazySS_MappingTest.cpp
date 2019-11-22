@@ -206,7 +206,7 @@ int main(int argc, char **argv) {
         total_count = std::atol(argv[2]);
         counter_size = std::atol(argv[3]);
         merge_round = std::atol(argv[4]);
-        zipf = std::atof(argv[6]);
+        zipf = std::atof(argv[5]);
     }
     uint64_t *keys = new uint64_t[total_count];
 
