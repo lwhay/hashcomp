@@ -219,15 +219,26 @@ public:
 
     Item<IT> *merge(GeneralLazySS &lss) {
         assert(lss.volume() == _size);
-        Item<IT> *merged = new Item<IT>[_size];
-        std::sort(counters + 1, counters + _size, Item<IT>::comp);
-        Item<IT> *target = lss.output(true);
-        size_t i = 1, j = 1;
-        while (i < _size) {
-            while (j < _size) {
-
+        Item<IT> *merged = new Item<IT>[2 * _size + 1];
+        std::memcpy(merged, counters, sizeof(Item<IT>) * (_size + 1));
+        std::memset(merged + _size + 1, 0, sizeof(Item<IT>) * _size);
+        int idx = 1;
+        for (; idx < _size + 1; idx++) {
+            Item<IT> *target = lss.find(merged[idx].getItem());
+            if (target) {
+                merged[idx].setCount(merged[idx].getCount() + target->getCount());
             }
         }
+        Item<IT> *targets = lss.output(true);
+        for (int i = 1; i < _size + 1; i++) {
+            if (!this->find(targets[i].getItem())) {
+                merged[idx].setitem(targets[i].getItem());
+                merged[idx].setCount(targets[i].getCount());
+                merged[idx].setDelta(targets[i].getDelta());
+                idx++;
+            }
+        }
+        std::sort(merged + 1, merged + idx, Item<IT>::comp);
         return merged;
     }
 

@@ -9,18 +9,21 @@
 #include <vector>
 #include <unordered_set>
 #include "GeneralLazySS.h"
+#include "../../src/mhash/util/City.h"
 #include "RealKVKeyToHash.h"
 #include "tracer.h"
 
-#define increasing 0
+#define increasing 1
 
 #define freshinput 0
 
 #define datasource 0  // 0: random, 1: ycsb, 2: clickstream
 
+#define segmenting 1
+
 size_t key_range = (1llu << 32);
 
-size_t total_count = (1 << 20);
+size_t total_count = (1 << 27);
 
 size_t counter_size = (1 << 16);
 
@@ -32,6 +35,11 @@ struct counter {
     uint64_t key;
     uint64_t cnt;
 };
+
+uint64_t getfastkey(uint64_t key) {
+    return key % counter_size;
+    return CityHash64((const char *) (&key), sizeof(uint64_t)) % counter_size;
+}
 
 template<typename T>
 bool binarySearch(T array[], uint64_t size, uint64_t key) {
@@ -61,9 +69,9 @@ void averageHitTest(Item<uint64_t> *bins, uint64_t *const keys) {
 #if increasing
     for (int i = 0; i < /*glss.volume()*/counter_size; i++) {
 #else
-    for (int i = /*glss.volume()*/counter_size - 1; i >= 0; i--) {
+        for (int i = /*glss.volume()*/counter_size - 1; i >= 0; i--) {
 #endif
-        uint64_t fastkey = bins[i].getItem() % counter_size;
+        uint64_t fastkey = getfastkey(bins[i].getItem());
         if (counters[fastkey].key != bins[i].getItem()) {
             counters[fastkey].key = bins[i].getItem();
         }
@@ -89,7 +97,7 @@ void averageHitTest(Item<uint64_t> *bins, uint64_t *const keys) {
     double averagehit = 0.0;
     for (int i = 0; i < counter_size; i++) counters[i].cnt = 0;
     for (int i = 0; i < total_count; i++) {
-        uint64_t fastkey = keys[i] % counter_size;
+        uint64_t fastkey = getfastkey(keys[i]);
         if (counters[fastkey].key == keys[i]) counters[fastkey].cnt++;
     }
     for (int i = 0; i < counter_size; i++) {
@@ -143,9 +151,29 @@ void singleMapping(uint64_t *keys) {
     actualHitTest(bins, keys);
 }
 
+void findAfterSort(uint64_t *keys) {
+    GeneralLazySS<uint64_t> glss(0.00001);
+    Tracer tracer;
+    tracer.startTime();
+    for (int i = 0; i < total_count; i++) glss.put(keys[i]);
+    for (int i = 0; i < 1024; i++) {
+        if (i != 0 && i % 128 == 0) std::cout << std::endl;
+        if (glss.find(keys[i])) std::cout << "+";
+        else std::cout << "-";
+    }
+    std::cout << std::endl;
+    Item<uint64_t> *bins = glss.output(true);
+    for (int i = 0; i < 1024; i++) {
+        if (i != 0 && i % 128 == 0) std::cout << std::endl;
+        if (glss.find(keys[i])) std::cout << "+";
+        else std::cout << "-";
+    }
+    std::cout << std::endl;
+}
+
 void mergeMapping(uint64_t *keys) {
     size_t count_per_round = total_count / merge_round;
-    GeneralLazySS<uint64_t> first(0.00001);
+    GeneralLazySS<uint64_t> first(0.00002);
     Item<uint64_t> *bins;
     size_t i, r = 0;
     Tracer tracer;
@@ -153,7 +181,7 @@ void mergeMapping(uint64_t *keys) {
     for (i = 0; i < count_per_round; i++) first.put(keys[i]);
     std::cout << "\tr: " << r << " " << tracer.getRunTime() << std::endl;
     for (r = 1; r < merge_round; r++) {
-        GeneralLazySS<uint64_t> current(0.00001);
+        GeneralLazySS<uint64_t> current(0.00002);
         tracer.startTime();
         for (; i < count_per_round * (r + 1); i++) current.put(keys[i]);
         std::cout << "\tr: " << r << " " << tracer.getRunTime();
@@ -183,7 +211,18 @@ int main(int argc, char **argv) {
     Tracer tracer;
     tracer.startTime();
 #if datasource == 0
+#if segmenting
+    size_t range_per_round = (key_range / merge_round);
+    RandomGenerator<uint64_t>::generate(keys, range_per_round, total_count, zipf);
+    size_t count_per_round = total_count / merge_round;
+    for (int i = 0; i < merge_round; i++) {
+        for (int j = 0; j < count_per_round; j++) {
+            keys[i * count_per_round + j] += i * range_per_round;
+        }
+    }
+#else
     RandomGenerator<uint64_t>::generate(keys, key_range, total_count, zipf);
+#endif
 #elif datasource == 1
     delete[] keys;
     keys = RealWorkload::ycsbKeyToUint64(total_count);
@@ -196,6 +235,8 @@ int main(int argc, char **argv) {
     std::cout << "Generate: " << tracer.getRunTime() << std::endl;
 
     singleMapping(keys);
+
+    findAfterSort(keys);
 
     mergeMapping(keys);
 
