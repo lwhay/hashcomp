@@ -154,24 +154,25 @@ void singleMapping(uint64_t *keys) {
     std::cout << "Refresh: " << tracer.getRunTime() << std::endl;
 }
 
+void displayHitter(GeneralLazySS<uint64_t> &glss, uint64_t *keys, int number) {
+    for (int i = 0; i < number; i++) {
+        if (i != 0 && i % 128 == 0) std::cout << std::endl;
+        if (glss.find(keys[i])) std::cout << "+";
+        else std::cout << "-";
+    }
+    std::cout << std::endl;
+}
+
 void findAfterSort(uint64_t *keys) {
     GeneralLazySS<uint64_t> glss(0.00001);
     Tracer tracer;
     tracer.startTime();
     for (int i = 0; i < total_count; i++) glss.put(keys[i]);
-    for (int i = 0; i < 1024; i++) {
-        if (i != 0 && i % 128 == 0) std::cout << std::endl;
-        if (glss.find(keys[i])) std::cout << "+";
-        else std::cout << "-";
-    }
-    std::cout << std::endl;
+    displayHitter(std::ref(glss), keys, 1024);
     Item<uint64_t> *bins = glss.output(true);
-    for (int i = 0; i < 1024; i++) {
-        if (i != 0 && i % 128 == 0) std::cout << std::endl;
-        if (glss.find(keys[i])) std::cout << "+";
-        else std::cout << "-";
-    }
-    std::cout << std::endl;
+    displayHitter(std::ref(glss), keys, 1024);
+    glss.refresh();
+    displayHitter(std::ref(glss), keys, 1024);
 }
 
 void mergeMapping(uint64_t *keys) {
