@@ -270,6 +270,7 @@ public:
             }
         }
         Item<IT> *targets = lss.output(true);
+        // this->refresh(); // So far, I don't know why the refreshment is not necessary here.
         for (int i = 1; i < _size + 1; i++) {
             if (!this->find(targets[i].getItem())) {
                 merged[idx].setitem(targets[i].getItem());
