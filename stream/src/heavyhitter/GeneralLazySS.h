@@ -14,6 +14,8 @@
 #include <limits>
 #include <random>
 
+#define verifyRefresh 0
+
 template<typename IT>
 class Item {
 private:
@@ -220,7 +222,43 @@ public:
         return counters;
     }
 
-    Item<IT> *merge(GeneralLazySS &lss) {
+    void refresh() {
+#if verifyRefresh
+        for (int i = 1; i < _size + 1; i++) {
+            if (!find(counters[i].getItem()))
+                std::cout << "***\t\t" << i << " " << counters[i].getItem() << " " << counters[i].getCount() << "<->"
+                          << std::endl;
+            else if (counters[i].getItem() == 72183 || i % 16384 == 0)
+                std::cout << "---\t\t" << i << " " << counters[i].getItem() << " " << counters[i].getCount() << "<->"
+                          << find(merged[i].getItem())->getCount() << std::endl;
+        }
+#endif
+        std::memcpy(merged, counters, sizeof(Item<IT>) * (_size + 1));
+        std::memset(counters, 0, sizeof(Item<IT>) * (_size + 1));
+        std::memset(hashtable, 0, sizeof(Item<IT> *) * hashsize);
+        n = 0;
+        for (int i = 0; i <= _size; i++) {
+            counters[i].setitem(GLSS_NULLITEM);
+        }
+        root = &counters[1];
+        for (int i = 1; i < _size + 1; i++) put(merged[i].getItem(), merged[i].getCount());
+        for (int i = 1; i < _size + 1; i++) {
+            Item<IT> *ptr = find(merged[i].getItem());
+            if (ptr) ptr->setDelta(merged[i].getDelta());
+        }
+#if verifyRefresh
+        for (int i = 1; i < _size + 1; i++) {
+            if (!find(merged[i].getItem()))
+                std::cout << "***\t\t" << i << " " << merged[i].getItem() << " " << merged[i].getCount() << "<->"
+                          << std::endl;
+            else if (merged[i].getItem() == 72183 || i % 16384 == 0)
+                std::cout << "---\t\t" << i << " " << merged[i].getItem() << " " << merged[i].getCount() << "<->"
+                          << find(merged[i].getItem())->getCount() << std::endl;
+        }
+#endif
+    }
+
+    Item<IT> *merge(GeneralLazySS &lss, bool overwrite = true) {
         assert(lss.volume() == _size);
         std::memcpy(merged, counters, sizeof(Item<IT>) * (_size + 1));
         std::memset(merged + _size + 1, 0, sizeof(Item<IT>) * _size);
@@ -241,8 +279,10 @@ public:
             }
         }
         std::sort(merged + 1, merged + idx, Item<IT>::comp);
-        std::memcpy(counters, merged, sizeof(Item<IT>) * (_size + 1));
-        return counters;
+        if (overwrite) {
+            std::memcpy(counters, merged, sizeof(Item<IT>) * (_size + 1));
+            return counters;
+        } else return merged;
     }
 
     Item<IT> *merge1(GeneralLazySS &lss, bool overwrite = false) {

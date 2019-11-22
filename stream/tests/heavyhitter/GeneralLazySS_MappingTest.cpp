@@ -23,7 +23,7 @@
 
 size_t key_range = (1llu << 32);
 
-size_t total_count = (1 << 27);
+size_t total_count = (1 << 20);
 
 size_t counter_size = (1 << 16);
 
@@ -111,7 +111,7 @@ void averageHitTest(Item<uint64_t> *bins, uint64_t *const keys) {
 void actualHitTest(Item<uint64_t> *bins, uint64_t *keys) {
     Tracer tracer;
     tracer.startTime();
-    std::sort(&bins[0], &bins[counter_size - 1], Item<uint64_t>::prec);
+    std::sort(&bins[0], &bins[counter_size], Item<uint64_t>::prec);
     //for (int i = 0; i < 1000; i++) { std::cout << "\t" << bins[i].getItem() << ":" << bins[i].getCount() << std::endl; }
     std::cout << "SortingByKey: " << tracer.getRunTime() << std::endl;
     double averagehit = 0;
@@ -149,6 +149,9 @@ void singleMapping(uint64_t *keys) {
 
     averageHitTest(bins, keys);
     actualHitTest(bins, keys);
+    tracer.startTime();
+    glss.refresh();
+    std::cout << "Refresh: " << tracer.getRunTime() << std::endl;
 }
 
 void findAfterSort(uint64_t *keys) {
@@ -173,7 +176,7 @@ void findAfterSort(uint64_t *keys) {
 
 void mergeMapping(uint64_t *keys) {
     size_t count_per_round = total_count / merge_round;
-    GeneralLazySS<uint64_t> first(0.00002);
+    GeneralLazySS<uint64_t> first(0.000015);
     Item<uint64_t> *bins;
     size_t i, r = 0;
     Tracer tracer;
@@ -181,7 +184,7 @@ void mergeMapping(uint64_t *keys) {
     for (i = 0; i < count_per_round; i++) first.put(keys[i]);
     std::cout << "\tr: " << r << " " << tracer.getRunTime() << std::endl;
     for (r = 1; r < merge_round; r++) {
-        GeneralLazySS<uint64_t> current(0.00002);
+        GeneralLazySS<uint64_t> current(0.000015);
         tracer.startTime();
         for (; i < count_per_round * (r + 1); i++) current.put(keys[i]);
         std::cout << "\tr: " << r << " " << tracer.getRunTime();
@@ -192,6 +195,9 @@ void mergeMapping(uint64_t *keys) {
 
     averageHitTest(bins, keys);
     actualHitTest(bins, keys);
+    tracer.startTime();
+    first.refresh();
+    std::cout << "Refresh: " << tracer.getRunTime() << std::endl;
 }
 
 int main(int argc, char **argv) {
