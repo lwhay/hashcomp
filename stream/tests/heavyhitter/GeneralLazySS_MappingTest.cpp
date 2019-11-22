@@ -13,7 +13,7 @@
 #include "RealKVKeyToHash.h"
 #include "tracer.h"
 
-#define increasing 1
+#define increasing 0
 
 #define freshinput 0
 
@@ -69,7 +69,7 @@ void averageHitTest(Item<uint64_t> *bins, uint64_t *const keys) {
 #if increasing
     for (int i = 0; i < /*glss.volume()*/counter_size; i++) {
 #else
-        for (int i = /*glss.volume()*/counter_size - 1; i >= 0; i--) {
+    for (int i = /*glss.volume()*/counter_size - 1; i >= 0; i--) {
 #endif
         uint64_t fastkey = getfastkey(bins[i].getItem());
         if (counters[fastkey].key != bins[i].getItem()) {

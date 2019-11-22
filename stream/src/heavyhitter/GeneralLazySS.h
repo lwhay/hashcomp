@@ -74,6 +74,7 @@ private:
     int _size;
     Item<IT> *root;
     Item<IT> *counters;
+    Item<IT> *merged;
     Item<IT> **hashtable;
 
     inline IT hash(IT a, IT b, IT x) {
@@ -132,6 +133,7 @@ public:
         hashtable = (Item<IT> **) new Item<IT> *[hashsize];
         std::memset(hashtable, 0, sizeof(Item<IT> *) * hashsize);
         counters = (Item<IT> *) new Item<IT>[1 + _size];
+        merged = new Item<IT>[2 * _size + 1];
         std::memset(counters, 0, sizeof(Item<IT>) * (1 + _size));
 
         /*srand(time(NULL));
@@ -153,6 +155,7 @@ public:
     ~GeneralLazySS() {
         delete[] hashtable;
         delete[] counters;
+        delete[] merged;
     }
 
     int range() {
@@ -219,7 +222,6 @@ public:
 
     Item<IT> *merge(GeneralLazySS &lss) {
         assert(lss.volume() == _size);
-        Item<IT> *merged = new Item<IT>[2 * _size + 1];
         std::memcpy(merged, counters, sizeof(Item<IT>) * (_size + 1));
         std::memset(merged + _size + 1, 0, sizeof(Item<IT>) * _size);
         int idx = 1;
@@ -239,7 +241,8 @@ public:
             }
         }
         std::sort(merged + 1, merged + idx, Item<IT>::comp);
-        return merged;
+        std::memcpy(counters, merged, sizeof(Item<IT>) * (_size + 1));
+        return counters;
     }
 
     Item<IT> *merge1(GeneralLazySS &lss, bool overwrite = false) {
