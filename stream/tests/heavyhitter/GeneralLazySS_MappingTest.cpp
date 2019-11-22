@@ -37,7 +37,7 @@ struct counter {
 };
 
 uint64_t getfastkey(uint64_t key) {
-    return key % counter_size;
+    //return key % counter_size;
     return CityHash64((const char *) (&key), sizeof(uint64_t)) % counter_size;
 }
 
