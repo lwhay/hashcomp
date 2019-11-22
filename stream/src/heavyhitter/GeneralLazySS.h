@@ -234,6 +234,7 @@ public:
         }
 #endif
         std::memcpy(merged, counters, sizeof(Item<IT>) * (_size + 1));
+        //std::sort(merged + 1, merged + _size + 1, Item<IT>::comp);
         std::memset(counters, 0, sizeof(Item<IT>) * (_size + 1));
         std::memset(hashtable, 0, sizeof(Item<IT> *) * hashsize);
         n = 0;

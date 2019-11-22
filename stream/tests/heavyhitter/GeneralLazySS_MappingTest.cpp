@@ -6,6 +6,7 @@
 #include <functional>
 #include <iostream>
 #include <random>
+#include <thread>
 #include <vector>
 #include <unordered_set>
 #include "GeneralLazySS.h"
@@ -186,12 +187,14 @@ void mergeMapping(uint64_t *keys) {
     std::cout << "\tr: " << r << " " << tracer.getRunTime() << std::endl;
     for (r = 1; r < merge_round; r++) {
         GeneralLazySS<uint64_t> current(0.000015);
+        //displayHitter(std::ref(first), keys, 1024);
         tracer.startTime();
         for (; i < count_per_round * (r + 1); i++) current.put(keys[i]);
         std::cout << "\tr: " << r << " " << tracer.getRunTime();
         tracer.startTime();
         bins = first.merge(current);
         std::cout << " " << " " << tracer.getRunTime() << std::endl;
+        //first.refresh();
     }
 
     averageHitTest(bins, keys);
@@ -199,6 +202,39 @@ void mergeMapping(uint64_t *keys) {
     tracer.startTime();
     first.refresh();
     std::cout << "Refresh: " << tracer.getRunTime() << std::endl;
+}
+
+void merger(std::vector<GeneralLazySS<uint64_t> *> &glss, uint64_t *keys, size_t currentRound, size_t totalRound) {
+    size_t jumpStep = (size_t) std::pow(2, currentRound);
+    std::vector<std::thread> workers;
+    for (int i = 0; i < totalRound; i += jumpStep) {
+        workers.push_back(std::thread([](std::vector<GeneralLazySS<uint64_t> *> &refs, int idx, size_t step) {
+            refs[idx]->merge(*refs[idx + step / 2]);
+            //refs[idx]->refresh();
+        }, std::ref(glss), i, jumpStep));
+    }
+    for (int i = 0; i < totalRound; i += jumpStep) workers[i / jumpStep].join();
+    std::cout << currentRound << " " << totalRound << std::endl;
+    displayHitter(std::ref(*glss[0]), keys, 1024);
+}
+
+void binaryMerge(uint64_t *keys) {
+    size_t count_per_round = total_count / merge_round;
+    size_t binary_round = std::sqrt(merge_round);
+    std::vector<GeneralLazySS<uint64_t> *> glss;
+    std::vector<std::thread> workers;
+    for (int i = 0; i < merge_round; i++) {
+        glss.push_back(new GeneralLazySS<uint64_t>(0.000015));
+        workers.push_back(std::thread([](GeneralLazySS<uint64_t> *glss, uint64_t *keys, size_t count) {
+            for (int i = 0; i < count; i++) glss->put(keys[i]);
+        }, glss[i], keys + count_per_round * i, count_per_round));
+    }
+    for (int i = 0; i < merge_round; i++) workers[i].join();
+    workers.clear();
+    for (size_t r = 1; r <= binary_round; r++) merger(std::ref(glss), keys, r, binary_round);
+    Item<uint64_t> *bins = glss[0]->output(true);
+    averageHitTest(bins, keys);
+    actualHitTest(bins, keys);
 }
 
 int main(int argc, char **argv) {
@@ -246,6 +282,8 @@ int main(int argc, char **argv) {
     findAfterSort(keys);
 
     mergeMapping(keys);
+
+    binaryMerge(keys);
 
     delete[] keys;
 }
