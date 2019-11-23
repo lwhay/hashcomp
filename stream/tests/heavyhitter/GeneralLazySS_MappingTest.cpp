@@ -206,6 +206,8 @@ void mergeMapping(uint64_t *keys) {
 void merger(std::vector<GeneralLazySS<uint64_t> *> &glss, uint64_t *keys, size_t currentRound, size_t totalRound) {
     size_t jumpStep = (size_t) std::pow(2, currentRound);
     std::vector<std::thread> workers;
+    Tracer tracer;
+    tracer.startTime();
     for (int i = 0; i < merge_round; i += jumpStep) {
         workers.push_back(std::thread([](std::vector<GeneralLazySS<uint64_t> *> &refs, int idx, size_t step) {
             refs[idx]->merge(*refs[idx + step / 2]);
@@ -213,7 +215,7 @@ void merger(std::vector<GeneralLazySS<uint64_t> *> &glss, uint64_t *keys, size_t
         }, std::ref(glss), i, jumpStep));
     }
     for (int i = 0; i < merge_round; i += jumpStep) workers[i / jumpStep].join();
-    std::cout << currentRound << " " << totalRound << std::endl;
+    std::cout << currentRound << " " << totalRound << " " << tracer.getRunTime() << std::endl;
     displayHitter(std::ref(*glss[0]), keys, 1024);
 }
 
@@ -222,6 +224,8 @@ void binaryMerge(uint64_t *keys) {
     size_t binary_round = std::sqrt(merge_round);
     std::vector<GeneralLazySS<uint64_t> *> glss;
     std::vector<std::thread> workers;
+    Tracer tracer;
+    tracer.getRunTime();
     for (int i = 0; i < merge_round; i++) {
         glss.push_back(new GeneralLazySS<uint64_t>(0.000015));
         workers.push_back(std::thread([](GeneralLazySS<uint64_t> *glss, uint64_t *keys, size_t count) {
@@ -229,6 +233,7 @@ void binaryMerge(uint64_t *keys) {
         }, glss[i], keys + count_per_round * i, count_per_round));
     }
     for (int i = 0; i < merge_round; i++) workers[i].join();
+    std::cout << "Parallel put: " << tracer.getRunTime() << std::endl;
     workers.clear();
     for (size_t r = 1; r <= binary_round; r++) merger(std::ref(glss), keys, r, binary_round);
     Item<uint64_t> *bins = glss[0]->output(true);
