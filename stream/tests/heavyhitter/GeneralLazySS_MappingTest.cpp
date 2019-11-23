@@ -221,7 +221,7 @@ void merger(std::vector<GeneralLazySS<uint64_t> *> &glss, uint64_t *keys, size_t
 
 void binaryMerge(uint64_t *keys) {
     size_t count_per_round = total_count / merge_round;
-    size_t binary_round = std::sqrt(merge_round);
+    size_t binary_round = std::log2(merge_round);
     std::vector<GeneralLazySS<uint64_t> *> glss;
     std::vector<std::thread> workers;
     Tracer tracer;
