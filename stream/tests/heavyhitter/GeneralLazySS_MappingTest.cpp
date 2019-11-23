@@ -196,7 +196,6 @@ void mergeMapping(uint64_t *keys) {
         std::cout << " " << " " << tracer.getRunTime() << std::endl;
         //first.refresh();
     }
-
     averageHitTest(bins, keys);
     actualHitTest(bins, keys);
     tracer.startTime();
@@ -207,13 +206,13 @@ void mergeMapping(uint64_t *keys) {
 void merger(std::vector<GeneralLazySS<uint64_t> *> &glss, uint64_t *keys, size_t currentRound, size_t totalRound) {
     size_t jumpStep = (size_t) std::pow(2, currentRound);
     std::vector<std::thread> workers;
-    for (int i = 0; i < totalRound; i += jumpStep) {
+    for (int i = 0; i < merge_round; i += jumpStep) {
         workers.push_back(std::thread([](std::vector<GeneralLazySS<uint64_t> *> &refs, int idx, size_t step) {
             refs[idx]->merge(*refs[idx + step / 2]);
             //refs[idx]->refresh();
         }, std::ref(glss), i, jumpStep));
     }
-    for (int i = 0; i < totalRound; i += jumpStep) workers[i / jumpStep].join();
+    for (int i = 0; i < merge_round; i += jumpStep) workers[i / jumpStep].join();
     std::cout << currentRound << " " << totalRound << std::endl;
     displayHitter(std::ref(*glss[0]), keys, 1024);
 }
