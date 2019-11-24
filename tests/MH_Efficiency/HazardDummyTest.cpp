@@ -100,7 +100,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
 }
 
 int main(int argc, char **argv) {
-    if (argc == 5) {
+    if (argc == 6) {
         align_width = std::atol(argv[1]);
         list_volume = std::atol(argv[2]);
         thrd_number = std::atol(argv[3]);
