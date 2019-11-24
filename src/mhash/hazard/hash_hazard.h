@@ -20,6 +20,8 @@
 
 #define BIG_CONSTANT(x) (x##LLU)
 
+constexpr uint64_t module = 1llu << 63;
+
 uint64_t hash(uint64_t key) {
     key ^= key >> 33;
     key *= BIG_CONSTANT(0xff51afd7ed558ccd);
@@ -49,7 +51,7 @@ uint64_t hash(uint64_t key) {
 
 constexpr size_t total_hash_keys = (1 << 20);
 
-constexpr uint64_t module = 1llu << 63;
+constexpr size_t maximum_threads = (1 << 7);
 
 class indicator {
     alignas(64) std::atomic<uint64_t> counter;
@@ -67,23 +69,16 @@ class hash_hazard : public ihazard {
 private:
     size_t thread_number = 0;
     size_t total_holders = 0;
-    indicator *holders;
-    uint64_t *caches;
-    uint64_t *hashkeys;
-    std::hash<uint64_t> hasher;
+    indicator holders[total_hash_keys * maximum_threads];
+    uint64_t caches[maximum_threads];
+    uint64_t hashkeys[maximum_threads];
 
 public:
-    hash_hazard(size_t total_thread) : thread_number(total_thread),
-                                       total_holders(total_hash_keys * thread_number),
-                                       holders(new indicator[total_holders]),
-                                       caches(new uint64_t[total_thread]),
-                                       hashkeys(new uint64_t[total_thread]) {}
-
-    ~hash_hazard() {
-        delete[] holders;
-        delete[] caches;
+    hash_hazard(size_t total_thread) : thread_number(total_thread), total_holders(total_hash_keys * maximum_threads) {
+        for (size_t i = 0; i < total_hash_keys * maximum_threads; i++) holders[i].init();
     }
 
+    ~hash_hazard() {}
 
     void registerThread() {}
 
