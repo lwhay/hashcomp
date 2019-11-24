@@ -268,7 +268,7 @@ endforeach (sourcefile ${FH_TESTS_EXES})
 set(MF_TESTS_EXES ${MH_TEST})
 foreach (sourcefile ${MF_TESTS_EXES})
     get_filename_component(exename ${sourcefile} NAME_WE)
-    add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile} ${MH_LIBS})
+    add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile} ${MH_LIBS} ${HASHLIBS})
     set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
             PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
             EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1

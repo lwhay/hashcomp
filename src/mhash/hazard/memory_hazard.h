@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <cassert>
+#include "ihazard.h"
 
 constexpr size_t thread_limit = (1 << 8);
 
@@ -24,7 +25,7 @@ public:
     uint64_t load() { return address.load(); }
 };
 
-class memory_hazard {
+class memory_hazard : public ihazard {
 private:
     holder holders[thread_limit * default_step];
     size_t thread_number = 0;
@@ -37,7 +38,7 @@ public:
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         holders[IDX(tid)].store(ptr.load());
-        return holders[IDX(tid)].load();
+        return ptr.load();
     }
 
     void read(size_t tid) { holders[IDX(tid)].store(0); }

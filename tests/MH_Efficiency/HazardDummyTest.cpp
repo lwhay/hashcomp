@@ -5,7 +5,9 @@
 #include <iostream>
 #include <thread>
 #include <queue>
+#include "ihazard.h"
 #include "memory_hazard.h"
+#include "hash_hazard.h"
 #include "tracer.h"
 
 struct node {
@@ -23,11 +25,13 @@ size_t total_count = (1 << 20);
 
 size_t queue_limit = (1 << 16);
 
+size_t hash_freent = 1;
+
 atomic<int> stopMeasure(0);
 
 size_t worker_gran = thrd_number / 2;
 
-memory_hazard *deallocator;
+ihazard *deallocator;
 
 long *runtime;
 
@@ -92,6 +96,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
                 while (!deallocator->free(oldest)) hitting++;
             }
             total++;
+            //if (tid % worker_gran == 0 && total % 100000 == 0) std::cout << "w" << tid << i << std::endl;
         }
     }
     runtime[tid] = tracer.getRunTime();
@@ -100,14 +105,17 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
 }
 
 int main(int argc, char **argv) {
-    if (argc == 6) {
+    if (argc == 7) {
         align_width = std::atol(argv[1]);
         list_volume = std::atol(argv[2]);
         thrd_number = std::atol(argv[3]);
         total_count = std::atol(argv[4]);
         queue_limit = std::atol(argv[5]);
+        hash_freent = std::atol(argv[6]);
         worker_gran = thrd_number / 2;
     }
+    std::cout << align_width << " " << list_volume << " " << thrd_number << "(" << worker_gran << ") " << total_count
+              << " " << queue_limit << " " << hash_freent << std::endl;
     std::atomic<uint64_t> *bucket = new std::atomic<uint64_t>[list_volume];
     runtime = new long[thrd_number];
     operations = new uint64_t[thrd_number];
@@ -117,7 +125,10 @@ int main(int argc, char **argv) {
     Tracer tracer;
     tracer.startTime();
     std::vector<std::thread> workers;
-    deallocator = new memory_hazard;
+    if (hash_freent)
+        deallocator = new hash_hazard(worker_gran);
+    else
+        deallocator = new memory_hazard;
     Timer timer;
     timer.start();
     size_t t = 0;
