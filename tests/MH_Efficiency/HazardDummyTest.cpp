@@ -91,9 +91,16 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr));
             oldqueue.push(old);
             if (oldqueue.size() >= queue_limit) {
-                uint64_t oldest = oldqueue.front();
-                oldqueue.pop();
-                while (!deallocator->free(oldest)) hitting++;
+                while (true) {
+                    uint64_t oldest = oldqueue.front();
+                    oldqueue.pop();
+                    if (!deallocator->free(oldest)) {
+                        hitting++;
+                        oldqueue.push(oldest);
+                    } else {
+                        break;
+                    }
+                }
             }
             total++;
             //if (tid % worker_gran == 0 && total % 100000 == 0) std::cout << "w" << tid << i << std::endl;
