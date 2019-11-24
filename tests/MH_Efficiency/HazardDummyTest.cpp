@@ -21,7 +21,7 @@ size_t thrd_number = (1 << 3);
 
 size_t total_count = (1 << 20);
 
-size_t queue_limit = (1 << 1024);
+size_t queue_limit = (1 << 16);
 
 atomic<int> stopMeasure(0);
 
