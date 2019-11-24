@@ -93,6 +93,7 @@ int main(int argc, char **argv) {
         list_volume = std::atol(argv[2]);
         thrd_number = std::atol(argv[3]);
         total_count = std::atol(argv[4]);
+        worker_gran = thrd_number / 2;
     }
     std::atomic<uint64_t> *bucket = new std::atomic<uint64_t>[list_volume];
     runtime = new long[thrd_number];
@@ -113,7 +114,7 @@ int main(int argc, char **argv) {
     for (; t < thrd_number; t++) {
         workers.push_back(std::thread(writer, bucket, t));
     }
-    while (timer.elapsedSeconds() < 3) {
+    while (timer.elapsedSeconds() < 30) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
