@@ -40,6 +40,7 @@ include_directories("src/faster/api")
 include_directories("src/mhash")
 include_directories("src/mhash/util")
 include_directories("src/mhash/epoch")
+include_directories("src/mhash/hazard")
 include_directories("src/xhash")
 include_directories("utils")
 
@@ -153,6 +154,7 @@ if (WITH_MH_TESTS)
             tests/MH_Unit/MH_MaskRWPtr_test.cpp
             tests/MH_Efficiency/AtomicMaskByteTest.cpp
             tests/MH_Efficiency/AlignasEffectsOnAtom.cpp
+            tests/MH_Efficiency/HazardDummyTest.cpp
             utils/MH_UnitTest.cpp
             tests/MH_MicroTest.cpp
             tests/MH_YCSB.cpp)
