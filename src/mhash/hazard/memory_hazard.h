@@ -41,8 +41,9 @@ public:
         assert(ptr != 0);
         bool busy = false;
         for (size_t t = 0; t < thread_number; t++) {
-            if (holders[t].load() == (uint64_t) ptr) {
+            if (holders[t].load() == ptr) {
                 busy = true;
+                break;
             }
         }
         if (busy) return false;
