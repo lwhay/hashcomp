@@ -76,6 +76,7 @@ private:
 public:
     hash_hazard(size_t total_thread) : thread_number(total_thread), total_holders(total_hash_keys * maximum_threads) {
         for (size_t i = 0; i < total_hash_keys * maximum_threads; i++) holders[i].init();
+        std::cout << "Hash hazard" << std::endl;
     }
 
     ~hash_hazard() {}

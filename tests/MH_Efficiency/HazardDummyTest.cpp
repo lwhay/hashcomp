@@ -35,9 +35,9 @@ ihazard *deallocator;
 
 long *runtime;
 
-size_t *operations;
+uint64_t *operations;
 
-size_t *conflict;
+uint64_t *conflict;
 
 void reader(std::atomic<uint64_t> *bucket, size_t tid) {
     uint64_t total = 0;
