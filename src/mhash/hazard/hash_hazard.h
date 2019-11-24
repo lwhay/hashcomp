@@ -69,13 +69,15 @@ private:
     size_t total_holders = 0;
     indicator *holders;
     uint64_t *caches;
+    uint64_t *hashkeys;
     std::hash<uint64_t> hasher;
 
 public:
     hash_hazard(size_t total_thread) : thread_number(total_thread),
                                        total_holders(total_hash_keys * thread_number),
                                        holders(new indicator[total_holders]),
-                                       caches(new uint64_t[total_thread]) {}
+                                       caches(new uint64_t[total_thread]),
+                                       hashkeys(new uint64_t[total_thread]) {}
 
     ~hash_hazard() {
         delete[] holders;
@@ -87,14 +89,13 @@ public:
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         caches[tid] = ptr.load();
-        uint64_t hashkey = hash(caches[tid]) % total_hash_keys * thread_number + tid;
-        holders[hashkey].store(1);
-        return ptr.load();
+        hashkeys[tid] = hash(caches[tid]) % total_hash_keys * thread_number + tid;
+        holders[hashkeys[tid]].store(1);
+        return caches[tid];
     }
 
     void read(size_t tid) {
-        uint64_t hashkey = hash(caches[tid]) % total_hash_keys * thread_number + tid;
-        holders[hashkey].store(0);
+        holders[hashkeys[tid]].store(0);
     }
 
     bool free(uint64_t ptr) {
