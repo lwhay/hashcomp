@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <thread>
+#include <queue>
 #include "memory_hazard.h"
 #include "tracer.h"
 
@@ -20,6 +21,8 @@ size_t thrd_number = (1 << 3);
 
 size_t total_count = (1 << 20);
 
+size_t queue_limit = (1 << 1024);
+
 atomic<int> stopMeasure(0);
 
 size_t worker_gran = thrd_number / 2;
@@ -29,6 +32,8 @@ memory_hazard *deallocator;
 long *runtime;
 
 size_t *operations;
+
+size_t *conflict;
 
 void reader(std::atomic<uint64_t> *bucket, size_t tid) {
     uint64_t total = 0;
@@ -66,7 +71,8 @@ void print(std::atomic<uint64_t> *bucket) {
 }
 
 void writer(std::atomic<uint64_t> *bucket, size_t tid) {
-    uint64_t total = 0;
+    uint64_t total = 0, hitting = 0;
+    std::queue<uint64_t> oldqueue;
     Tracer tracer;
     tracer.startTime();
     while (stopMeasure.load() == 0) {
@@ -79,12 +85,18 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             do {
                 old = bucket[idx].load();
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr));
-            while (!deallocator->free(old));
+            oldqueue.push(old);
+            if (oldqueue.size() >= queue_limit) {
+                uint64_t oldest = oldqueue.front();
+                oldqueue.pop();
+                while (!deallocator->free(oldest)) hitting++;
+            }
             total++;
         }
     }
     runtime[tid] = tracer.getRunTime();
     operations[tid] = total;
+    conflict[tid] = hitting;
 }
 
 int main(int argc, char **argv) {
@@ -93,11 +105,13 @@ int main(int argc, char **argv) {
         list_volume = std::atol(argv[2]);
         thrd_number = std::atol(argv[3]);
         total_count = std::atol(argv[4]);
+        queue_limit = std::atol(argv[5]);
         worker_gran = thrd_number / 2;
     }
     std::atomic<uint64_t> *bucket = new std::atomic<uint64_t>[list_volume];
     runtime = new long[thrd_number];
     operations = new uint64_t[thrd_number];
+    conflict = new uint64_t[thrd_number];
     init(bucket);
     //print(bucket);
     Tracer tracer;
@@ -122,6 +136,7 @@ int main(int argc, char **argv) {
     long writetime = 0;
     size_t readcount = 0;
     size_t writecount = 0;
+    size_t freeconflict = 0;
     for (size_t t = 0; t < thrd_number; t++) {
         workers[t].join();
         if (t < worker_gran) {
@@ -131,14 +146,17 @@ int main(int argc, char **argv) {
         } else {
             writetime += runtime[t];
             writecount += operations[t];
+            freeconflict += conflict[t];
             std::cout << "\tWriter" << t - worker_gran << ": " << operations[t] << "\t" << runtime[t] << std::endl;
         }
     }
     double readthp = (double) readcount * worker_gran / readtime;
     double writethp = (double) writecount * worker_gran / writetime;
-    std::cout << "Total time: " << tracer.getRunTime() << " rthp: " << readthp << " wthp: " << writethp << std::endl;
+    std::cout << "Total time: " << tracer.getRunTime() << " rthp: " << readthp << " wthp: " << writethp;
+    std::cout << " wconflict: " << freeconflict << " weffective: " << writecount << std::endl;
     delete[] bucket;
     delete[] runtime;
     delete[] operations;
+    delete[] conflict;
     return 0;
 }
