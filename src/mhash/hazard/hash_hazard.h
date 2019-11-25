@@ -62,9 +62,9 @@ public:
 
     void store(uint64_t ptr) { counter.store(ptr); }
 
-    void fetch_add(int64_t inc = 1) { counter.fetch_add(inc); }
+    uint64_t fetch_add(uint64_t inc = 1) { return counter.fetch_add(inc); }
 
-    void fetch_sub(int64_t dec = 1) { counter.fetch_sub(dec); }
+    uint64_t fetch_sub(uint64_t dec = 1) { return counter.fetch_sub(dec); }
 
     uint64_t load() { return counter.load(); }
 };
@@ -73,14 +73,13 @@ class hash_hazard : public ihazard {
 private:
     size_t thread_number = 0;
     size_t total_holders = 0;
-    indicator holders[total_hash_keys/* * maximum_threads*/];
+    indicator holders[total_hash_keys];
     uint64_t caches[maximum_threads];
     uint64_t hashkeys[maximum_threads];
 
 public:
-    hash_hazard(size_t total_thread) : thread_number(total_thread),
-                                       total_holders(total_hash_keys/* * maximum_threads*/) {
-        for (size_t i = 0; i < total_hash_keys /** maximum_threads*/; i++) holders[i].init();
+    hash_hazard(size_t total_thread) : thread_number(total_thread), total_holders(total_hash_keys) {
+        for (size_t i = 0; i < total_hash_keys; i++) holders[i].init();
         std::cout << "Hash hazard" << std::endl;
     }
 
@@ -90,7 +89,7 @@ public:
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         caches[tid] = ptr.load();
-        hashkeys[tid] = hash(caches[tid]) % total_hash_keys/* * thread_number + tid*/;
+        hashkeys[tid] = hash(caches[tid]) % total_hash_keys;
         holders[hashkeys[tid]].fetch_add();
         return caches[tid];
     }
@@ -101,16 +100,9 @@ public:
 
     bool free(uint64_t ptr) {
         assert(ptr != 0);
-        bool busy = false;
-        uint64_t hashbase = hash(ptr) % total_hash_keys/* * thread_number*/;
+        bool busy;
+        uint64_t hashbase = hash(ptr) % total_hash_keys;
         busy = (holders[hashbase].load() != 0);
-        /*for (size_t t = 0; t < thread_number; t++) {
-            if (holders[hashbase + t].load() != 0) {
-                //std::cout << ptr << " " << hashbase << std::endl;
-                busy = true;
-                break;
-            }
-        }*/
         if (busy) return false;
         else {
             std::free((void *) ptr);
