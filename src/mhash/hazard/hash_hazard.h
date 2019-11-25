@@ -22,29 +22,25 @@
 
 constexpr uint64_t module = 1llu << 63;
 
-uint64_t hash(uint64_t key) {
-    uint32_t h = key & 0xffffffff;
-    h ^= h >> 16;
-    h *= 0x85ebca6b;
-    h ^= h >> 13;
-    h *= 0xc2b2ae35;
-    h ^= h >> 16;
-    return h;
-    /*key ^= key >> 33;
-    key *= BIG_CONSTANT(0xff51afd7ed558ccd);
-    key ^= key >> 33;
-    key *= BIG_CONSTANT(0xc4ceb9fe1a85ec53);
-    key ^= key >> 33;
-    return key;*/
-    /*key = (~key) + (key << 21); // key = (key << 21) - key - 1;
-    key = key ^ (key >> 24);
-    key = (key + (key << 3)) + (key << 8); // key * 265
-    key = key ^ (key >> 14);
-    key = (key + (key << 2)) + (key << 4); // key * 21
-    key = key ^ (key >> 28);
-    key = key + (key << 31);
-    return key;*/
-}
+//inline uint64_t hash(uint64_t key) {
+//    uint32_t h = (uint32_t) key * 6722461;
+//    //h *= 0x85ebca6b;
+//    return h;
+//    /*key ^= key >> 33;
+//    key *= BIG_CONSTANT(0xff51afd7ed558ccd);
+//    key ^= key >> 33;
+//    key *= BIG_CONSTANT(0xc4ceb9fe1a85ec53);
+//    key ^= key >> 33;
+//    return key;*/
+//    /*key = (~key) + (key << 21); // key = (key << 21) - key - 1;
+//    key = key ^ (key >> 24);
+//    key = (key + (key << 3)) + (key << 8); // key * 265
+//    key = key ^ (key >> 14);
+//    key = (key + (key << 2)) + (key << 4); // key * 21
+//    key = key ^ (key >> 28);
+//    key = key + (key << 31);
+//    return key;*/
+//}
 
 /*inline uint64_t hash(uint64_t x) {
     uint64_t result;
@@ -89,6 +85,14 @@ public:
         for (size_t i = 0; i < total_hash_keys; i++) holders[i].init();
         std::cout << "Hash hazard" << std::endl;
     }
+
+#ifndef CITY3
+
+    inline uint64_t hash(uint64_t key) {
+        return (((uint32_t) key >> 3) ^ (uint32_t) key);
+    }
+
+#endif
 
     ~hash_hazard() {}
 
