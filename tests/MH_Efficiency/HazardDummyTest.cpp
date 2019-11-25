@@ -112,14 +112,14 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
 }
 
 int main(int argc, char **argv) {
-    if (argc == 7) {
+    if (argc == 8) {
         align_width = std::atol(argv[1]);
         list_volume = std::atol(argv[2]);
         thrd_number = std::atol(argv[3]);
         total_count = std::atol(argv[4]);
         queue_limit = std::atol(argv[5]);
         hash_freent = std::atol(argv[6]);
-        worker_gran = thrd_number / 2;
+        worker_gran = std::atol(argv[7]);
     }
     std::cout << align_width << " " << list_volume << " " << thrd_number << "(" << worker_gran << ") " << total_count
               << " " << queue_limit << " " << hash_freent << std::endl;
