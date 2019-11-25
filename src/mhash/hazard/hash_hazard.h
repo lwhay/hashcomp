@@ -65,11 +65,11 @@ public:
 
     void store(uint64_t ptr) { counter.store(ptr); }
 
-    uint64_t fetch_add(uint64_t inc = 1) { return counter.fetch_add(inc); }
+    uint64_t fetch_add(uint64_t inc = 1) { return counter.fetch_add(inc, std::memory_order_release); }
 
-    uint64_t fetch_sub(uint64_t dec = 1) { return counter.fetch_sub(dec); }
+    uint64_t fetch_sub(uint64_t dec = 1) { return counter.fetch_sub(dec, std::memory_order_release); }
 
-    uint64_t load() { return counter.load(); }
+    uint64_t load() { return counter.load(std::memory_order_acquire); }
 };
 
 thread_local uint64_t hashkey;
