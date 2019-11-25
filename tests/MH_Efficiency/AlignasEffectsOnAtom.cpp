@@ -8,6 +8,8 @@
 #include <vector>
 #include "tracer.h"
 
+#define reverse 0
+
 size_t align_width = (1 << 4);
 
 size_t thrd_number = (1 << 2);
@@ -18,16 +20,26 @@ constexpr size_t default_align = (1 << 6);
 
 template<typename T>
 void casworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
-    for (size_t i = 0; i < total_count / thrd_number; i++) {
-        uint64_t d = pcon->load();
-        if (loc) while (!pcon->compare_exchange_strong(d, i));
-        else while (!(pcon + i % thrd_number * aln)->compare_exchange_strong(d, i));
+#if reverse
+    for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
+#else
+        for (size_t i = 0; i < total_count / thrd_number; i++) {
+#endif
+        uint64_t d;
+        if (loc) do { d = pcon->load(); } while (!pcon->compare_exchange_strong(d, i));
+        else
+            do { d = (pcon + i % thrd_number * aln)->load(); }
+            while (!(pcon + i % thrd_number * aln)->compare_exchange_strong(d, i));
     }
 }
 
 template<typename T>
 void addworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
-    for (size_t i = 0; i < total_count / thrd_number; i++) {
+#if reverse
+    for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
+#else
+        for (size_t i = 0; i < total_count / thrd_number; i++) {
+#endif
         if (loc) while (!pcon->fetch_add(1));
         else while (!(pcon + i % thrd_number * aln)->fetch_add(1));
     }
@@ -35,7 +47,11 @@ void addworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
 
 template<typename T>
 void loadworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
-    for (size_t i = 0; i < total_count / thrd_number; i++) {
+#if reverse
+    for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
+#else
+        for (size_t i = 0; i < total_count / thrd_number; i++) {
+#endif
         if (loc) pcon->load();
         else (pcon + i % thrd_number * aln)->load();
     }
@@ -43,7 +59,11 @@ void loadworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
 
 template<typename T>
 void storeworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
-    for (size_t i = 0; i < total_count / thrd_number; i++) {
+#if reverse
+    for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
+#else
+        for (size_t i = 0; i < total_count / thrd_number; i++) {
+#endif
         if (loc) pcon->store(i);
         else (pcon + i % thrd_number * aln)->store(i);
     }
@@ -51,7 +71,11 @@ void storeworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
 
 template<typename T>
 void readworker(T *acon, size_t tid, bool loc = true, uint64_t aln = 1) {
-    for (size_t i = 0; i < total_count / thrd_number; i++) {
+#if reverse
+    for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
+#else
+        for (size_t i = 0; i < total_count / thrd_number; i++) {
+#endif
         if (loc) uint64_t v = *acon;
         else uint64_t v = *(acon + i % thrd_number * aln);
     }
@@ -59,7 +83,11 @@ void readworker(T *acon, size_t tid, bool loc = true, uint64_t aln = 1) {
 
 template<typename T>
 void writeworker(T *acon, size_t tid, bool loc = true, uint64_t aln = 1) {
-    for (size_t i = 0; i < total_count / thrd_number; i++) {
+#if reverse
+    for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
+#else
+        for (size_t i = 0; i < total_count / thrd_number; i++) {
+#endif
         if (loc) *acon = i;
         else *(acon + i % thrd_number * aln) = i;
     }
