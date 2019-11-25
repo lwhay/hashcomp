@@ -23,7 +23,7 @@ void casworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
 #if reverse
     for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
 #else
-        for (size_t i = 0; i < total_count / thrd_number; i++) {
+    for (size_t i = 0; i < total_count / thrd_number; i++) {
 #endif
         uint64_t d;
         if (loc) do { d = pcon->load(); } while (!pcon->compare_exchange_strong(d, i));
@@ -38,7 +38,7 @@ void addworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
 #if reverse
     for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
 #else
-        for (size_t i = 0; i < total_count / thrd_number; i++) {
+    for (size_t i = 0; i < total_count / thrd_number; i++) {
 #endif
         if (loc) while (!pcon->fetch_add(1));
         else while (!(pcon + i % thrd_number * aln)->fetch_add(1));
@@ -50,7 +50,7 @@ void loadworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
 #if reverse
     for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
 #else
-        for (size_t i = 0; i < total_count / thrd_number; i++) {
+    for (size_t i = 0; i < total_count / thrd_number; i++) {
 #endif
         if (loc) pcon->load();
         else (pcon + i % thrd_number * aln)->load();
@@ -62,10 +62,22 @@ void storeworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
 #if reverse
     for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
 #else
-        for (size_t i = 0; i < total_count / thrd_number; i++) {
+    for (size_t i = 0; i < total_count / thrd_number; i++) {
 #endif
         if (loc) pcon->store(i);
         else (pcon + i % thrd_number * aln)->store(i);
+    }
+}
+
+template<typename T>
+void exchworker(T *pcon, size_t tid, bool loc = true, uint64_t aln = 1) {
+#if reverse
+    for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
+#else
+    for (size_t i = 0; i < total_count / thrd_number; i++) {
+#endif
+        if (loc) pcon->exchange(i);
+        else (pcon + i % thrd_number * aln)->exchange(i);
     }
 }
 
@@ -74,7 +86,7 @@ void readworker(T *acon, size_t tid, bool loc = true, uint64_t aln = 1) {
 #if reverse
     for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
 #else
-        for (size_t i = 0; i < total_count / thrd_number; i++) {
+    for (size_t i = 0; i < total_count / thrd_number; i++) {
 #endif
         if (loc) uint64_t v = *acon;
         else uint64_t v = *(acon + i % thrd_number * aln);
@@ -86,7 +98,7 @@ void writeworker(T *acon, size_t tid, bool loc = true, uint64_t aln = 1) {
 #if reverse
     for (size_t i = total_count / thrd_number - 1; i != 0; i--) {
 #else
-        for (size_t i = 0; i < total_count / thrd_number; i++) {
+    for (size_t i = 0; i < total_count / thrd_number; i++) {
 #endif
         if (loc) *acon = i;
         else *(acon + i % thrd_number * aln) = i;
@@ -142,6 +154,7 @@ int main(int argc, char **argv) {
     std::cout << "align: " << align_width << " thrd: " << thrd_number << " total: " << total_count << std::endl;
     run<std::atomic<uint64_t>>(casworker, "cas", true);
     run<std::atomic<uint64_t>>(addworker, "add", true);
+    run<std::atomic<uint64_t>>(exchworker, "exchange", true);
     run<std::atomic<uint64_t>>(storeworker, "store", true);
     run<std::atomic<uint64_t>>(loadworker, "load", true);
     run<std::atomic<uint64_t>>(writeworker, "sstore", true);
@@ -151,6 +164,7 @@ int main(int argc, char **argv) {
 
     run<std::atomic<uint64_t>>(casworker, "wcas", false);
     run<std::atomic<uint64_t>>(addworker, "wadd", false);
+    run<std::atomic<uint64_t>>(exchworker, "wexchange", false);
     run<std::atomic<uint64_t>>(storeworker, "wstore", false);
     run<std::atomic<uint64_t>>(loadworker, "wload", false);
     run<std::atomic<uint64_t>>(writeworker, "wsstore", false);
