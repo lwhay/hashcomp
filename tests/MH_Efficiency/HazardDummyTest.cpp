@@ -8,6 +8,7 @@
 #include "ihazard.h"
 #include "memory_hazard.h"
 #include "hash_hazard.h"
+#include "mshazrd_pointer.h"
 #include "tracer.h"
 
 struct node {
@@ -75,6 +76,7 @@ void print(std::atomic<uint64_t> *bucket) {
 }
 
 void writer(std::atomic<uint64_t> *bucket, size_t tid) {
+    if (hash_freent == 2) ftid = tid;
     uint64_t total = 0, hitting = 0;
     std::queue<uint64_t> oldqueue;
     Tracer tracer;
@@ -135,9 +137,11 @@ int main(int argc, char **argv) {
     Tracer tracer;
     tracer.startTime();
     std::vector<std::thread> workers;
-    if (hash_freent)
+    if (hash_freent == 2)
+        deallocator = new mshazard_pointer(thrd_number);
+    else if (hash_freent == 1)
         deallocator = new hash_hazard(worker_gran);
-    else
+    else if (hash_freent == 0)
         deallocator = new memory_hazard;
     Timer timer;
     timer.start();
