@@ -44,7 +44,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
     Tracer tracer;
     tracer.startTime();
     while (stopMeasure.load() == 0) {
-        for (size_t i = 0; i < total_count / worker_gran; i++) {
+        for (size_t i = 0; i < total_count / thrd_number; i++) {
             size_t idx = i % (list_volume / align_width) * align_width;
             node *ptr = (node *) deallocator->load(tid, std::ref(bucket[idx]));
             total += ptr->value;
@@ -57,7 +57,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 }
 
 void init(std::atomic<uint64_t> *bucket) {
-    for (size_t i = 0; i < total_count / worker_gran; i++) {
+    for (size_t i = 0; i < total_count / thrd_number; i++) {
         node *ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i % (list_volume / align_width) * align_width;
         ptr->key = idx;
@@ -80,7 +80,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
     Tracer tracer;
     tracer.startTime();
     while (stopMeasure.load() == 0) {
-        for (size_t i = 0; i < total_count / worker_gran; i++) {
+        for (size_t i = 0; i < total_count / thrd_number; i++) {
             node *ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
             ptr->value = 1;
@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
         }
     }
     double readthp = (double) readcount * worker_gran / readtime;
-    double writethp = (double) writecount * worker_gran / writetime;
+    double writethp = (double) writecount * (thrd_number - worker_gran) / writetime;
     std::cout << "Total time: " << tracer.getRunTime() << " rthp: " << readthp << " wthp: " << writethp;
     std::cout << " wconflict: " << freeconflict << " weffective: " << writecount << std::endl;
     delete[] bucket;
