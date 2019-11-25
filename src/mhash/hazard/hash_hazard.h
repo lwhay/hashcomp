@@ -22,6 +22,8 @@
 
 constexpr uint64_t module = 1llu << 63;
 
+#define hash(key) (((uint32_t) key >> 3) ^ (uint32_t) key)
+
 //inline uint64_t hash(uint64_t key) {
 //    uint32_t h = (uint32_t) key * 6722461;
 //    //h *= 0x85ebca6b;
@@ -85,14 +87,6 @@ public:
         for (size_t i = 0; i < total_hash_keys; i++) holders[i].init();
         std::cout << "Hash hazard" << std::endl;
     }
-
-#ifndef CITY3
-
-    inline uint64_t hash(uint64_t key) {
-        return (((uint32_t) key >> 3) ^ (uint32_t) key);
-    }
-
-#endif
 
     ~hash_hazard() {}
 
