@@ -11,8 +11,6 @@
 
 constexpr size_t total_hash_keys = (1 << 20);
 
-constexpr size_t maximum_threads = (1 << 7);
-
 #undef CITY3
 
 #ifdef CITY3
@@ -22,12 +20,12 @@ constexpr size_t maximum_threads = (1 << 7);
 #define hash(x) (CityHash64((char*)x, sizeof(uint64_t)))
 #else
 
-#define BIG_CONSTANT(x) (x##LLU)
-
-constexpr uint64_t module = 1llu << 63;
-
 #define hash(key) ((((uint32_t) key >> 3) ^ (uint32_t) key) % total_hash_keys)
 
+//#define BIG_CONSTANT(x) (x##LLU)
+//
+//constexpr uint64_t module = 1llu << 63;
+//
 //inline uint64_t hash(uint64_t key) {
 //    uint32_t h = (uint32_t) key * 6722461;
 //    //h *= 0x85ebca6b;
@@ -74,13 +72,13 @@ public:
     uint64_t load() { return counter.load(); }
 };
 
+thread_local uint64_t hashkey;
+
 class hash_hazard : public ihazard {
 private:
     size_t thread_number = 0;
     size_t total_holders = 0;
     indicator holders[total_hash_keys];
-    uint64_t caches[maximum_threads];
-    uint64_t hashkeys[maximum_threads];
 
 public:
     hash_hazard(size_t total_thread) : thread_number(total_thread), total_holders(total_hash_keys) {
@@ -93,21 +91,21 @@ public:
     void registerThread() {}
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
-        caches[tid] = ptr.load();
-        hashkeys[tid] = hash(caches[tid]);
-        holders[hashkeys[tid]].fetch_add();
-        return caches[tid];
+        uint64_t address = ptr.load();
+        hashkey = hash(address);
+        holders[hashkey].fetch_add();
+        return address;
     }
 
     void read(size_t tid) {
-        holders[hashkeys[tid]].fetch_sub();
+        holders[hashkey].fetch_sub();
     }
 
     bool free(uint64_t ptr) {
         assert(ptr != 0);
         bool busy;
-        uint64_t hashbase = hash(ptr) % total_hash_keys;
-        busy = (holders[hashbase].load() != 0);
+        uint64_t hk = hash(ptr);
+        busy = (holders[hk].load() != 0);
         if (busy) return false;
         else {
             std::free((void *) ptr);
