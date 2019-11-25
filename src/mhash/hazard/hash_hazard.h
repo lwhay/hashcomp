@@ -9,6 +9,10 @@
 #include <cassert>
 #include "ihazard.h"
 
+constexpr size_t total_hash_keys = (1 << 20);
+
+constexpr size_t maximum_threads = (1 << 7);
+
 #undef CITY3
 
 #ifdef CITY3
@@ -22,7 +26,7 @@
 
 constexpr uint64_t module = 1llu << 63;
 
-#define hash(key) (((uint32_t) key >> 3) ^ (uint32_t) key)
+#define hash(key) ((((uint32_t) key >> 3) ^ (uint32_t) key) % total_hash_keys)
 
 //inline uint64_t hash(uint64_t key) {
 //    uint32_t h = (uint32_t) key * 6722461;
@@ -53,10 +57,6 @@ constexpr uint64_t module = 1llu << 63;
     return (lresult);
 }*/
 #endif
-
-constexpr size_t total_hash_keys = (1 << 20);
-
-constexpr size_t maximum_threads = (1 << 7);
 
 class indicator {
     alignas(64) std::atomic<uint64_t> counter;
@@ -94,7 +94,7 @@ public:
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         caches[tid] = ptr.load();
-        hashkeys[tid] = hash(caches[tid]) % total_hash_keys;
+        hashkeys[tid] = hash(caches[tid]);
         holders[hashkeys[tid]].fetch_add();
         return caches[tid];
     }
