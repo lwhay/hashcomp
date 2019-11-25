@@ -91,16 +91,20 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             do {
                 old = bucket[idx].load();
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr));
-            oldqueue.push(old);
-            if (oldqueue.size() >= queue_limit) {
-                while (true) {
-                    uint64_t oldest = oldqueue.front();
-                    oldqueue.pop();
-                    if (!deallocator->free(oldest)) {
-                        hitting++;
-                        oldqueue.push(oldest);
-                    } else {
-                        break;
+            if (hash_freent == 2) { // mshp maintains caches inside each hp.
+                deallocator->free(old);
+            } else {
+                oldqueue.push(old);
+                if (oldqueue.size() >= queue_limit) {
+                    while (true) {
+                        uint64_t oldest = oldqueue.front();
+                        oldqueue.pop();
+                        if (!deallocator->free(oldest)) {
+                            hitting++;
+                            oldqueue.push(oldest);
+                        } else {
+                            break;
+                        }
                     }
                 }
             }

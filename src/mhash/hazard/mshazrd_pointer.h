@@ -192,7 +192,6 @@ public:
 
     bool free(uint64_t ptr) {
         hp->retire((uint64_t *) ptr, ftid);
-        //std::cout << ftid << std::endl;
     }
 };
 
