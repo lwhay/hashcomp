@@ -193,6 +193,8 @@ public:
     bool free(uint64_t ptr) {
         hp->retire((uint64_t *) ptr, ftid);
     }
+
+    char *info() { return "mshazardpoint"; }
 };
 
 #endif //HASHCOMP_MSHAZRD_POINTER_H

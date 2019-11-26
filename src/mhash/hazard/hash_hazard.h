@@ -75,14 +75,14 @@ public:
 thread_local uint64_t hashkey;
 
 class hash_hazard : public ihazard {
-private:
-    size_t thread_number = 0;
+protected:
     size_t total_holders = 0;
-    indicator holders[total_hash_keys];
+    indicator indicators[total_hash_keys];
 
 public:
-    hash_hazard(size_t total_thread) : thread_number(total_thread), total_holders(total_hash_keys) {
-        for (size_t i = 0; i < total_hash_keys; i++) holders[i].init();
+    hash_hazard(size_t total_thread) : total_holders(total_hash_keys) {
+        thread_number = total_thread;
+        for (size_t i = 0; i < total_hash_keys; i++) indicators[i].init();
         std::cout << "Hash hazard" << std::endl;
     }
 
@@ -93,25 +93,27 @@ public:
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         uint64_t address = ptr.load();
         hashkey = hash(address);
-        holders[hashkey].fetch_add();
+        indicators[hashkey].fetch_add();
         return address;
     }
 
     void read(size_t tid) {
-        holders[hashkey].fetch_sub();
+        indicators[hashkey].fetch_sub();
     }
 
     bool free(uint64_t ptr) {
         assert(ptr != 0);
         bool busy;
         uint64_t hk = hash(ptr);
-        busy = (holders[hk].load() != 0);
+        busy = (indicators[hk].load() != 0);
         if (busy) return false;
         else {
             std::free((void *) ptr);
             return true;
         }
     }
+
+    char *info() { return "hash_hazard"; }
 };
 
 #endif //HASHCOMP_HASH_HAZARD_H

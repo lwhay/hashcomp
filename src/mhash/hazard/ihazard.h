@@ -6,6 +6,9 @@
 #define HASHCOMP_IHAZARD_H
 
 class ihazard {
+protected:
+    size_t thread_number = 0;
+
 public:
     virtual void registerThread() = 0;
 
@@ -14,6 +17,8 @@ public:
     virtual void read(size_t tid) = 0;
 
     virtual bool free(uint64_t ptr) = 0;
+
+    virtual char *info() = 0;
 };
 
 #endif //HASHCOMP_IHAZARD_H

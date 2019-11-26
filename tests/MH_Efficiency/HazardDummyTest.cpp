@@ -6,6 +6,7 @@
 #include <thread>
 #include <queue>
 #include "ihazard.h"
+#include "adaptive_hazard.h"
 #include "memory_hazard.h"
 #include "hash_hazard.h"
 #include "mshazrd_pointer.h"
@@ -141,12 +142,24 @@ int main(int argc, char **argv) {
     Tracer tracer;
     tracer.startTime();
     std::vector<std::thread> workers;
-    if (hash_freent == 2)
-        deallocator = new mshazard_pointer(thrd_number);
-    else if (hash_freent == 1)
-        deallocator = new hash_hazard(worker_gran);
-    else if (hash_freent == 0)
-        deallocator = new memory_hazard;
+    switch (hash_freent) {
+        case 1: {
+            deallocator = new hash_hazard(worker_gran);
+            break;
+        }
+        case 2: {
+            deallocator = new mshazard_pointer(thrd_number);
+            break;
+        }
+        case 3: {
+            deallocator = new adaptive_hazard(worker_gran);
+            break;
+        }
+        default: {
+            deallocator = new memory_hazard;
+            break;
+        }
+    }
     Timer timer;
     timer.start();
     size_t t = 0;
@@ -182,10 +195,12 @@ int main(int argc, char **argv) {
     double readthp = (double) readcount * worker_gran / readtime;
     double writethp = (double) writecount * (thrd_number - worker_gran) / writetime;
     std::cout << "Total time: " << tracer.getRunTime() << " rthp: " << readthp << " wthp: " << writethp;
-    std::cout << " wconflict: " << freeconflict << " weffective: " << writecount << std::endl;
+    std::cout << " wconflict: " << freeconflict << " weffective: " << writecount << " inform: " << deallocator->info()
+              << std::endl;
     delete[] bucket;
     delete[] runtime;
     delete[] operations;
     delete[] conflict;
+    delete deallocator;
     return 0;
 }

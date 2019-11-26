@@ -28,7 +28,6 @@ public:
 class memory_hazard : public ihazard {
 private:
     holder holders[thread_limit * default_step];
-    size_t thread_number = 0;
 
 public:
     void registerThread() {
@@ -37,8 +36,9 @@ public:
     }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
-        holders[IDX(tid)].store(ptr.load());
-        return ptr.load();
+        uint64_t address = ptr.load();
+        holders[IDX(tid)].store(address);
+        return address;
     }
 
     void read(size_t tid) { holders[IDX(tid)].store(0); }
@@ -58,6 +58,8 @@ public:
             return true;
         }
     }
+
+    char *info() { return "memory_hazard"; }
 };
 
 #endif //HASHCOMP_MEMORY_HAZARD_H
