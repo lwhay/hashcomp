@@ -67,7 +67,9 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 
 void init(std::atomic<uint64_t> *bucket) {
     for (size_t i = 0; i < total_count / thrd_number; i++) {
-        node *ptr = (node *) std::malloc(sizeof(node));
+        node *ptr;
+        if (hash_freent == 4) (node *) ((epoch_wrapper<node> *) deallocator)->get();
+        else ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i % (list_volume / align_width) * align_width;
         ptr->key = idx;
         ptr->value = 1;
@@ -96,8 +98,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
         for (size_t i = tid; i < total_count / thrd_number; i += thrd_number) {
 #endif
             node *ptr;
-            if (hash_freent == 4)
-                ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
+            if (hash_freent == 4) ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
             else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
             ptr->value = 1;
