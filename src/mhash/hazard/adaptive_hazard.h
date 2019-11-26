@@ -20,7 +20,8 @@ private:
     holder lrulist[thread_limit];
     holder holders[thread_limit];
     uint64_t intensive_high;
-    uint64_t readintensive = 0, writeintensive = 0;
+
+    indicator readintensive[thread_limit], writeintensive[thread_limit];
 
     alignas(64) std::atomic<uint64_t> intensive{0};
 public:
@@ -28,6 +29,8 @@ public:
         for (size_t i = 0; i < total_thread; i++) {
             holders[i].init();
             lrulist[i].init();
+            readintensive[i].init();
+            writeintensive[i].init();
         }
         intensive_high = 0;
         for (int i = 0; i < total_thread; i++) {
@@ -36,12 +39,16 @@ public:
         std::cout << "adaptive scheme enabled: " << intensive_high << std::endl;
     }
 
-    ~adaptive_hazard() {
-    }
+    ~adaptive_hazard() {}
 
     char *info() {
         ::memset(information, 0, 255);
-        std::sprintf(information, "%llu, %llu", readintensive, writeintensive);
+        uint64_t totalreadintensive = 0, totalwriteintensive = 0;
+        for (size_t i = 0; i < thread_number; i++) {
+            totalreadintensive += readintensive[i].load();
+            totalwriteintensive += writeintensive[i].load();
+        }
+        std::sprintf(information, "%llu, %llu", totalreadintensive, totalwriteintensive);
         return information;
     }
 
@@ -49,8 +56,8 @@ public:
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         uint64_t address = ptr.load();
-        lrulist[tid].store(address);
         if (tick++ % thread_number == 0) {
+            lrulist[tid].store(address);
             uint64_t other = lrulist[(tid + thread_number / 2) % thread_number].load();
             if (other == address) {
                 if (skew == 0) {
@@ -67,10 +74,10 @@ public:
             }
         }
         if (skew != 0) {
-            readintensive++;
+            readintensive[tid].fetch_add(1);
             holders[tid].store(address);
         } else {
-            writeintensive++;
+            writeintensive[tid].fetch_add(1);
             hashkey = hash(address);
             indicators[hashkey].fetch_add();
         }
