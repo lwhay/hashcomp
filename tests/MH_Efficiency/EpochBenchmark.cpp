@@ -188,8 +188,7 @@ void LEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num, uint64_t workload)
         // number of core
         PinToCore(core_id);
 
-        const uint64_t random_workload = \
-                  GetRandomWorkload(workload, workload >> 2, id);
+        const uint64_t random_workload = GetRandomWorkload(workload, workload >> 2, id);
 
         //printf("**%lu**\n", random_workload);
 

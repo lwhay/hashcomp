@@ -1,4 +1,6 @@
+#include <iostream>
 #include <thread>
+#include <unistd.h>
 #include "AtomicStack.h"
 #include "GlobalWriteEM.h"
 #include "LocalWriteEM.h"
@@ -158,14 +160,15 @@ void LocalWriteEMTest() {
     struct dummy {
         long a, b;
     };
-    GlobalWriteEM<dummy> em;
-    em.StartGCThread();
-    std::thread worker = std::thread([](GlobalWriteEM<dummy> &em) {
-        dummy *dn = (dummy *) em.JoinEpoch();
+    LocalWriteEM<dummy> *em = new LocalWriteEM<dummy>(1);
+    em->StartGCThread();
+    std::thread worker = std::thread([](LocalWriteEM<dummy> *em) {
+        dummy *dn = new dummy;
+        em->AnnounceEnter(0);
         dn->a = 1;
         dn->b = 1;
-        em.LeaveEpoch(dn);
-    }, std::ref(em));
+    }, em);
+    delete em;
 }
 
 void GlobalWriteEMTest() {
@@ -173,20 +176,37 @@ void GlobalWriteEMTest() {
     struct dummy {
         long a, b;
     };
-    GlobalWriteEM<dummy> em;
-    em.StartGCThread();
-    std::thread worker = std::thread([](GlobalWriteEM<dummy> &em) {
-        dummy *dn = (dummy *) em.JoinEpoch();
+    GlobalWriteEM<dummy> *em = new GlobalWriteEM<dummy>();
+    em->StartGCThread();
+    dummy *dn = nullptr;
+    std::atomic<bool> signal{false};
+    std::thread worker = std::thread([](GlobalWriteEM<dummy> *em, dummy *&dn, std::atomic<bool> &signal) {
+        void *ep = em->JoinEpoch();
+        std::cout << ep << ":" << em->GetEpochCreated() << std::endl;
+        dn = new dummy/*(dummy *) ep*/;
         dn->a = 1;
         dn->b = 1;
-        em.LeaveEpoch(dn);
-    }, std::ref(em));
+        signal.store(true);
+        sleep(1);
+        em->LeaveEpoch(ep);
+        em->FreeGarbageType(dn);
+        dn = nullptr;
+    }, em, std::ref(dn), std::ref(signal));
+    std::thread reader = std::thread([](GlobalWriteEM<dummy> *em, dummy *&dn, std::atomic<bool> &signal) {
+        while (!signal.load());
+        if (dn != nullptr) std::cout << dn->a << ":" << dn->b << std::endl;
+        sleep(2);
+        if (dn != nullptr) std::cout << dn->a << ":" << dn->b << std::endl;
+    }, em, std::ref(dn), std::ref(signal));
+    reader.join();
+    worker.join();
+    delete em;
 }
 
 int main() {
     GlobalWriteEMTest();
 
-    LocalWriteEMTest();
+    //LocalWriteEMTest();
 
     BasicTest();
     // Many threads and small number of data
