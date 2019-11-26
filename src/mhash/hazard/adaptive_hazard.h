@@ -9,7 +9,7 @@
 #include "hash_hazard.h"
 #include "memory_hazard.h"
 
-thread_local uint64_t skew = 1;
+thread_local uint64_t skew = 0;
 
 thread_local uint64_t tick = 0;
 
@@ -20,6 +20,7 @@ private:
     holder lrulist[thread_limit];
     holder holders[thread_limit];
     uint64_t intensive_high;
+    uint64_t switch_period;
 
     indicator readintensive[thread_limit], writeintensive[thread_limit];
 
@@ -33,6 +34,7 @@ public:
             writeintensive[i].init();
         }
         intensive_high = 0;
+        switch_period = thread_number * 16;
         for (int i = 0; i < total_thread; i++) {
             intensive_high |= (1llu << i);
         }
@@ -56,7 +58,7 @@ public:
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         uint64_t address = ptr.load();
-        if (tick++ % thread_number == 0) {
+        if (tick++ % switch_period == 0) {
             lrulist[tid].store(address);
             uint64_t other = lrulist[(tid + thread_number / 2) % thread_number].load();
             if (other == address) {

@@ -12,6 +12,8 @@
 #include "mshazrd_pointer.h"
 #include "tracer.h"
 
+#define high_intensive 0
+
 struct node {
     uint64_t key;
     uint64_t value;
@@ -46,7 +48,11 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
     Tracer tracer;
     tracer.startTime();
     while (stopMeasure.load() == 0) {
+#if high_intensive
         for (size_t i = 0; i < total_count / thrd_number; i++) {
+#else
+        for (size_t i = tid; i < total_count / thrd_number; i += thrd_number) {
+#endif
             size_t idx = i % (list_volume / align_width) * align_width;
             node *ptr = (node *) deallocator->load(tid, std::ref(bucket[idx]));
             total += ptr->value;
@@ -83,7 +89,11 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
     Tracer tracer;
     tracer.startTime();
     while (stopMeasure.load() == 0) {
+#if high_intensive
         for (size_t i = 0; i < total_count / thrd_number; i++) {
+#else
+        for (size_t i = tid; i < total_count / thrd_number; i += thrd_number) {
+#endif
             node *ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
             ptr->value = 1;
