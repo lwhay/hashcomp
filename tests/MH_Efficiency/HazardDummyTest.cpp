@@ -10,6 +10,7 @@
 #include "memory_hazard.h"
 #include "hash_hazard.h"
 #include "mshazrd_pointer.h"
+#include "wrapper_epoch.h"
 #include "tracer.h"
 
 #define high_intensive 0
@@ -94,7 +95,10 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
 #else
         for (size_t i = tid; i < total_count / thrd_number; i += thrd_number) {
 #endif
-            node *ptr = (node *) std::malloc(sizeof(node));
+            node *ptr;
+            if (hash_freent == 4)
+                ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
+            else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
             ptr->value = 1;
             uint64_t old;
@@ -102,7 +106,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             do {
                 old = bucket[idx].load();
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr));
-            if (hash_freent == 2) { // mshp maintains caches inside each hp.
+            if (hash_freent == 2 || hash_freent == 4) { // mshp maintains caches inside each hp.
                 deallocator->free(old);
             } else {
                 oldqueue.push(old);
@@ -163,6 +167,10 @@ int main(int argc, char **argv) {
         }
         case 3: {
             deallocator = new adaptive_hazard(worker_gran);
+            break;
+        }
+        case 4 : {
+            deallocator = new epoch_wrapper<node>(thrd_number);
             break;
         }
         default: {
