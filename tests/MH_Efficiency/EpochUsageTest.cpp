@@ -1,5 +1,7 @@
-
+#include <thread>
 #include "AtomicStack.h"
+#include "GlobalWriteEM.h"
+#include "LocalWriteEM.h"
 #include "test_suite.h"
 
 using namespace peloton;
@@ -8,7 +10,7 @@ using namespace index;
 void BasicTest() {
     PrintTestName("BasicTest");
 
-    AtomicStack <uint64_t> as{};
+    AtomicStack<uint64_t> as{};
 
     for (uint64_t i = 0; i < 100; i++) {
         as.Push(i);
@@ -30,10 +32,10 @@ void BasicTest() {
 void ThreadTest(uint64_t thread_num, uint64_t op_num) {
     PrintTestName("ThreadTest");
 
-    AtomicStack <uint64_t> as{};
+    AtomicStack<uint64_t> as{};
 
     // This counts the number of push operation we have performed
-    std::atomic <uint64_t> counter;
+    std::atomic<uint64_t> counter;
     counter.store(0);
 
     auto push_func = [&as, &counter, thread_num, op_num](uint64_t id) {
@@ -46,7 +48,7 @@ void ThreadTest(uint64_t thread_num, uint64_t op_num) {
     };
 
     // We use this to count what we have fetched from the stack
-    std::atomic <uint64_t> sum;
+    std::atomic<uint64_t> sum;
     sum.store(0);
     counter.store(0);
 
@@ -89,12 +91,12 @@ void MixedTest(uint64_t thread_num, uint64_t op_num) {
         return;
     }
 
-    AtomicStack <uint64_t> as{};
+    AtomicStack<uint64_t> as{};
 
     // This counts the number of push operation we have performed
-    std::atomic <uint64_t> counter;
+    std::atomic<uint64_t> counter;
     // We use this to count what we have fetched from the stack
-    std::atomic <uint64_t> sum;
+    std::atomic<uint64_t> sum;
 
     sum.store(0);
     counter.store(0);
@@ -151,7 +153,41 @@ void MixedTest(uint64_t thread_num, uint64_t op_num) {
     return;
 }
 
+void LocalWriteEMTest() {
+    PrintTestName("LocalWriteEMTest");
+    struct dummy {
+        long a, b;
+    };
+    GlobalWriteEM<dummy> em;
+    em.StartGCThread();
+    std::thread worker = std::thread([](GlobalWriteEM<dummy> &em) {
+        dummy *dn = (dummy *) em.JoinEpoch();
+        dn->a = 1;
+        dn->b = 1;
+        em.LeaveEpoch(dn);
+    }, std::ref(em));
+}
+
+void GlobalWriteEMTest() {
+    PrintTestName("GlobalWriteEMTest");
+    struct dummy {
+        long a, b;
+    };
+    GlobalWriteEM<dummy> em;
+    em.StartGCThread();
+    std::thread worker = std::thread([](GlobalWriteEM<dummy> &em) {
+        dummy *dn = (dummy *) em.JoinEpoch();
+        dn->a = 1;
+        dn->b = 1;
+        em.LeaveEpoch(dn);
+    }, std::ref(em));
+}
+
 int main() {
+    GlobalWriteEMTest();
+
+    LocalWriteEMTest();
+
     BasicTest();
     // Many threads and small number of data
     ThreadTest(1024, 10);

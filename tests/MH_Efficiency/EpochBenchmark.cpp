@@ -248,8 +248,7 @@ void GEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num, uint64_t workload)
 
     auto func = [em, op_num, workload](uint64_t id) {
         // random is between (base [+/-] 1/4 base)
-        const uint64_t random_workload = \
-                  GetRandomWorkload(workload, workload >> 2, id);
+        const uint64_t random_workload = GetRandomWorkload(workload, workload >> 2, id);
 
         std::vector<uint64_t> v{};
         v.reserve(random_workload);
