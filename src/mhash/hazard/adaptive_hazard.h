@@ -34,7 +34,7 @@ public:
             writeintensive[i].init();
         }
         intensive_high = 0;
-        switch_period = thread_number * 16;
+        switch_period = thread_number * 32;
         for (int i = 0; i < total_thread; i++) {
             intensive_high |= (1llu << i);
         }
@@ -94,7 +94,10 @@ public:
     bool free(uint64_t ptr) {
         uint64_t intention = intensive.load();
         assert(ptr != 0);
-        bool busy = false;
+        bool busy;
+        uint64_t hk = hash(ptr);
+        busy = (indicators[hk].load() != 0);
+        if (busy) return false;
         if (intention > 0) {
             for (size_t t = 0; t < thread_number; t++) {
                 if ((intention & (1llu << t)) != 0 && holders[t].load() == ptr) {
@@ -104,13 +107,8 @@ public:
             }
             if (busy) return false;
         }
-        uint64_t hk = hash(ptr);
-        busy = (indicators[hk].load() != 0);
-        if (busy) return false;
-        else {
-            std::free((void *) ptr);
-            return true;
-        }
+        std::free((void *) ptr);
+        return true;
     }
 };
 
