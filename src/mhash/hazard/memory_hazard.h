@@ -11,12 +11,8 @@
 
 constexpr size_t thread_limit = (1 << 8);
 
-constexpr size_t default_step = (1 << 4);
-
-#define IDX(tid) (tid * default_step)
-
 struct holder {
-    alignas(64) std::atomic<uint64_t> address;
+    alignas(128) std::atomic<uint64_t> address;
 public:
     void init() { address.store(0); }
 
@@ -26,28 +22,28 @@ public:
 };
 
 class memory_hazard : public ihazard {
-private:
-    holder holders[thread_limit * default_step];
+protected:
+    holder holders[thread_limit];
 
 public:
     void registerThread() {
-        holders[IDX(thread_number)].init();
+        holders[thread_number].init();
         thread_number++;
     }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         uint64_t address = ptr.load();
-        holders[IDX(tid)].store(address);
+        holders[tid].store(address);
         return address;
     }
 
-    void read(size_t tid) { holders[IDX(tid)].store(0); }
+    void read(size_t tid) { holders[tid].store(0); }
 
     bool free(uint64_t ptr) {
         assert(ptr != 0);
         bool busy = false;
         for (size_t t = 0; t < thread_number; t++) {
-            if (holders[IDX(t)].load() == ptr) {
+            if (holders[t].load() == ptr) {
                 busy = true;
                 break;
             }

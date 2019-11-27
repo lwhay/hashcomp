@@ -24,7 +24,7 @@ private:
 
     indicator readintensive[thread_limit], writeintensive[thread_limit];
 
-    alignas(64) std::atomic<uint64_t> intensive{0};
+    alignas(128) std::atomic<uint64_t> intensive{0};
 public:
     adaptive_hazard(size_t total_thread) : hash_hazard(total_thread) {
         for (size_t i = 0; i < total_thread; i++) {

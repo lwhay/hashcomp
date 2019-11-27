@@ -57,7 +57,7 @@ constexpr size_t total_hash_keys = (1 << 20);
 #endif
 
 class indicator {
-    alignas(64) std::atomic<uint64_t> counter;
+    alignas(128) std::atomic<uint64_t> counter;
 public:
     indicator() { counter.store(0); }
 
