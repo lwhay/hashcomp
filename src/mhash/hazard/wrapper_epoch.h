@@ -6,36 +6,73 @@
 #define HASHCOMP_WRAPPER_EPOCH_H
 
 #include <ihazard.h>
+#include "LocalWriteEM.h"
 #include "GlobalWriteEM.h"
+
+#define uselocal 1
+#if uselocal == 0
+thread_local void *curepoch;
+#endif
 
 template<typename T>
 class epoch_wrapper : public ihazard {
 private:
+#if uselocal == 1
+    LocalWriteEM<T> *lwm;
+#else
     GlobalWriteEM<T> *gwm;
+#endif
 
 public:
     epoch_wrapper(size_t thread_count) {
         thread_number = thread_count;
+#if uselocal
+        lwm = new LocalWriteEM<T>{thread_count};
+        lwm->StartGCThread();
+#else
+        gwm = new GlobalWriterEM<T>();
         gwm->StartGCThread();
+#endif
         std::cout << "Epoch wrapper" << std::endl;
     }
 
-    ~epoch_wrapper() { delete gwm; }
+    ~epoch_wrapper() {
+#if uselocal == 1
+        delete lwm;
+#else
+        delete gwm;
+#endif
+    }
 
     void registerThread() {}
 
-    uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) { return ptr.load(); }
+    uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
+#if uselocal == 1
+        lwm->AnnounceEnter(tid);
+#endif
+        return ptr.load();
+    }
 
     void read(size_t tid) {}
 
     bool free(uint64_t ptr) {
+#if uselocal == 1
+        lwm->AddGarbageNode((T *) ptr);
+#else
         gwm->LeaveEpoch((void *) ptr);
+#endif
         return true;
     }
 
     char *info() { return "epoch wrapper"; }
 
-    uint64_t get() { return (uint64_t) gwm->JoinEpoch(); }
+    uint64_t get() {
+#if uselocal == 1
+        return 0;
+#else
+        return (uint64_t) gwm->JoinEpoch();
+#endif
+    }
 };
 
 #endif //HASHCOMP_WRAPPER_EPOCH_H

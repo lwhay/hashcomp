@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <thread>
 #include <unistd.h>
 #include "AtomicStack.h"
@@ -161,13 +162,69 @@ void LocalWriteEMTest() {
         long a, b;
     };
     LocalWriteEM<dummy> *em = new LocalWriteEM<dummy>(1);
+    em->SetGCInterval(1);
     em->StartGCThread();
-    std::thread worker = std::thread([](LocalWriteEM<dummy> *em) {
-        dummy *dn = new dummy;
+    std::atomic<bool> signal{false};
+    dummy *dn;
+    std::thread worker = std::thread([](LocalWriteEM<dummy> *em, dummy *&dn, std::atomic<bool> &signal) {
+        bool status = true;
+        int idx = 1;
+        dn = new dummy;
         em->AnnounceEnter(0);
+        signal.store(status);
+        status != status;
         dn->a = 1;
         dn->b = 1;
-    }, em);
+        sleep(1);
+        std::stringstream mark;
+        if (dn != nullptr) mark << dn->a << ":" << dn->b;
+        else mark << "null";
+        std::cout << "Creator" << idx++ << " " << mark.str() << std::endl;
+        sleep(2);
+        for (int i = 0; i < 3; i++) {
+            sleep(1);
+            if (dn != nullptr) mark << dn->a << ":" << dn->b << "-" << status << "-";
+            else mark << "null";
+            std::cout << "Creator" << idx++ << " " << mark.str() << std::endl;
+            signal.store(status);
+            status != status;
+        }
+        //em->AddGarbageNode(dn);
+        em->FreeAllGarbage();
+    }, em, std::ref(dn), std::ref(signal));
+    std::thread reader = std::thread([](LocalWriteEM<dummy> *em, dummy *&dn, std::atomic<bool> &signal) {
+        bool status = true;
+        em->AnnounceEnter(0);
+        while (signal.load() != status);
+        status != status;
+        std::stringstream mark;
+        if (dn != nullptr) mark << dn->a << ":" << dn->b;
+        else mark << "null";
+        std::cout << "Reclaimer1 " << mark.str() << std::endl;
+        sleep(2);
+        if (dn != nullptr) mark << dn->a << ":" << dn->b;
+        else mark << "null";
+        std::cout << "Reclaimer2 " << mark.str() << std::endl;
+        em->AddGarbageNode(dn);
+        em->FreeAllGarbage();
+        dummy *nd[100];
+        for (int i = 0; i < 100; i++) nd[i] = new dummy{i, i};
+        for (int i = 0; i < 100; i++) delete nd[i];
+        for (int i = 0; i < 3; i++) {
+            while (signal.load() != status);
+            status != status;
+            em->FreeAllGarbage();
+            sleep(1);
+            /*if (dn != nullptr) mark << dn->a << ":" << dn->b << "-" << status << "-";
+            else mark << "null";
+            std::cout << "Reclaimer " << mark.str() << std::endl;*/
+        }
+        if (dn != nullptr) mark << dn->a << ":" << dn->b;
+        else mark << "null";
+        std::cout << "Reclaimer3 " << mark.str() << std::endl;
+    }, em, std::ref(dn), std::ref(signal));
+    worker.join();
+    reader.join();
     delete em;
 }
 
@@ -206,7 +263,7 @@ void GlobalWriteEMTest() {
 int main() {
     GlobalWriteEMTest();
 
-    //LocalWriteEMTest();
+    LocalWriteEMTest();
 
     BasicTest();
     // Many threads and small number of data

@@ -68,12 +68,21 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 void init(std::atomic<uint64_t> *bucket) {
     for (size_t i = 0; i < total_count / thrd_number; i++) {
         node *ptr;
-        if (hash_freent == 4) (node *) ((epoch_wrapper<node> *) deallocator)->get();
-        else ptr = (node *) std::malloc(sizeof(node));
+#if uselocal == 0
+        if (hash_freent == 4)
+            ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
+        else
+#endif
+        ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i % (list_volume / align_width) * align_width;
         ptr->key = idx;
         ptr->value = 1;
         bucket[idx].store((uint64_t) ptr);
+#if uselocal == 1
+        if (hash_freent == 4) {
+            deallocator->load(0, std::ref(bucket[idx]));
+        }
+#endif
     }
 }
 
@@ -98,8 +107,12 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
         for (size_t i = tid; i < total_count / thrd_number; i += thrd_number) {
 #endif
             node *ptr;
-            if (hash_freent == 4) ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
-            else ptr = (node *) std::malloc(sizeof(node));
+#if uselocal == 0
+            if (hash_freent == 4)
+                ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
+            else
+#endif
+            ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
             ptr->value = 1;
             uint64_t old;
@@ -109,6 +122,11 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr));
             if (hash_freent == 2 || hash_freent == 4) { // mshp maintains caches inside each hp.
                 deallocator->free(old);
+#if uselocal == 1
+                if (hash_freent == 4) {
+                    deallocator->load(tid, std::ref(bucket[idx]));
+                }
+#endif
             } else {
                 oldqueue.push(old);
                 if (oldqueue.size() >= queue_limit) {
@@ -152,8 +170,6 @@ int main(int argc, char **argv) {
     runtime = new long[thrd_number];
     operations = new uint64_t[thrd_number];
     conflict = new uint64_t[thrd_number];
-    init(bucket);
-    //print(bucket);
     Tracer tracer;
     tracer.startTime();
     std::vector<std::thread> workers;
@@ -179,6 +195,8 @@ int main(int argc, char **argv) {
             break;
         }
     }
+    init(bucket);
+    //print(bucket);
     Timer timer;
     timer.start();
     size_t t = 0;
