@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
         timer_range = std::atol(argv[4]);
         skew = std::stof(argv[5]);
     }
-    store = new maptype(16, 3, thread_number);
+    store = new maptype(65536, 20, thread_number);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
