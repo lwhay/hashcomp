@@ -497,6 +497,58 @@ if (WITH_LIBCUCKOO)
     endforeach (sourcefile ${CUKOO_TEST})
 endif ()
 
+option(WITH_AWLMAP "processing awlmap" ON)
+if (WITH_AWLMAP)
+    set(AWLMAP_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/awlmap")
+    message(STATUS "BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+    message(STATUS "AWLMAP_PREFIX: ${AWLMAP_PREFIX}")
+    ExternalProject_Add(awlmap
+            PREFIX "${AWLMAP_PREFIX}"
+            GIT_REPOSITORY https://github.com/huangjiahua/concurrent_hash_map
+            GIT_TAG master
+            UPDATE_COMMAND ""
+            INSTALL_COMMAND ""
+            BUILD_COMMAND $(MAKE) -j8
+            CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} cmake -DCMAKE_INSTALL_PREFIX=../install -DBUILD_EXAMPLES=1 -DBUILD_TESTS=1
+            LOG_DOWNLOAD ON
+            LOG_CONFIGURE ON
+            LOG_BUILD ON
+            )
+
+    include_directories(
+            ${AWLMAP_PREFIX}/src/awlmap
+            ${AWLMAP_PREFIX}/src/awlmap/hash_map
+            ${AWLMAP_PREFIX}/src/awlmap/heavyhitter
+            ${AWLMAP_PREFIX}/src/awlmap/my_haz_ptr
+            ${AWLMAP_PREFIX}/src/awlmap/my_haz_ptr/haz_ptr
+    )
+
+    link_directories(${AWLMAP_PREFIX}/src/awlmap-build/)
+
+    set(AWLMAP_LIBS
+            ${AWLMAP_PREFIX}/src/awlmap/hash_map/concurrent_hash_map.cpp
+            ${AWLMAP_PREFIX}/src/awlmap/hash_map/thread.cpp
+            ${AWLMAP_PREFIX}/src/awlmap/my_haz_ptr/haz_ptr/haz_ptr.cpp
+            )
+
+    set(AWLMAP_TEST
+            tests/AWL_Unit/awlmap_Usage.cpp
+            tests/AH_MicroTest.cpp)
+
+    foreach (sourcefile ${AWLMAP_TEST})
+        get_filename_component(exename ${sourcefile} NAME_WE)
+        add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile} ${AWLMAP_LIBS})
+        set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
+                PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
+                EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
+                EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
+                OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
+                )
+        add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} awlmap)
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${ATOMIC})
+    endforeach (sourcefile ${AWLMAP_TEST})
+endif ()
+
 if (WITH_FOLLY)
     set(FOLLY_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/folly")
     message(STATUS "BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
