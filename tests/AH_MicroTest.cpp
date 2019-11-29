@@ -18,7 +18,7 @@
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
 
-#define TEST_LOOKUP        0
+#define TEST_LOOKUP        1
 
 #define COUNT_HASH         1
 
