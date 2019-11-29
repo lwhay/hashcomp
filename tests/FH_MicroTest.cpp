@@ -5,9 +5,11 @@
 #include <stdlib.h>
 #include "faster.h"
 
-#define CONTEXT_TYPE 2
+#define CONTEXT_TYPE 0
 #if CONTEXT_TYPE == 0
+
 #include "kvcontext.h"
+
 #elif CONTEXT_TYPE == 2
 
 #include "cvkvcontext.h"
@@ -133,7 +135,9 @@ void *measureWorker(void *args) {
             ReadContext context{loads[i]};
 
             Status result = store.Read(context, callback, 1);
-            if (result == Status::Ok)
+            Value value;
+            context.Get(value);
+            if (result == Status::Ok && value.Get() == loads[i])
                 hit++;
             else
                 fail++;

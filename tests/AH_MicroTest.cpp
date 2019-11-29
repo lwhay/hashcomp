@@ -29,6 +29,8 @@ struct Value {
 public:
     Value(uint64_t v) : value(v) {}
 
+    ~Value() {}
+
     uint64_t get() { return value; }
 };
 

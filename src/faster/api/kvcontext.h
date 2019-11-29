@@ -73,6 +73,8 @@ public:
 
     friend class RmwContext;
 
+    inline uint64_t Get() { return value_; }
+
 private:
     union {
         uint64_t value_;
