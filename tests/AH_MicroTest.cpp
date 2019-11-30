@@ -34,7 +34,7 @@ public:
     uint64_t get() { return value; }
 };
 
-typedef ConcurrentHashMap<uint64_t, Value *, std::hash<uint64_t>, std::equal_to<>> maptype;
+typedef ConcurrentHashMap<uint64_t, /*Value **/uint64_t, std::hash<uint64_t>, std::equal_to<>> maptype;
 
 maptype *store;
 
@@ -80,7 +80,7 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        store->Insert(loads[i], new Value(loads[i]));
+        store->Insert(loads[i], loads[i]/*new Value(loads[i])*/);
         set.insert(loads[i]);
         inserted++;
     }
@@ -91,7 +91,7 @@ void *insertWorker(void *args) {
     //struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = 0; i < total_count; i++) {
-        store->Insert(loads[i], new Value(loads[i]));
+        store->Insert(loads[i], loads[i]/*new Value(loads[i])*/);
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -107,14 +107,14 @@ void *measureWorker(void *args) {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
             for (int i = 0; i < total_count; i++) {
 #if TEST_LOOKUP
-                Value *value;
+                uint64_t /*Value **/value;
                 bool ret = store->Find(loads[i], value);
-                if (ret && value->get() == loads[i])
+                if (ret && value/*->get()*/ == loads[i])
                     hit++;
                 else
                     fail++;
 #else
-                bool ret = store->Insert(loads[i], new Value(loads[i]));
+                bool ret = store->Insert(loads[i], loads[i]/*new Value(loads[i])*/);
                 if (ret)
                     hit++;
                 else
