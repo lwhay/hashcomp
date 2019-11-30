@@ -73,7 +73,9 @@ public:
 
     friend class RmwContext;
 
-    inline uint64_t Get() { return value_; }
+    inline uint64_t Get() const { return value_; }
+
+    inline void Set(uint64_t value) { value_ = value; }
 
 private:
     union {
@@ -103,7 +105,7 @@ public:
     // For this benchmark, we don't copy out, so these are no-ops.
     inline void Get(const value_t &value) {}
 
-    inline void GetAtomic(const value_t &value) {}
+    inline void GetAtomic(const value_t &value) { atomic_value_.store(value.Get()); }
 
 protected:
     /// The explicit interface requires a DeepCopy_Internal() implementation.
@@ -113,6 +115,8 @@ protected:
 
 private:
     Key key_;
+
+    std::atomic<uint64_t> atomic_value_;
 };
 
 /// Class passed to store_t::Upsert().
