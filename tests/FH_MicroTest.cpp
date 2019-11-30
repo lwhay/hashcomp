@@ -135,9 +135,7 @@ void *measureWorker(void *args) {
             ReadContext context{loads[i]};
 
             Status result = store.Read(context, callback, 1);
-            Value value;
-            context.Get(value);
-            if (result == Status::Ok && value.Get() == loads[i])
+            if (result == Status::Ok && context.Return() == loads[i])
                 hit++;
             else
                 fail++;

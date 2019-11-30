@@ -75,7 +75,9 @@ public:
 
     inline uint64_t Get() const { return value_; }
 
-    inline void Set(uint64_t value) { value_ = value; }
+    inline uint64_t Load() const { return atomic_value_.load(); }
+
+    //inline void Set(uint64_t value) { value_ = value; }
 
 private:
     union {
@@ -90,12 +92,10 @@ public:
     typedef Key key_t;
     typedef Value value_t;
 
-    ReadContext(uint64_t key) : key_{key} {
-    }
+    ReadContext(uint64_t key) : key_{key} {}
 
     /// Copy (and deep-copy) constructor.
-    ReadContext(const ReadContext &other) : key_{other.key_} {
-    }
+    ReadContext(const ReadContext &other) : key_{other.key_} {}
 
     /// The implicit and explicit interfaces require a key() accessor.
     inline const Key &key() const {
@@ -103,9 +103,14 @@ public:
     }
 
     // For this benchmark, we don't copy out, so these are no-ops.
-    inline void Get(const value_t &value) {}
+    inline void Get(const value_t &value) {
+        //ASSERT_TRUE(false);
+        value_ = value.value_;
+    }
 
-    inline void GetAtomic(const value_t &value) { atomic_value_.store(value.Get()); }
+    inline void GetAtomic(const value_t &value) { atomic_value_.store(value.atomic_value_.load()); }
+
+    inline uint64_t Return() { return value_; }
 
 protected:
     /// The explicit interface requires a DeepCopy_Internal() implementation.
@@ -116,7 +121,10 @@ protected:
 private:
     Key key_;
 
-    std::atomic<uint64_t> atomic_value_;
+    union {
+        uint64_t value_;
+        std::atomic<uint64_t> atomic_value_;
+    };
 };
 
 /// Class passed to store_t::Upsert().
