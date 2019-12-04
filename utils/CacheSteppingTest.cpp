@@ -55,6 +55,10 @@ void pcompute() {
     cout << "\t" << avg / degree << " " << total * degree / time << endl;
 }
 
+void finished() {
+    delete[] workloads;
+}
+
 int main(int argc, char **argv) {
     if (argc > 4) {
         degree = std::atol(argv[1]);
