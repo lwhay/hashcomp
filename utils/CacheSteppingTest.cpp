@@ -56,10 +56,11 @@ void pcompute() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 3) {
+    if (argc > 4) {
         degree = std::atol(argv[1]);
         total = std::atol(argv[2]);
         step = std::atol(argv[3]);
+        iteration = std::atol(argv[4]);
     }
     generate();
     pcompute();
