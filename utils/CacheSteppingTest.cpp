@@ -68,5 +68,6 @@ int main(int argc, char **argv) {
     }
     generate();
     pcompute();
+    finished();
     return 0;
 }
