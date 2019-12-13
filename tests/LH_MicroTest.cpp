@@ -252,7 +252,7 @@ int main(int argc, char **argv) {
     cout << "restart" << endl;
     restart();
     cout << "unique" << endl;
-    uniqueInsert();
+    //uniqueInsert();
     //prepare();
     cout << "restart" << endl;
     restart();
