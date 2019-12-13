@@ -11,7 +11,7 @@
 #include "libcuckoo/cuckoohash_map.hh"
 
 TEST(CuckooTests, UnitOperations) {
-    cuckoohash_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
+    libcuckoo::cuckoohash_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
             std::allocator<std::pair<const uint64_t, uint64_t>>, 8> cmap(128);
     auto neg = [](uint64_t &val) {};
     cmap.upsert(1, neg, 1);
