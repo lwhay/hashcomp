@@ -24,7 +24,7 @@
 
 #define DEFAULT_STORE_BASE 100000000
 
-typedef cuckoohash_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
+typedef libcuckoo::cuckoohash_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
         std::allocator<std::pair<const uint64_t, uint64_t>>, 8> cmap;
 
 cmap *store;
