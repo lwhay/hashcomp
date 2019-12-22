@@ -68,7 +68,13 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     set(DL -ldl)
     set(AIO -laio)
     set(UUID -luuid)
+    set(NUMA -lnuma)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wimplicit-function-declaration")
+    option(WITH_NUMA "enforcing numa test" ON)
+    if (WITH_NUMA)
+        set(NUMA_EXES
+                tests/NUMA_Unit/NUMA_dummy_test.cpp)
+    endif ()
 else ()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wincompatible-pointer-types -Wint-conversion")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wimplicit-function-declaration -Wdiscarded-qualifiers")
@@ -308,6 +314,21 @@ if ((CMAKE_SYSTEM_NAME MATCHES "Linux" AND CMAKE_CXX_COMPILER_VERSION VERSION_GR
         option(WITH_FOLLY "build with folly" ON)
     endif ()
     option(WITH_ZT_TEST "build with xttests" ON)
+endif ()
+
+if (WITH_NUMA)
+    set(NUMA_TESTS_EXES ${NUMA_EXES})
+    foreach (sourcefile ${NUMA_TESTS_EXES})
+        get_filename_component(exename ${sourcefile} NAME_WE)
+        add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile})
+        set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
+                PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
+                EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
+                EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
+                OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
+                )
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${NUMA})
+    endforeach (sourcefile ${NUMA_TESTS_EXES})
 endif ()
 
 if (WITH_ZT_TEST)

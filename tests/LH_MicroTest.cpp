@@ -1,5 +1,6 @@
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include "tracer.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +12,12 @@
 
 #define DEFAULT_STR_LENGTH 256
 #define DEFAULT_KEY_LENGTH 8
+
+#define WITH_NUMA          1
+
+#if WITH_NUMA == 1
+unsigned num_cpus = std::thread::hardware_concurrency();
+#endif
 
 #define TEST_LOOKUP        1
 
@@ -211,6 +218,15 @@ void multiWorkers() {
     tracer.startTime();
     for (int i = 0; i < 1/*thread_number*/; i++) {
         pthread_create(&workers[i], nullptr, insertWorker, &parms[i]);
+#if WITH_NUMA == 1
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(i % num_cpus, &cpuset);
+        int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
+        if (rc != 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+#endif
     }
     for (int i = 0; i < 1/*thread_number*/; i++) {
         pthread_join(workers[i], nullptr);
