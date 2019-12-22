@@ -5,6 +5,7 @@
 #include <random>
 #include <chrono>
 #include <fstream>
+#include <thread>
 #include <pthread.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -18,6 +19,39 @@
 #define FUZZY_BOUND 0
 
 using namespace std;
+
+#define WITH_NUMA          2
+
+#if WITH_NUMA != 0
+unsigned num_cpus = std::thread::hardware_concurrency();
+cpu_set_t default_cpuset;
+atomic<bool> setcpus{false};
+#endif
+
+void fixedThread(size_t tid, pthread_t &thread) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(tid % num_cpus, &cpuset);
+    int rc = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    if (rc != 0) {
+        std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+    }
+}
+
+void maskThread(size_t tid, pthread_t &thread) {
+    if (tid == 0) {
+        CPU_ZERO(&default_cpuset);
+        for (size_t t = 1; t < num_cpus; t++)
+            CPU_SET(t, &default_cpuset);
+        setcpus.store(true);
+    } else {
+        while (!setcpus.load()) std::this_thread::yield();
+    }
+    int rc = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &default_cpuset);
+    if (rc != 0) {
+        std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+    }
+}
 
 class Tracer {
     timeval begTime;

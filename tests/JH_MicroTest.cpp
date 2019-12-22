@@ -5,7 +5,6 @@
 #include <iostream>
 #include <sstream>
 #include <chrono>
-#include <thread>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unordered_set>
@@ -18,12 +17,6 @@
 
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
-
-#define WITH_NUMA          1
-
-#if WITH_NUMA == 1
-unsigned num_cpus = std::thread::hardware_concurrency();
-#endif
 
 #define TEST_LOOKUP        1
 
@@ -179,13 +172,9 @@ void multiWorkers() {
     for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], nullptr, measureWorker, &parms[i]);
 #if WITH_NUMA == 1
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(i % num_cpus, &cpuset);
-        int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
-        if (rc != 0) {
-            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
-        }
+        fixedThread(i, workers[i]);
+#elif WITH_NUMA == 2
+        maskThread(i, workers[i]);
 #endif
     }
     while (timer.elapsedSeconds() < timer_range) {
