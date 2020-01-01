@@ -163,6 +163,7 @@ if (WITH_MH_TESTS)
             tests/MH_Efficiency/AlignasEffectsOnAtom.cpp
             tests/MH_Efficiency/HazardDummyTest.cpp
             tests/MH_Efficiency/EpochUsageTest.cpp
+            tests/MH_Efficiency/EpochBzUsageTest.cpp
             tests/MH_Efficiency/EpochBenchmark.cpp
             utils/MH_UnitTest.cpp
             tests/MH_MicroTest.cpp
