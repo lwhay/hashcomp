@@ -42,6 +42,7 @@ include_directories("src/mhash/util")
 include_directories("src/mhash/epoch")
 include_directories("src/mhash/hazard")
 include_directories("src/mhash/hazard/epoch")
+include_directories("src/mhash/hazard/brown")
 include_directories("src/xhash")
 include_directories("utils")
 
