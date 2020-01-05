@@ -52,17 +52,13 @@ private:
 
 public:
     hashset() {
-        VERBOSE
-                DEBUG
-        std::cout << "constructor hashset" << std::endl;
+        VERBOSE DEBUG std::cout << "constructor hashset" << std::endl;
         cleared = false;
         clear();
     }
 
     ~hashset() {
-        VERBOSE
-                DEBUG
-        std::cout << "destructor hashset" << std::endl;
+        VERBOSE DEBUG std::cout << "destructor hashset" << std::endl;
     }
 
     void clear() {
@@ -209,9 +205,7 @@ public:
         while (tableSize < numberOfElements * 2) {
             tableSize *= 2;
         }
-        VERBOSE
-                DEBUG
-        std::cout << "constructor hashset_new capacity=" << tableSize << std::endl;
+        VERBOSE DEBUG std::cout << "constructor hashset_new capacity=" << tableSize << std::endl;
         keys = (new K *[tableSize + 2 * PREFETCH_SIZE_WORDS]) +
                PREFETCH_SIZE_WORDS; /* HACKY OVER-ALLOCATION AND POINTER SHIFT TO ADD PADDING ON EITHER END WITH MINIMAL ARITHEMTIC OPS */
         __size = -1;

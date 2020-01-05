@@ -28,8 +28,7 @@ public:
     PAD;
 
     AtomicArrayList(const int _capacity) : capacity(_capacity) {
-        VERBOSE
-        DEBUG COUTATOMIC("constructor AtomicArrayList capacity=" << capacity << std::endl);
+        VERBOSE DEBUG COUTATOMIC("constructor AtomicArrayList capacity=" << capacity << std::endl);
         __size.store(0, std::memory_order_relaxed);
         data = (new std::atomic_uintptr_t[capacity + 2 * PREFETCH_SIZE_WORDS]) +
                PREFETCH_SIZE_WORDS; /* HACKY OVER-ALLOCATION AND POINTER SHIFT TO ADD PADDING ON EITHER END WITH MINIMAL ARITHEMTIC OPS */

@@ -16,11 +16,11 @@
 
 template<typename T>
 struct set_of_bags {
-    blockbag <T> *const *const bags;
+    blockbag<T> *const *const bags;
     const int numBags;
 };
 
-template<typename T = void, class Pool = pool_interface <T> >
+template<typename T = void, class Pool = pool_interface<T> >
 class reclaimer_interface {
 public:
     PAD;
@@ -99,13 +99,11 @@ public:
     reclaimer_interface(const int numProcesses, Pool *_pool, debugInfo *const _debug,
                         RecoveryMgr<void *> *const _recoveryMgr = NULL)
             : recoveryMgr(_recoveryMgr), debug(_debug), NUM_PROCESSES(numProcesses), pool(_pool) {
-        VERBOSE
-        DEBUG COUTATOMIC("constructor reclaimer_interface" << std::endl);
+        VERBOSE DEBUG COUTATOMIC("constructor reclaimer_interface" << std::endl);
     }
 
     ~reclaimer_interface() {
-        VERBOSE
-        DEBUG COUTATOMIC("destructor reclaimer_interface" << std::endl);
+        VERBOSE DEBUG COUTATOMIC("destructor reclaimer_interface" << std::endl);
     }
 };
 
