@@ -20,13 +20,12 @@
 
 using namespace std;
 
-#define WITH_NUMA          2
+#define WITH_NUMA   0
 
 #if WITH_NUMA != 0
 unsigned num_cpus = std::thread::hardware_concurrency();
 cpu_set_t default_cpuset;
 atomic<bool> setcpus{false};
-#endif
 
 void fixedThread(size_t tid, pthread_t &thread) {
     cpu_set_t cpuset;
@@ -52,6 +51,7 @@ void maskThread(size_t tid, pthread_t &thread) {
         std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
     }
 }
+#endif
 
 class Tracer {
     timeval begTime;

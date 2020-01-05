@@ -558,7 +558,8 @@ if (WITH_AWLMAP)
 
     set(AWLMAP_TEST
             tests/AWL_Unit/awlmap_Usage.cpp
-            tests/AH_MicroTest.cpp)
+            tests/AH_MicroTest.cpp
+            tests/AA_MicroTest.cpp)
 
     foreach (sourcefile ${AWLMAP_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
