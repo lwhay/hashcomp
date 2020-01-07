@@ -8,6 +8,7 @@
 #include "pool_none.h"
 #include "allocator_new.h"
 #include "pool_perthread_and_shared.h"
+#include "record_manager.h"
 #include "reclaimer_hazardptr.h"
 #include "reclaimer_debra.h"
 #include "reclaimer_debraplus.h"
@@ -21,10 +22,6 @@ const int NUM_THREADS = 1;
 const int NUM_ROUNDS = (1 << 20); // For tb_hazard, number of rounds should be larger than that of elements.
 
 const int NUM_ELEMENTS = (1 << 8/*19*/);
-
-CallbackReturn callbackReturnTrue(CallbackArg arg) {
-    return true;
-}
 
 // Rather than bz_hazard, other reclaimers are dummy classes in case of (un)protect
 template<typename type, template<typename, typename> class tb_reclaimer>
@@ -60,14 +57,40 @@ public:
 };
 
 void tb_hazard_original() {
-    typedef reclaimer_hazardptr<uint64_t> Reclaimer;
+    typedef reclaimer_hazardptr<uint64_t, pool_perthread_and_shared<uint64_t, allocator_new<uint64_t>>> Reclaimer;
     typedef allocator_new<uint64_t> Allocator;
-    typedef pool_perthread_and_shared<uint64_t> Pool;
+    typedef pool_perthread_and_shared<uint64_t, allocator_new<uint64_t>> Pool;
 
     Allocator *alloc = new Allocator(NUM_THREADS, nullptr);
     Pool *pool = new Pool(NUM_THREADS, alloc, nullptr);
     Reclaimer *reclaimer = new Reclaimer(NUM_THREADS, pool, nullptr);
+    record_manager<Reclaimer, Allocator, Pool, uint64_t> *recordManager = new record_manager<Reclaimer, Allocator, Pool, uint64_t>(
+            NUM_THREADS);
+    Tracer tracer;
+    tracer.startTime();
+    recordManager->initThread(0);
+
+    uint64_t *cache[NUM_ELEMENTS];
+
+    for (int i = 0; i < NUM_ELEMENTS; i++) cache[i] = alloc->allocate(0);
+    std::cout << "Reclaimer allocate: " << tracer.getRunTime() << std::endl;
+    for (int k = 0; k < NUM_ROUNDS; k++) {
+        for (int i = 0; i < NUM_ELEMENTS; i++) reclaimer->protect(0, cache[i], callbackReturnTrue, nullptr, false);
+
+        for (int i = 0; i < NUM_ELEMENTS; i++) reclaimer->unprotect(0, cache[i]);
+
+        //for (int i = 0; i < NUM_ELEMENTS; i++) reclaimer->retire(0, cache[i]);
+    }
+    std::cout << "Reclaimer (un)protect: " << tracer.getRunTime() << std::endl;
+    for (int i = 0; i < NUM_ELEMENTS; i++) alloc->deallocate(0, cache[i]);
+
+    std::cout << "Reclaimer deallocate: " << tracer.getRunTime() << std::endl;
+    recordManager->deinitThread(0);
+    std::cout << "Reclaimer deinitThread: " << tracer.getRunTime() << std::endl;
+    delete recordManager;
     //delete reclaimer;
+    delete pool;
+    delete alloc;
 }
 
 int main(int argc, char **argv) {
