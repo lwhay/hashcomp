@@ -17,6 +17,7 @@
 
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
+#define REDO_INCASEOF_FAIL 0
 
 #define TEST_LOOKUP        1
 
@@ -108,8 +109,21 @@ void *measureWorker(void *args) {
             for (int i = 0; i < total_count; i++) {
 #if TEST_LOOKUP
                 uint64_t /*Value **/value;
+#ifndef DISABLE_FAST_TABLE
+                maptype::AsyncReturnCode ret = store->AsyncFind(loads[i], value);
+                if (ret == maptype::AsyncReturnCode::Ok && value/*->get()*/ == loads[i])
+                    hit++;
+                else
+                    fail++;
+#else
                 bool ret = store->Find(loads[i], value);
-                if (ret && value/*->get()*/ == loads[i])
+                if (ret && value == loads[i]) hit++;
+                else fail++;
+#endif
+#else
+#ifndef DISABLE_FAST_TABLE
+                maptype::AsyncReturnCode ret = store->AsyncInsert(loads[i], loads[i]);
+                if (ret == maptype::AsyncReturnCode::Ok)
                     hit++;
                 else
                     fail++;
@@ -119,6 +133,7 @@ void *measureWorker(void *args) {
                     hit++;
                 else
                     fail++;
+#endif
 #endif
             }
         }
