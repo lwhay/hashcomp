@@ -178,6 +178,22 @@ void *measureWorker(void *args) {
 #endif
             }
         }
+#ifndef DISABLE_FAST_TABLE
+#if REDO_INCASEOF_FAIL
+        for (int i = 0; i < cursor; i++) {
+#if TEST_LOOKUP
+            uint64_t value;
+            bool reret = store->Find(cache[i], value);
+            if (reret && value == cache[i]) hit++;
+            else fail++;
+#else
+            bool reret = store->Insert(cache[i], cache[i]);
+            if (reret) hit++;
+            else fail++;
+#endif
+        }
+#endif
+#endif
     } catch (exception e) {
         cout << work->tid << endl;
     }
