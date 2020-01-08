@@ -17,7 +17,13 @@
 
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
-#define REDO_INCASEOF_FAIL 0
+#define REDO_INCASEOF_FAIL 1
+#if REDO_INCASEOF_FAIL
+
+#define CACHE_SIZE (1llu << 8)
+thread_local uint64_t cache[CACHE_SIZE];
+
+#endif
 
 #define TEST_LOOKUP        1
 
@@ -104,6 +110,9 @@ void *measureWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t hit = 0;
     uint64_t fail = 0;
+#if REDO_INCASEOF_FAIL
+    uint64_t cursor = 0;
+#endif
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
             for (int i = 0; i < total_count; i++) {
@@ -111,10 +120,26 @@ void *measureWorker(void *args) {
                 uint64_t /*Value **/value;
 #ifndef DISABLE_FAST_TABLE
                 maptype::AsyncReturnCode ret = store->AsyncFind(loads[i], value);
+#if REDO_INCASEOF_FAIL
+                if (maptype::AsyncReturnCode::Pending == ret) {
+                    if (cursor == CACHE_SIZE) {
+                        for (int j = 0; j < CACHE_SIZE; j++) {
+                            bool reret = store->Find(cache[j], value);
+                            if (reret && value == cache[j]) hit++;
+                            else fail++;
+                        }
+                        cursor = 0;
+                    }
+                    cache[cursor] = loads[i];
+                    cursor++;
+                } else if (maptype::AsyncReturnCode::Ok == ret) hit++;
+                else fail++;
+#else
                 if (ret == maptype::AsyncReturnCode::Ok && value/*->get()*/ == loads[i])
                     hit++;
                 else
                     fail++;
+#endif
 #else
                 bool ret = store->Find(loads[i], value);
                 if (ret && value == loads[i]) hit++;
@@ -123,10 +148,26 @@ void *measureWorker(void *args) {
 #else
 #ifndef DISABLE_FAST_TABLE
                 maptype::AsyncReturnCode ret = store->AsyncInsert(loads[i], loads[i]);
+#if REDO_INCASEOF_FAIL
+                if (maptype::AsyncReturnCode::Pending == ret) {
+                    if (cursor == CACHE_SIZE) {
+                        for (int j = 0; j < CACHE_SIZE; j++) {
+                            bool reret = store->Insert(cache[j], cache[j]);
+                            if (reret) hit++;
+                            else fail++;
+                        }
+                        cursor = 0;
+                    }
+                    cache[cursor] = loads[i];
+                    cursor++;
+                } else if (maptype::AsyncReturnCode::Ok == ret) hit++;
+                else fail++;
+#else
                 if (ret == maptype::AsyncReturnCode::Ok)
                     hit++;
                 else
                     fail++;
+#endif
 #else
                 bool ret = store->Insert(loads[i], loads[i]/*new Value(loads[i])*/);
                 if (ret)
