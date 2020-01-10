@@ -179,7 +179,7 @@ public:
         std::cout << "MS HazardPointer" << std::endl;
     }
 
-    void registerThread() {}
+    void registerThread() { ftid = thread_number++; }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         hp->protect(0, (std::atomic<uint64_t *> &) ptr, tid);

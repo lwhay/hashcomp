@@ -12,6 +12,7 @@
 #include "mshazrd_pointer.h"
 #include "wrapper_epoch.h"
 #include "batch_hazard.h"
+#include "brown_hazard.h"
 #include "tracer.h"
 
 #define high_intensive 0
