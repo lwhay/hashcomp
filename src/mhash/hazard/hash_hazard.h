@@ -20,7 +20,7 @@ constexpr size_t total_hash_keys = (1 << 20);
 #define hash(x) (CityHash64((char*)x, sizeof(uint64_t)))
 #else
 
-#define hash(key) ((((uint32_t) key >> 3) ^ (uint32_t) key) % total_hash_keys)
+#define simplehash(key) ((((uint32_t) key >> 3) ^ (uint32_t) key) % total_hash_keys)
 
 //#define BIG_CONSTANT(x) (x##LLU)
 //
@@ -92,7 +92,7 @@ public:
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         uint64_t address = ptr.load();
-        hashkey = hash(address);
+        hashkey = simplehash(address);
         indicators[hashkey].fetch_add();
         return address;
     }
@@ -104,7 +104,7 @@ public:
     bool free(uint64_t ptr) {
         assert(ptr != 0);
         bool busy;
-        uint64_t hk = hash(ptr);
+        uint64_t hk = simplehash(ptr);
         busy = (indicators[hk].load() != 0);
         if (busy) return false;
         else {

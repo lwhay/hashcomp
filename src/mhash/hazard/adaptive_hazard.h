@@ -80,7 +80,7 @@ public:
             holders[tid].store(address);
         } else {
             writeintensive[tid].fetch_add(1);
-            hashkey = hash(address);
+            hashkey = simplehash(address);
             indicators[hashkey].fetch_add();
         }
         return address;
@@ -95,7 +95,7 @@ public:
         uint64_t intention = intensive.load();
         assert(ptr != 0);
         bool busy;
-        uint64_t hk = hash(ptr);
+        uint64_t hk = simplehash(ptr);
         busy = (indicators[hk].load() != 0);
         if (busy) return false;
         if (intention > 0) {
