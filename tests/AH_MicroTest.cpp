@@ -17,6 +17,7 @@
 
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
+#define PARTIAL_DATA       0   // 1: < 65536; 2: >= 65536; 0: ALL
 
 #define TEST_LOOKUP        1
 
@@ -108,11 +109,19 @@ void *measureWorker(void *args) {
             for (int i = 0; i < total_count; i++) {
 #if TEST_LOOKUP
                 uint64_t /*Value **/value;
+#if PARTIAL_DATA == 1
+                if (loads[i] < 65536) {
+#elif PARTIAL_DATA == 2
+                if (loads[i] >= 65536) {
+#endif
                 bool ret = store->Find(loads[i], value);
                 if (ret && value/*->get()*/ == loads[i])
                     hit++;
                 else
                     fail++;
+#if PARTIAL_DATA > 0
+                }
+#endif
 #else
                 bool ret = store->Insert(loads[i], loads[i]/*new Value(loads[i])*/);
                 if (ret)
