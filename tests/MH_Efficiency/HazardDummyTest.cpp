@@ -196,6 +196,10 @@ int main(int argc, char **argv) {
             deallocator = new batch_hazard;
             break;
         }
+        case 6: {
+            deallocator = new brown_hazard<uint64_t>(thrd_number);
+            break;
+        }
         default: {
             deallocator = new memory_hazard;
             break;

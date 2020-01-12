@@ -57,9 +57,9 @@ public:
 };
 
 void tb_hazard_original() {
-    typedef reclaimer_hazardptr<uint64_t, pool_perthread_and_shared<uint64_t, allocator_once<uint64_t>>> Reclaimer;
+    typedef reclaimer_hazardptr<uint64_t, pool_none<uint64_t, allocator_once<uint64_t>>> Reclaimer;
     typedef allocator_once<uint64_t> Allocator;
-    typedef pool_perthread_and_shared<uint64_t, allocator_once<uint64_t>> Pool;
+    typedef pool_none<uint64_t, allocator_once<uint64_t>> Pool;
 
     Allocator *alloc = new Allocator(NUM_THREADS, nullptr);
     Pool *pool = new Pool(NUM_THREADS, alloc, nullptr);

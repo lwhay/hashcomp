@@ -17,9 +17,9 @@
 
 template<typename T>
 class brown_hazard : public ihazard {
-    typedef reclaimer_hazardptr<T, pool_interface<T>> Reclaimer;
-    typedef allocator_new<T> Allocator;
-    typedef pool_perthread_and_shared<T> Pool;
+    typedef reclaimer_hazardptr<uint64_t, pool_none<uint64_t, allocator_once<uint64_t>>> Reclaimer;
+    typedef allocator_once<uint64_t> Allocator;
+    typedef pool_none<uint64_t, allocator_once<uint64_t>> Pool;
 private:
     size_t thread_num;
     Allocator *alloc;
@@ -50,6 +50,7 @@ public:
 
     bool free(uint64_t ptr) {
         reclaimer->retire(ftid, (T *) ptr);
+        std::free((T *) ptr);
         return true;
     }
 
