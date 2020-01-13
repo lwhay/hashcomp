@@ -75,7 +75,8 @@ void init(std::atomic<uint64_t> *bucket) {
             ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
         else
 #endif
-        ptr = (node *) std::malloc(sizeof(node));
+        if (hash_freent == 5) ptr = ((brown_hazard<node> *) deallocator)->allocate(0);
+        else ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i % (list_volume / align_width) * align_width;
         ptr->key = idx;
         ptr->value = 1;
@@ -197,7 +198,7 @@ int main(int argc, char **argv) {
             break;
         }
         case 6: {
-            deallocator = new brown_hazard<uint64_t>(thrd_number);
+            deallocator = new brown_hazard<node>(thrd_number);
             break;
         }
         default: {
