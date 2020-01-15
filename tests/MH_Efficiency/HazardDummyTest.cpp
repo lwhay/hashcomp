@@ -75,7 +75,7 @@ void init(std::atomic<uint64_t> *bucket) {
             ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
         else
 #endif
-        if (hash_freent == 5) ptr = ((brown_hazard<node> *) deallocator)->allocate(0);
+        if (hash_freent == 6) ptr = ((brown_hazard<node> *) deallocator)->allocate(0);
         else ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i % (list_volume / align_width) * align_width;
         ptr->key = idx;
@@ -115,7 +115,8 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
                 ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
             else
 #endif
-            ptr = (node *) std::malloc(sizeof(node));
+            if (hash_freent == 6) ptr = ((brown_hazard<node> *) deallocator)->allocate(tid);
+            else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
             ptr->value = 1;
             uint64_t old;
@@ -123,7 +124,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             do {
                 old = bucket[idx].load();
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr));
-            if (hash_freent == 2 || hash_freent == 4 || hash_freent == 5) { // mshp maintains caches inside each hp.
+            if (hash_freent == 2 || hash_freent == 4 || hash_freent >= 5) { // mshp maintains caches inside each hp.
                 deallocator->free(old);
 #if uselocal == 1
                 if (hash_freent == 4) {
