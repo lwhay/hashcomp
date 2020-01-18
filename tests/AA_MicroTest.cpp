@@ -295,7 +295,7 @@ int main(int argc, char **argv) {
     cout << "multiinsert" << endl;
     multiWorkers();
     cout << "operations: " << success << " failure: " << failure << " throughput: "
-         << (double) (success + failure) * thread_number / total_time << endl;
+         << (double) (success /*+ failure*/) * thread_number / total_time << endl;
     free(loads);
     finish();
     delete store;
