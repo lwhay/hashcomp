@@ -32,7 +32,7 @@ size_t total_count = (1 << 20);
 
 size_t queue_limit = (1 << 16);
 
-size_t hash_freent = 1;
+size_t hash_freent = 6;
 
 atomic<int> stopMeasure(0);
 
@@ -217,6 +217,7 @@ int main(int argc, char **argv) {
         workers.push_back(std::thread(reader, bucket, t));
     }
     for (; t < thrd_number; t++) {
+        if (hash_freent == 6) deallocator->registerThread();
         workers.push_back(std::thread(writer, bucket, t));
     }
     while (timer.elapsedSeconds() < 30) {

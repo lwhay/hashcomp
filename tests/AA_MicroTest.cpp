@@ -17,7 +17,8 @@
 
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
-#define REDO_INCASEOF_FAIL 1
+#define PARTIAL_DATA       2   // 1: < 65536; 2: >= 65536; 0: ALL
+#define REDO_INCASEOF_FAIL 0
 #if REDO_INCASEOF_FAIL
 
 #define CACHE_SIZE (1llu << 8)
@@ -118,32 +119,40 @@ void *measureWorker(void *args) {
             for (int i = 0; i < total_count; i++) {
 #if TEST_LOOKUP
                 uint64_t /*Value **/value;
+#if PARTIAL_DATA == 1
+                if (loads[i] < 65536) {
+#elif PARTIAL_DATA == 2
+                if (loads[i] >= 65536) {
+#endif
 #ifndef DISABLE_FAST_TABLE
-                maptype::AsyncReturnCode ret = store->AsyncFind(loads[i], value);
+                    maptype::AsyncReturnCode ret = store->AsyncFind(loads[i], value);
 #if REDO_INCASEOF_FAIL
-                if (maptype::AsyncReturnCode::Pending == ret) {
-                    if (cursor == CACHE_SIZE) {
-                        for (int j = 0; j < CACHE_SIZE; j++) {
-                            bool reret = store->Find(cache[j], value);
-                            if (reret && value == cache[j]) hit++;
-                            else fail++;
+                    if (maptype::AsyncReturnCode::Pending == ret) {
+                        if (cursor == CACHE_SIZE) {
+                            for (int j = 0; j < CACHE_SIZE; j++) {
+                                bool reret = store->Find(cache[j], value);
+                                if (reret && value == cache[j]) hit++;
+                                else fail++;
+                            }
+                            cursor = 0;
                         }
-                        cursor = 0;
-                    }
-                    cache[cursor] = loads[i];
-                    cursor++;
-                } else if (maptype::AsyncReturnCode::Ok == ret) hit++;
-                else fail++;
+                        cache[cursor] = loads[i];
+                        cursor++;
+                    } else if (maptype::AsyncReturnCode::Ok == ret) hit++;
+                    else fail++;
 #else
-                if (ret == maptype::AsyncReturnCode::Ok && value/*->get()*/ == loads[i])
-                    hit++;
-                else
-                    fail++;
+                    if (ret == maptype::AsyncReturnCode::Ok && value/*->get()*/ == loads[i])
+                        hit++;
+                    else
+                        fail++;
 #endif
 #else
-                bool ret = store->Find(loads[i], value);
-                if (ret && value == loads[i]) hit++;
-                else fail++;
+                    bool ret = store->Find(loads[i], value);
+                    if (ret && value == loads[i]) hit++;
+                    else fail++;
+#endif
+#if PARTIAL_DATA > 0
+                }
 #endif
 #else
 #ifndef DISABLE_FAST_TABLE

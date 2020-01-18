@@ -19,9 +19,9 @@
 
 const int NUM_THREADS = 1;
 
-const int NUM_ROUNDS = (1 << 30); // For tb_hazard, number of rounds should be larger than that of elements.
+const size_t NUM_ROUNDS = (1 << 30); // For tb_hazard, number of rounds should be larger than that of elements.
 
-const int NUM_ELEMENTS = (1 << 4/*19*/);
+const size_t NUM_ELEMENTS = (1 << 4/*19*/);
 
 // Rather than bz_hazard, other reclaimers are dummy classes in case of (un)protect
 template<typename type, template<typename, typename> class tb_reclaimer>
@@ -98,8 +98,79 @@ void tb_hazard_original() {
     delete alloc;
 }
 
+atomic<bool> expired(false);
+
+atomic<uint64_t> reads(0), writes(0);
+
+void tb_thread_original() {
+    typedef reclaimer_hazardptr<uint64_t, pool_none<uint64_t, allocator_once<uint64_t>>> Reclaimer;
+    typedef allocator_once<uint64_t> Allocator;
+    typedef pool_none<uint64_t, allocator_once<uint64_t>> Pool;
+    const size_t reader_num = 1;
+    const size_t writer_num = 1;
+
+    Allocator *alloc = new Allocator(NUM_THREADS, nullptr);
+    Pool *pool = new Pool(NUM_THREADS, alloc, nullptr);
+    Reclaimer *reclaimer = new Reclaimer(NUM_THREADS, pool, nullptr);
+    Tracer tracer;
+    tracer.startTime();
+
+    std::atomic<uint64_t *> cache[NUM_ELEMENTS];
+    for (size_t i = 0; i < NUM_ELEMENTS; i++) cache[i].store(0);
+    std::thread workers[reader_num + writer_num];
+
+    size_t tid = 0;
+    for (tid = 0; tid < writer_num; tid++) {
+        workers[tid] = std::thread(
+                [](std::atomic<uint64_t *> *cache, size_t tid, Reclaimer *reclaimer, Allocator *alloc) {
+                    size_t count = 0;
+                    for (size_t i = 0; i < NUM_ROUNDS * NUM_ELEMENTS; i++) {
+                        size_t idx = i % NUM_ELEMENTS;
+                        uint64_t *v = alloc->allocate(tid);
+                        *v = i;
+                        uint64_t *old = nullptr;
+                        do {
+                            old = cache[idx].load();
+                        } while (!cache[idx].compare_exchange_strong(old, v));
+                        if (old != nullptr) reclaimer->retire(tid, old);
+                        if (count++ % 1000000 == 0) std::cout << tid << " " << count << std::endl;
+                    }
+                    std::cout << "\tw" << tid << std::endl;
+                    writes.fetch_add(count);
+                }, cache, tid, reclaimer, alloc);
+    }
+    /*for (; tid < (reader_num + writer_num); tid++) {
+        workers[tid] = std::thread(
+                [](std::atomic<uint64_t *> *cache, size_t tid, Reclaimer *reclaimer, Allocator *alloc) {
+                    size_t count = 0;
+                    for (size_t i = 0; i < NUM_ROUNDS * NUM_ELEMENTS; i++) {
+                        size_t idx = i % NUM_ELEMENTS;
+                        uint64_t *v = cache[idx].load();
+                        reclaimer->protect(tid, v, callbackReturnTrue, nullptr, false);
+                        reclaimer->unprotect(tid, v);
+                        count++;
+                    }
+                    std::cout << "\tr" << tid << std::endl;
+                    reads.fetch_add(count);
+                }, cache, tid, reclaimer, alloc);
+    }*/
+
+    for (tid = 0; tid < (/*reader_num +*/ writer_num); tid++) workers[tid].join();
+
+    std::cout << "Read: " << reads.load() << " writes: " << writes.load() << std::endl;
+
+    std::cout << "Reclaimer allocate: " << tracer.getRunTime() << std::endl;
+
+
+    std::cout << "Reclaimer (un)protect: " << tracer.getRunTime() << std::endl;
+
+    std::cout << "Reclaimer deallocate: " << tracer.getRunTime() << std::endl;
+    delete alloc;
+}
+
 int main(int argc, char **argv) {
-    tb_hazard_original();
+    //tb_hazard_original();
+    tb_thread_original();
     for (int i = 0; i < 0; i++) {
         testcase<uint64_t, reclaimer_debra> debra;
         debra.bz_test();

@@ -35,7 +35,11 @@ public:
         reclaimer = new Reclaimer(thread_num, pool, nullptr);
     }
 
-    void registerThread() { ftid = thread_number++; }
+    void registerThread() {
+        ftid = thread_number++;
+        alloc->initThread(ftid);
+        reclaimer->initThread(ftid);
+    }
 
     T *allocate(size_t tid) {
         return alloc->allocate(tid);
