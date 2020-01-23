@@ -669,6 +669,6 @@ if (WITH_QUARTZ)
                 ${QUARTZ_PREFIX}/src/quartz-build
         )
         add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} quartz)
-        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} -lnvmemul -lgflags -lglog -ldl gtest -ldouble-conversion ${PTHREAD} ${ATOMIC})
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} -lnvmemul -lgflags -lglog -ldl gtest -ldouble-conversion ${PTHREAD})
     endforeach (sourcefile ${QUARTZ_TEST})
 endif ()
