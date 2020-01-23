@@ -640,11 +640,6 @@ if (WITH_QUARTZ)
             LOG_BUILD ON
             )
 
-    include_directories(
-            ${QUARTZ_PREFIX}/src/quartz/src/lib
-            ${QUARTZ_PREFIX}/src/quartz-build
-    )
-
     link_directories(${QUARTZ_PREFIX}/src/quartz-build/src/lib)
 
     add_custom_command(
@@ -653,8 +648,8 @@ if (WITH_QUARTZ)
             ${QUARTZ_PREFIX}/src/quartz/nvmemul.ini
             ${CMAKE_CURRENT_BINARY_DIR}/nvmemul.ini)
 
-    #[[set(QUARTZ_LIBS
-            ${QUARTZ_PREFIX}/src/quartz/src/lib/cpu/cpu.c)]]
+    set(QUARTZ_LIBS
+            ${QUARTZ_PREFIX}/src/quartz/src/lib/cpu/cpu.c)
 
     set(QUARTZ_TEST
             tests/PM_Unit/Quartz_Usage.cpp)
@@ -668,6 +663,11 @@ if (WITH_QUARTZ)
                 EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
                 OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
                 )
+        target_include_directories(
+                ${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} PUBLIC
+                ${QUARTZ_PREFIX}/src/quartz/src/lib
+                ${QUARTZ_PREFIX}/src/quartz-build
+        )
         add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} quartz)
         target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} -lnvmemul -lgflags -lglog -ldl gtest -ldouble-conversion ${PTHREAD} ${ATOMIC})
     endforeach (sourcefile ${QUARTZ_TEST})

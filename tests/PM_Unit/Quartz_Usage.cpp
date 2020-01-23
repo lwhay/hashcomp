@@ -2,6 +2,7 @@
 // Created by iclab on 1/23/20.
 //
 
+#include <stdio.h>
 #include <cpuid.h>
 #include "pmalloc.h"
 
@@ -17,11 +18,11 @@
 void get_family_model(int *family, int *model) {
     unsigned int eax, ebx, ecx, edx;
     int success = __get_cpuid(1, &eax, &ebx, &ecx, &edx);
-    if (family != NULL) {
+    if (family != nullptr) {
         *family = success ? Family_Number(eax) : 0;
     }
 
-    if (model != NULL) {
+    if (model != nullptr) {
         *model = success ? MODEL_NUMBER(eax) : 0;
     }
 }
@@ -29,6 +30,7 @@ void get_family_model(int *family, int *model) {
 int main(int argc, char **argv) {
     int family, model;
     get_family_model(&family, &model);
+    printf("%d:%d\n", family, model);
     void *ptr = pmalloc(1024);
     pfree(ptr, 1024);
     return 0;
