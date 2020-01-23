@@ -621,3 +621,54 @@ if (WITH_FOLLY)
         target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} -lfolly -lgflags -lglog -ldl gtest -ldouble-conversion ${PTHREAD} ${ATOMIC})
     endforeach (sourcefile ${FOLLY_TEST})
 endif ()
+
+option(WITH_QUARTZ "processing quartz" ON)
+if (WITH_QUARTZ)
+    set(QUARTZ_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/quartz")
+    message(STATUS "BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+    message(STATUS "QUARTZ_PREFIX: ${QUARTZ_PREFIX}")
+    ExternalProject_Add(quartz
+            PREFIX "${QUARTZ_PREFIX}"
+            GIT_REPOSITORY https://github.com/HewlettPackard/quartz
+            GIT_TAG master
+            UPDATE_COMMAND ""
+            INSTALL_COMMAND ""
+            BUILD_COMMAND $(MAKE) -j8
+            CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+            LOG_DOWNLOAD ON
+            LOG_CONFIGURE ON
+            LOG_BUILD ON
+            )
+
+    include_directories(
+            ${QUARTZ_PREFIX}/src/quartz/src/lib
+            ${QUARTZ_PREFIX}/src/quartz-build
+    )
+
+    link_directories(${QUARTZ_PREFIX}/src/quartz-build/src/lib)
+
+    add_custom_command(
+            TARGET quartz POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+            ${QUARTZ_PREFIX}/src/quartz/nvmemul.ini
+            ${CMAKE_CURRENT_BINARY_DIR}/nvmemul.ini)
+
+    #[[set(QUARTZ_LIBS
+            ${QUARTZ_PREFIX}/src/quartz/src/lib/cpu/cpu.c)]]
+
+    set(QUARTZ_TEST
+            tests/PM_Unit/Quartz_Usage.cpp)
+
+    foreach (sourcefile ${QUARTZ_TEST})
+        get_filename_component(exename ${sourcefile} NAME_WE)
+        add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile} #[[${QUARTZ_LIBS}]])
+        set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
+                PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
+                EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
+                EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
+                OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
+                )
+        add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} quartz)
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} -lnvmemul -lgflags -lglog -ldl gtest -ldouble-conversion ${PTHREAD} ${ATOMIC})
+    endforeach (sourcefile ${QUARTZ_TEST})
+endif ()
