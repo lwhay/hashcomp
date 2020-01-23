@@ -91,7 +91,8 @@ int main(int argc, char **argv) {
     int family, model;
     get_family_model(&family, &model);
     printf("%d:%d\n", family, model);
-    void *ptr = pmalloc(1024);
-    pfree(ptr, 1024);
+    multiWorkers();
+    /*void *ptr = pmalloc(1024);
+    pfree(ptr, 1024);*/
     return 0;
 }
