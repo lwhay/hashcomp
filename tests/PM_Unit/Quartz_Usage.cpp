@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include "pmalloc.h"
 
-
 #define MASK(msb, lsb) (~((~0) << (msb + 1)) & ((~0) << lsb))
 #define EXTRACT(val, msb, lsb) ((MASK(msb, lsb) & val) >> lsb)
 #define MODEL(eax) EXTRACT(eax, 7, 4)
@@ -22,11 +21,11 @@
 void get_family_model(int *family, int *model) {
     unsigned int eax, ebx, ecx, edx;
     int success = __get_cpuid(1, &eax, &ebx, &ecx, &edx);
-    if (family != nullptr) {
+    if (family != NULL) {
         *family = success ? Family_Number(eax) : 0;
     }
 
-    if (model != nullptr) {
+    if (model != NULL) {
         *model = success ? MODEL_NUMBER(eax) : 0;
     }
 }
@@ -37,49 +36,57 @@ size_t gran_perround = (1llu << 4);
 size_t thread_number = 4;
 
 pthread_t *workers;
-void ***ptrs;
+void ****ptrs;
 
 void *ppmall(void *args) {
-    ptrs = new void **[run_iteration];
+    int tid = *(int *) args;
+    ptrs[tid] = (void ***) malloc(sizeof(void **) * run_iteration);
     for (size_t r = 0; r < run_iteration; r++) {
-        ptrs[r] = new void *[total_element / run_iteration];
+        ptrs[tid][r] = (void **) malloc(sizeof(void *) * (total_element / run_iteration));
         for (size_t i = 0; i < (total_element / thread_number); i++) {
-            ptrs[r][i] = pmalloc(gran_perround);
+            ptrs[tid][r][i] = pmalloc(gran_perround);
         }
     }
 }
 
 void *ppfree(void *args) {
+    int tid = *(int *) args;
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / thread_number); i++) {
-            pfree(ptrs[r][i], gran_perround);
+            pfree(ptrs[tid][r][i], gran_perround);
         }
-        delete[] ptrs[r];
+        free(ptrs[tid][r]);
     }
-    delete[] ptrs;
+    free(ptrs[tid]);
 }
 
 void multiWorkers() {
-    timeval begTime, endTime;
-    gettimeofday(&begTime, nullptr);
+    ptrs = (void ****) malloc(sizeof(void ***) * thread_number);
+    workers = (pthread_t *) malloc(sizeof(pthread_t) * thread_number);
+    struct timeval begTime, endTime;
+    int *tids = (int *) malloc(sizeof(int) * thread_number);
+    gettimeofday(&begTime, NULL);
     for (int i = 0; i < thread_number; i++) {
-        pthread_create(&workers[i], nullptr, ppmall, nullptr);
+        tids[i] = i;
+        pthread_create(&workers[i], NULL, ppmall, tids + i);
     }
     for (int i = 0; i < thread_number; i++) {
-        pthread_join(workers[i], nullptr);
+        pthread_join(workers[i], NULL);
     }
-    gettimeofday(&endTime, nullptr);
+    gettimeofday(&endTime, NULL);
     long duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
     printf("pmalloc: %ll", duration);
-    gettimeofday(&begTime, nullptr);
+    gettimeofday(&begTime, NULL);
     for (int i = 0; i < thread_number; i++) {
-        pthread_create(&workers[i], nullptr, ppfree, nullptr);
+        pthread_create(&workers[i], NULL, ppfree, tids + i);
     }
     for (int i = 0; i < thread_number; i++) {
-        pthread_join(workers[i], nullptr);
+        pthread_join(workers[i], NULL);
     }
     duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
     printf("pfree: %ll", duration);
+    free(workers);
+    free(ptrs);
 }
 
 int main(int argc, char **argv) {
@@ -88,9 +95,11 @@ int main(int argc, char **argv) {
         total_element = atol(argv[2]);
         run_iteration = atol(argv[3]);
     }
+    struct timeval begin;
+    gettimeofday(&begin, NULL);
     int family, model;
     get_family_model(&family, &model);
-    printf("%d:%d\n", family, model);
+    printf("%d:%d\t%llu:%llu\n", family, model, begin.tv_sec, begin.tv_usec);
     multiWorkers();
     /*void *ptr = pmalloc(1024);
     pfree(ptr, 1024);*/
