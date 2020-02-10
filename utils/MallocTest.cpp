@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include "tracer.h"
 
-#define USE_STD_QUEUE 1
+#define USE_STD_QUEUE 0
 
 size_t total_count = (1 << 20);
 size_t total_round = (1 << 4);
