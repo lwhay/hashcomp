@@ -86,7 +86,7 @@ void *ptest() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 3) {
+    if (argc > 4) {
         total_count = std::atol(argv[1]);
         total_round = std::atol(argv[2]);
         thread_number = std::atol(argv[3]);
