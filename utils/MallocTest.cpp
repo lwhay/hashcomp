@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include "tracer.h"
 
-#define USE_STD_QUEUE 2
+#define QUEUE_TYPE 2
 
 size_t total_count = (1 << 20);
 size_t total_round = (1 << 4);
@@ -123,9 +123,9 @@ size_t malloc_time = 0, free_time = 0;
 
 void *measureWorker(void *args) {
     int tid = *(int *) args;
-#if USE_STD_QUEUE == 1
+#if QUEUE_TYPE == 1
     std::queue<kvpair *> cache;
-#elif USE_STD_QUEUE == 2
+#elif QUEUE_TYPE == 2
     simplequeue<kvpair *> cache;
 #else
     myqueue<kvpair *> cache;
