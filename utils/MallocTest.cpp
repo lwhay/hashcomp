@@ -2,6 +2,7 @@
 // Created by iclab on 2/10/20.
 //
 
+#include <iostream>
 #include <pthread.h>
 #include "tracer.h"
 
@@ -13,6 +14,7 @@ size_t *thread_time_malloc;
 size_t *thread_time_free;
 
 size_t ***workloads;
+size_t malloc_time = 0, free_time = 0;
 
 void *measureWorker(void *args) {
     int tid = *(int *) args;
@@ -50,6 +52,10 @@ void *ptest() {
         pthread_join(workers[i], nullptr);
         delete[] workloads[i];
     }
+    for (int i = 0; i < thread_number; i++) {
+        malloc_time += thread_time_malloc[i];
+        free_time += thread_time_free[i];
+    }
     delete[] tids;
     delete[] thread_time_malloc;
     delete[] thread_time_free;
@@ -64,4 +70,8 @@ int main(int argc, char **argv) {
         thread_number = std::atol(argv[3]);
     }
     ptest();
+    std::cout << "Total: " << total_count << " round: " << total_round << " thread: " << thread_number
+              << " malloc throughput: " << (double) total_count * total_round * thread_number / malloc_time
+              << " free throughput: " << (double) total_count * total_round * thread_number / free_time << std::endl;
+    std::cout << malloc_time << " " << free_time << std::endl;
 }
