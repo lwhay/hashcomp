@@ -7,9 +7,11 @@
 #include <pthread.h>
 #include "tracer.h"
 
+#define USE_STD_QUEUE 1
+
 size_t total_count = (1 << 20);
 size_t total_round = (1 << 4);
-size_t thread_number = 20;
+size_t thread_number = 1;
 size_t queue_enabled = 1;
 
 size_t *thread_time_malloc;
@@ -23,12 +25,87 @@ public:
     kvpair(size_t key_, size_t value_) : key(key_), value(value_) {}
 };
 
+template<typename T>
+class myqueue {
+private:
+    struct node {
+        T element;
+        node *next;
+    };
+
+    node *nodecache[1 << 12];
+
+    size_t ncursor = 0, ucursor = 0;
+
+    size_t size_ = 0;
+
+    node *head = nullptr, *tail = nullptr;
+
+public:
+    myqueue<T>() {
+        for (int i = 0; i < (1 << 12); i++) {
+            nodecache[i] = new node;
+        }
+        ncursor = (1 << 12) - 1;
+        head = new node;
+        head->next = nullptr;
+        tail = head;
+    }
+
+    ~myqueue<T>() {
+        while (head->next != nullptr) {
+            node *newhead = head->next;
+            delete head;
+            head = newhead;
+        }
+    }
+
+    inline void push(T e) {
+        node *n;
+        if (ncursor != ucursor) {
+            n = nodecache[ucursor];
+            ucursor = ++ucursor % (1 << 12);
+        } else {
+            std::cout << "Seems to be wrong!" << std::endl;
+            n = new node();
+        }
+        n->element = e;
+        n->next = nullptr;
+        tail->next = n;
+        tail = n;
+        size_++;
+    }
+
+    inline T &front() {
+        return head->next->element;
+    }
+
+    inline void pop() {
+        node *oldhead = head->next;
+        head->next = oldhead->next;
+        if (ncursor != ucursor) {
+            nodecache[ncursor] = oldhead;
+            ncursor = ++ncursor % (1 << 12);
+        } else {
+            std::cout << "Seems to be wrong!" << std::endl;
+            delete oldhead;
+        }
+        size_--;
+    }
+
+    inline size_t size() { return size_; }
+};
+
 kvpair ***workloads;
 size_t malloc_time = 0, free_time = 0;
 
 void *measureWorker(void *args) {
     int tid = *(int *) args;
+#if USE_STD_QUEUE
     std::queue<kvpair *> cache;
+#else
+    myqueue<kvpair *> cache;
+#endif
     Tracer tracer;
     for (int r = 0; r < total_round; r++) {
         tracer.startTime();
