@@ -13,7 +13,15 @@ size_t thread_number = 20;
 size_t *thread_time_malloc;
 size_t *thread_time_free;
 
-size_t ***workloads;
+class kvpair {
+private:
+    size_t key;
+    size_t value;
+public:
+    kvpair(size_t key_, size_t value_) : key(key_), value(value_) {}
+};
+
+kvpair ***workloads;
 size_t malloc_time = 0, free_time = 0;
 
 void *measureWorker(void *args) {
@@ -22,8 +30,7 @@ void *measureWorker(void *args) {
     for (int r = 0; r < total_round; r++) {
         tracer.startTime();
         for (int i = 0; i < total_count; i++) {
-            workloads[tid][i] = new size_t;
-            *workloads[tid][i] = i;
+            workloads[tid][i] = new kvpair(i, i);
         }
         thread_time_malloc[tid] += tracer.getRunTime();
         tracer.startTime();
@@ -36,7 +43,7 @@ void *measureWorker(void *args) {
 
 void *ptest() {
     pthread_t *workers = new pthread_t[thread_number];
-    workloads = new size_t **[thread_number];
+    workloads = new kvpair **[thread_number];
     thread_time_malloc = new size_t[thread_number];
     thread_time_free = new size_t[thread_number];
     int *tids = new int[thread_number];
@@ -45,7 +52,7 @@ void *ptest() {
         tids[i] = i;
         thread_time_malloc[i] = 0;
         thread_time_free[i] = 0;
-        workloads[i] = new size_t *[total_count];
+        workloads[i] = new kvpair *[total_count];
         pthread_create(&workers[i], nullptr, measureWorker, tids + i);
     }
     for (int i = 0; i < thread_number; i++) {
