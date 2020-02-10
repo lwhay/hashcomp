@@ -71,7 +71,9 @@ int main(int argc, char **argv) {
     }
     ptest();
     std::cout << "Total: " << total_count << " round: " << total_round << " thread: " << thread_number
-              << " malloc throughput: " << (double) total_count * total_round * thread_number / malloc_time
-              << " free throughput: " << (double) total_count * total_round * thread_number / free_time << std::endl;
+              << " malloc throughput: "
+              << (double) total_count * total_round * thread_number * thread_number / malloc_time
+              << " free throughput: " << (double) total_count * total_round * thread_number * thread_number / free_time
+              << std::endl;
     std::cout << malloc_time << " " << free_time << std::endl;
 }
