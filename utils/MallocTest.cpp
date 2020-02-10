@@ -17,6 +17,8 @@ size_t queue_enabled = 1;
 size_t *thread_time_malloc;
 size_t *thread_time_free;
 
+constexpr size_t queue_limit = (1 << 12);
+
 class kvpair {
 private:
     size_t key;
@@ -28,12 +30,12 @@ public:
 template<typename T>
 class simplequeue {
 private:
-    T lists[(1 << 10)];
+    T lists[queue_limit];
     size_t head_ = 0, tail_ = 0;
 public:
     inline void push(T e) {
         lists[tail_] = e;
-        tail_ = ++tail_ % (1 << 10);
+        tail_ = ++tail_ % (queue_limit);
     }
 
     inline T &front() {
@@ -41,10 +43,10 @@ public:
     }
 
     inline void pop() {
-        head_ = ++head_ % (1 << 10);
+        head_ = ++head_ % (queue_limit);
     }
 
-    inline size_t size() { return (tail_ + (1 << 10) - head_) % (1 << 10); }
+    inline size_t size() { return (tail_ + (queue_limit) - head_) % (queue_limit); }
 };
 
 template<typename T>
@@ -55,7 +57,7 @@ private:
         node *next;
     };
 
-    node *nodecache[1 << 12];
+    node *nodecache[queue_limit];
 
     size_t ncursor = 0, ucursor = 0;
 
@@ -65,7 +67,7 @@ private:
 
 public:
     myqueue<T>() {
-        for (int i = 0; i < (1 << 12); i++) {
+        for (int i = 0; i < (queue_limit); i++) {
             nodecache[i] = new node;
         }
         ncursor = (1 << 12) - 1;
@@ -86,7 +88,7 @@ public:
         node *n;
         if (ncursor != ucursor) {
             n = nodecache[ucursor];
-            ucursor = ++ucursor % (1 << 12);
+            ucursor = ++ucursor % (queue_limit);
         } else {
             std::cout << "Seems to be wrong!" << std::endl;
             n = new node();
@@ -107,7 +109,7 @@ public:
         head->next = oldhead->next;
         if (ncursor != ucursor) {
             nodecache[ncursor] = oldhead;
-            ncursor = ++ncursor % (1 << 12);
+            ncursor = ++ncursor % (queue_limit);
         } else {
             std::cout << "Seems to be wrong!" << std::endl;
             delete oldhead;
