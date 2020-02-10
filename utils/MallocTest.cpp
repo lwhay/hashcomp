@@ -3,12 +3,14 @@
 //
 
 #include <iostream>
+#include <queue>
 #include <pthread.h>
 #include "tracer.h"
 
 size_t total_count = (1 << 20);
 size_t total_round = (1 << 4);
 size_t thread_number = 20;
+size_t queue_enabled = 1;
 
 size_t *thread_time_malloc;
 size_t *thread_time_free;
@@ -26,6 +28,7 @@ size_t malloc_time = 0, free_time = 0;
 
 void *measureWorker(void *args) {
     int tid = *(int *) args;
+    std::queue<kvpair *> cache;
     Tracer tracer;
     for (int r = 0; r < total_round; r++) {
         tracer.startTime();
@@ -35,7 +38,19 @@ void *measureWorker(void *args) {
         thread_time_malloc[tid] += tracer.getRunTime();
         tracer.startTime();
         for (int i = 0; i < total_count; i++) {
-            delete workloads[tid][i];
+            if (queue_enabled != 0) {
+                cache.push(workloads[tid][i]);
+                if (cache.size() > (1 << 10)) {
+                    delete cache.front();
+                    cache.pop();
+                }
+            } else {
+                delete workloads[tid][i];
+            }
+        }
+        for (int i = 0; i < cache.size(); i++) {
+            delete cache.front();
+            cache.pop();
         }
         thread_time_free[tid] += tracer.getRunTime();
     }
@@ -75,6 +90,7 @@ int main(int argc, char **argv) {
         total_count = std::atol(argv[1]);
         total_round = std::atol(argv[2]);
         thread_number = std::atol(argv[3]);
+        queue_enabled = std::atol(argv[4]);
     }
     ptest();
     std::cout << "Total: " << total_count << " round: " << total_round << " thread: " << thread_number
