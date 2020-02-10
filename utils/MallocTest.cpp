@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include "tracer.h"
 
-#define USE_STD_QUEUE 0
+#define USE_STD_QUEUE 2
 
 size_t total_count = (1 << 20);
 size_t total_round = (1 << 4);
@@ -23,6 +23,28 @@ private:
     size_t value;
 public:
     kvpair(size_t key_, size_t value_) : key(key_), value(value_) {}
+};
+
+template<typename T>
+class simplequeue {
+private:
+    T lists[(1 << 10)];
+    size_t head_ = 0, tail_ = 0;
+public:
+    inline void push(T e) {
+        lists[tail_] = e;
+        tail_ = ++tail_ % (1 << 10);
+    }
+
+    inline T &front() {
+        return lists[head_];
+    }
+
+    inline void pop() {
+        head_ = ++head_ % (1 << 10);
+    }
+
+    inline size_t size() { return (tail_ + (1 << 10) - head_) % (1 << 10); }
 };
 
 template<typename T>
@@ -101,8 +123,10 @@ size_t malloc_time = 0, free_time = 0;
 
 void *measureWorker(void *args) {
     int tid = *(int *) args;
-#if USE_STD_QUEUE
+#if USE_STD_QUEUE == 1
     std::queue<kvpair *> cache;
+#elif USE_STD_QUEUE == 2
+    simplequeue<kvpair *> cache;
 #else
     myqueue<kvpair *> cache;
 #endif
