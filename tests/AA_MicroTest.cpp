@@ -116,7 +116,14 @@ void *measureWorker(void *args) {
 #endif
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
+#if INPUT_METHOD == 0
             for (int i = 0; i < total_count; i++) {
+#elif INPUT_METHOD == 1
+            for (int i = work->tid; i < total_count; i += thread_number) {
+#else
+            for (int i = work->tid * total_count / thread_number;
+                 i < (work->tid + 1) * total_count / thread_number; i++) {
+#endif
 #if TEST_LOOKUP
                 uint64_t /*Value **/value;
 #if PARTIAL_DATA == 1

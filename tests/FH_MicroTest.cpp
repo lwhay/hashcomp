@@ -125,7 +125,14 @@ void *measureWorker(void *args) {
     uint64_t hit = 0;
     uint64_t fail = 0;
     while (stopMeasure.load(memory_order_relaxed) == 0) {
+#if INPUT_METHOD == 0
         for (int i = 0; i < total_count; i++) {
+#elif INPUT_METHOD == 1
+            for (int i = work->tid; i < total_count; i += thread_number) {
+#else
+            for (int i = work->tid * total_count / thread_number;
+                 i < (work->tid + 1) * total_count / thread_number; i++) {
+#endif
 #if TEST_LOOKUP
             auto callback = [](IAsyncContext *ctxt, Status result) {
                 CallbackContext<ReadContext> context{ctxt};
