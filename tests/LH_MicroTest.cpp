@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
          << endl;
     loads = (uint8_t *) calloc(DEFAULT_KEY_LENGTH * total_count, sizeof(uint8_t));
     RandomGenerator<uint8_t>::generate(loads, DEFAULT_KEY_LENGTH, key_range, total_count, skew);
-    levelHash = level_init(level_calculate(key_range));
+    levelHash = level_init(level_calculate(DEFAULT_STORE_BASE));
     cout << "simple" << endl;
     simpleInsert();
     prepare();

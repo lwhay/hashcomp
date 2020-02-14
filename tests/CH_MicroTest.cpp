@@ -22,8 +22,6 @@
 
 #define COUNT_HASH         1
 
-#define DEFAULT_STORE_BASE 100000000
-
 typedef libcuckoo::cuckoohash_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
         std::allocator<std::pair<const uint64_t, uint64_t>>, 8> cmap;
 
@@ -195,7 +193,7 @@ int main(int argc, char **argv) {
         timer_range = std::atol(argv[4]);
         skew = std::atof(argv[5]);
     }
-    store = new cmap(100000000);
+    store = new cmap(DEFAULT_STORE_BASE);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));

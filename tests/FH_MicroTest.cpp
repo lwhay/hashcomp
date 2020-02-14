@@ -24,8 +24,6 @@
 
 #define TEST_LOOKUP        1
 
-#define DEFAULT_STORE_BASE 100000000LLU
-
 using namespace FASTER::api;
 
 #ifdef _WIN32
@@ -85,7 +83,7 @@ void simpleInsert() {
     int inserted = 0;
     for (int i = 0; i < total_count; i++) {
         auto callback = [](IAsyncContext *ctxt, Status result) {
-            CallbackContext<UpsertContext> context{ctxt};
+            CallbackContext <UpsertContext> context{ctxt};
         };
 #if CONTEXT_TYPE == 0
         UpsertContext context{loads[i], loads[i]};
@@ -104,7 +102,7 @@ void *insertWorker(void *args) {
     uint64_t inserted = 0;
     for (int i = 0; i < total_count; i++) {
         auto callback = [](IAsyncContext *ctxt, Status result) {
-            CallbackContext<UpsertContext> context{ctxt};
+            CallbackContext <UpsertContext> context{ctxt};
         };
 #if CONTEXT_TYPE == 0
         UpsertContext context{loads[i], loads[i]};
@@ -135,7 +133,7 @@ void *measureWorker(void *args) {
 #endif
 #if TEST_LOOKUP
             auto callback = [](IAsyncContext *ctxt, Status result) {
-                CallbackContext<ReadContext> context{ctxt};
+                CallbackContext <ReadContext> context{ctxt};
             };
 #if CONTEXT_TYPE == 0
             ReadContext context{loads[i]};
@@ -188,7 +186,7 @@ void prepare() {
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
         parms[i].store = &store;
-        parms[i].insert = (uint64_t *) calloc(total_count / thread_number, sizeof(uint64_t *));
+        parms[i].insert = (uint64_t *) calloc(total_count / thread_number, sizeof(uint64_t * ));
         char buf[DEFAULT_STR_LENGTH];
         for (int j = 0; j < total_count / thread_number; j++) {
             std::sprintf(buf, "%d", i + j * thread_number);

@@ -22,8 +22,6 @@
 
 #define COUNT_HASH         1
 
-#define DEFAULT_STORE_BASE 100000000
-
 struct Value {
     uint64_t value;
 public:
@@ -204,7 +202,7 @@ int main(int argc, char **argv) {
         timer_range = std::atol(argv[4]);
         skew = std::stof(argv[5]);
     }
-    store = new maptype(100000000);
+    store = new maptype(DEFAULT_STORE_BASE);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));

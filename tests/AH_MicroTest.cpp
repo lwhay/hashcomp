@@ -23,8 +23,6 @@
 
 #define COUNT_HASH         1
 
-#define DEFAULT_STORE_BASE 100000000
-
 struct Value {
     uint64_t value;
 public:

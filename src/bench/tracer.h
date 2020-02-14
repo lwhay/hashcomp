@@ -16,6 +16,8 @@
 
 #define EPS 0.0001f
 
+#define DEFAULT_STORE_BASE 1000000000
+
 #define INPUT_METHOD 0 //0: duplicated; 1: stepping; 2: segmented
 
 #define FUZZY_BOUND 0
