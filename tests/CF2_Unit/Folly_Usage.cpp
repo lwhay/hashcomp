@@ -19,7 +19,7 @@ TEST(FollyTest, AtomicHashMapOperation) {
     ASSERT_EQ(fmap.find(1)->second, 1);
     fmap.erase(1);
     auto ret = fmap.find(1);
-    //ASSERT_ANY_THROW(fmap.find(1));
+    //ASSERT_ANY_THROW(fmap.find(1)->second);
 }
 
 /*TEST(FollyTest, AtomicUnorderedMapOperation) {
