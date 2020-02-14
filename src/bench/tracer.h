@@ -18,6 +18,8 @@
 
 #define DEFAULT_STORE_BASE 1000000000
 
+#define TEST_LOOKUP        1
+
 #define INPUT_METHOD 0 //0: duplicated; 1: stepping; 2: segmented
 
 #define FUZZY_BOUND 0

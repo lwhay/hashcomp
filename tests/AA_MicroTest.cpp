@@ -26,8 +26,6 @@ thread_local uint64_t cache[CACHE_SIZE];
 
 #endif
 
-#define TEST_LOOKUP        1
-
 #define COUNT_HASH         1
 
 #define DEFAULT_STORE_BASE 100000000
@@ -119,10 +117,10 @@ void *measureWorker(void *args) {
 #if INPUT_METHOD == 0
             for (int i = 0; i < total_count; i++) {
 #elif INPUT_METHOD == 1
-            for (int i = work->tid; i < total_count; i += thread_number) {
+                for (int i = work->tid; i < total_count; i += thread_number) {
 #else
-            for (int i = work->tid * total_count / thread_number;
-                 i < (work->tid + 1) * total_count / thread_number; i++) {
+                for (int i = work->tid * total_count / thread_number;
+                     i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
 #if TEST_LOOKUP
                 uint64_t /*Value **/value;

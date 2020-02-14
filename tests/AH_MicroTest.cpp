@@ -19,8 +19,6 @@
 //#define DEFAULT_KEY_LENGTH 8
 #define PARTIAL_DATA       0   // 1: < 65536; 2: >= 65536; 0: ALL
 
-#define TEST_LOOKUP        1
-
 #define COUNT_HASH         1
 
 struct Value {
@@ -107,10 +105,10 @@ void *measureWorker(void *args) {
 #if INPUT_METHOD == 0
             for (int i = 0; i < total_count; i++) {
 #elif INPUT_METHOD == 1
-            for (int i = work->tid; i < total_count; i += thread_number) {
+                for (int i = work->tid; i < total_count; i += thread_number) {
 #else
-            for (int i = work->tid * total_count / thread_number;
-                 i < (work->tid + 1) * total_count / thread_number; i++) {
+                for (int i = work->tid * total_count / thread_number;
+                     i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
 #if TEST_LOOKUP
                 uint64_t /*Value **/value;

@@ -18,8 +18,6 @@
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
 
-#define TEST_LOOKUP        1
-
 #define COUNT_HASH         1
 
 typedef folly::AtomicHashMap<uint64_t, uint64_t> fmap;
