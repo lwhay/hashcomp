@@ -18,6 +18,9 @@
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
 #define PARTIAL_DATA       0   // 1: < 65536; 2: >= 65536; 0: ALL
+#if TEST_LOOKUP == 0
+#define IN_PLACE           1
+#endif
 
 #define COUNT_HASH         1
 
@@ -126,7 +129,11 @@ void *measureWorker(void *args) {
                 }
 #endif
 #else
+#if IN_PLACE
+                bool ret = store->InplaceUpdate(loads[i], loads[i]);
+#else
                 bool ret = store->Insert(loads[i], loads[i]/*new Value(loads[i])*/);
+#endif
                 if (ret)
                     hit++;
                 else
