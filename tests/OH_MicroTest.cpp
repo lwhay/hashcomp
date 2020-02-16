@@ -44,6 +44,8 @@ int key_range = DEFAULT_KEYS_RANGE;
 
 double skew = 0.0;
 
+int root_capacity = (1 << 16);
+
 stringstream *output;
 
 atomic<int> stopMeasure(0);
@@ -105,9 +107,11 @@ void *measureWorker(void *args) {
                     fail++;
 #else
                 auto ret = store->insert(loads[i], loads[i]);
-                if (!ret.second)
+                if (!ret.second) {
+                    __sync_lock_test_and_set(&ret.first->second, loads[i]);
                     hit++;
-                else {
+                    __sync_lock_release(&ret.first->second);
+                } else {
                     __sync_lock_test_and_set(&ret.first->second, loads[i]);
                     //__sync_lock_release(&ret.first->second);
                 }
@@ -193,7 +197,9 @@ int main(int argc, char **argv) {
         timer_range = std::atol(argv[4]);
         skew = std::atof(argv[5]);
     }
-    store = new fmap(DEFAULT_STORE_BASE);
+    if (argc > 6)
+        root_capacity = std::atoi(argv[6]);
+    store = new fmap(root_capacity);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));

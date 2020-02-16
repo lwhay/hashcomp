@@ -35,7 +35,7 @@ using store_t = FasterKv<Key, Value, disk_t>;
 
 size_t init_size = next_power_of_two(DEFAULT_STORE_BASE / 2);
 
-store_t store{init_size, 17179869184, "storage"};
+store_t *store;
 
 uint64_t *loads;
 
@@ -56,6 +56,8 @@ uint64_t total_count = DEFAULT_KEYS_COUNT;
 uint64_t timer_range = default_timer_range;
 
 double skew = 0.0;
+
+int root_capacity = (1 << 16);
 
 int thread_number = DEFAULT_THREAD_NUM;
 
@@ -89,7 +91,7 @@ void simpleInsert() {
         UpsertContext context(loads[i], 8);
         context.reset((uint8_t *) (content + i));
 #endif
-        Status stat = store.Upsert(context, callback, 1);
+        Status stat = store->Upsert(context, callback, 1);
         inserted++;
     }
     cout << inserted << " " << tracer.getRunTime() << endl;
@@ -108,7 +110,7 @@ void *insertWorker(void *args) {
         UpsertContext context(loads[i], 8);
         context.reset((uint8_t *) (content + i));
 #endif
-        Status stat = store.Upsert(context, callback, 1);
+        Status stat = store->Upsert(context, callback, 1);
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -136,7 +138,7 @@ void *measureWorker(void *args) {
 #if CONTEXT_TYPE == 0
             ReadContext context{loads[i]};
 
-            Status result = store.Read(context, callback, 1);
+            Status result = store->Read(context, callback, 1);
             if (result == Status::Ok && context.Return() == loads[i])
                 hit++;
             else
@@ -144,7 +146,7 @@ void *measureWorker(void *args) {
 #elif CONTEXT_TYPE == 2
             ReadContext context(loads[i]);
 
-            Status result = store.Read(context, callback, 1);
+            Status result = store->Read(context, callback, 1);
             if (result == Status::Ok && *(uint64_t *) (context.output_bytes) == total_count - loads[i])
                 hit++;
             else
@@ -160,7 +162,7 @@ void *measureWorker(void *args) {
             UpsertContext context(loads[i], 8);
             context.reset((uint8_t *) (content + i));
 #endif
-            Status stat = store.Upsert(context, callback, 1);
+            Status stat = store->Upsert(context, callback, 1);
             if (stat == Status::NotFound)
                 fail++;
             else
@@ -183,7 +185,7 @@ void prepare() {
     output = new stringstream[thread_number];
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
-        parms[i].store = &store;
+        parms[i].store = store;
         parms[i].insert = (uint64_t *) calloc(total_count / thread_number, sizeof(uint64_t *));
         char buf[DEFAULT_STR_LENGTH];
         for (int j = 0; j < total_count / thread_number; j++) {
@@ -253,6 +255,10 @@ int main(int argc, char **argv) {
         timer_range = std::atol(argv[4]);
         skew = std::atof(argv[5]);
     }
+    if (argc > 6)
+        root_capacity = std::atoi(argv[6]);
+    init_size = next_power_of_two(root_capacity / 2);
+    store = new store_t(init_size, 17179869184, "storage");
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " time: "
          << timer_range << " skew: " << skew << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
@@ -266,5 +272,6 @@ int main(int argc, char **argv) {
          << (double) (success + failure) * thread_number / total_time << endl;
     free(loads);
     finish();
+    delete store;
     return 0;
 }
