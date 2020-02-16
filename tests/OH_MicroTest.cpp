@@ -107,9 +107,11 @@ void *measureWorker(void *args) {
                     fail++;
 #else
                 auto ret = store->insert(loads[i], loads[i]);
-                if (!ret.second)
+                if (!ret.second) {
+                    __sync_lock_test_and_set(&ret.first->second, loads[i]);
                     hit++;
-                else {
+                    __sync_lock_release(&ret.first->second);
+                } else {
                     __sync_lock_test_and_set(&ret.first->second, loads[i]);
                     __sync_lock_release(&ret.first->second);
                 }
