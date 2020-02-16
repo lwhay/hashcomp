@@ -26,6 +26,8 @@ uint64_t total_count = DEFAULT_KEYS_COUNT;
 
 double skew = 0.0;
 
+int root_capacity = (1 << 16);
+
 int thread_number = DEFAULT_THREAD_NUM;
 
 int key_range = DEFAULT_KEYS_RANGE;
@@ -251,11 +253,13 @@ int main(int argc, char **argv) {
         total_count = std::atol(argv[3]);
         skew = std::atof(argv[4]);
     }
+    if (argc > 6)
+        root_capacity = std::atoi(argv[6]);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " skew: " << skew
          << endl;
     loads = (uint8_t *) calloc(DEFAULT_KEY_LENGTH * total_count, sizeof(uint8_t));
     RandomGenerator<uint8_t>::generate(loads, DEFAULT_KEY_LENGTH, key_range, total_count, skew);
-    levelHash = level_init(level_calculate(DEFAULT_STORE_BASE));
+    levelHash = level_init(level_calculate(root_capacity));
     cout << "simple" << endl;
     simpleInsert();
     prepare();
