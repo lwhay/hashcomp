@@ -7,6 +7,7 @@
 #include <deque>
 #include <functional>
 #include <thread>
+#include <stdlib.h>
 #include "gtest/gtest.h"
 #include "folly/AtomicHashMap.h"
 #include "folly/AtomicUnorderedMap.h"
@@ -20,6 +21,31 @@ TEST(FollyTest, AtomicHashMapOperation) {
     fmap.erase(1);
     auto ret = fmap.find(1);
     //ASSERT_ANY_THROW(fmap.find(1)->second);
+}
+
+TEST(FollyTest, AtomicHashMapMultiThreadTest) {
+    folly::AtomicHashMap<uint64_t, uint64_t> fmap(128);
+    fmap.insert(1, 0);
+    std::thread feeder = std::thread([](folly::AtomicHashMap<uint64_t, uint64_t> &fmap) {
+        for (int i = 1; i < 10000000; i++) {
+            /*auto ret = fmap.insert(1, 1);
+            ASSERT_EQ(ret.first->second, i - 1);
+            __sync_lock_test_and_set(&ret.first->second, i);*/
+            auto ret = fmap.find(1);
+            __sync_lock_test_and_set(&ret->second, i / i);
+            //__sync_lock_release(&ret->second);
+        }
+    }, std::ref(fmap));
+    std::thread reader = std::thread([](folly::AtomicHashMap<uint64_t, uint64_t> &fmap) {
+        for (int i = 0; i < 10000000; i++) {
+            //__sync_synchronize();
+            auto ret = fmap.find(1);
+            ASSERT_EQ(ret->second, 1);
+            //ASSERT_TRUE(ret->second > 0 && ret->second < 10000000);
+        }
+    }, std::ref(fmap));
+    reader.join();
+    feeder.join();
 }
 
 /*TEST(FollyTest, AtomicUnorderedMapOperation) {

@@ -109,7 +109,7 @@ void *measureWorker(void *args) {
                     hit++;
                 else {
                     __sync_lock_test_and_set(&ret.first->second, loads[i]);
-                    __sync_lock_release(&ret.first->second);
+                    //__sync_lock_release(&ret.first->second);
                 }
 #endif
             }
