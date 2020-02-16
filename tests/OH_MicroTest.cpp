@@ -9,7 +9,20 @@
 #include <stdlib.h>
 #include <unordered_set>
 #include "tracer.h"
+
+#define SIMPLE_ATOMIC   0
+#if SIMPLE_ATOMIC == 1
+
 #include "folly/AtomicHashMap.h"
+typedef folly::AtomicHashMap <uint64_t, uint64_t> fmap;
+
+#else
+
+#include "folly/concurrency/ConcurrentHashMap.h"
+
+typedef folly::ConcurrentHashMap<uint64_t, uint64_t> fmap;
+
+#endif
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
@@ -20,7 +33,6 @@
 
 #define COUNT_HASH         1
 
-typedef folly::AtomicHashMap<uint64_t, uint64_t> fmap;
 
 fmap *store;
 
@@ -106,6 +118,7 @@ void *measureWorker(void *args) {
                 else
                     fail++;
 #else
+#if SIMPLE_ATOMIC
                 auto ret = store->insert(loads[i], loads[i]);
                 if (!ret.second) {
                     __sync_lock_test_and_set(&ret.first->second, loads[i]);
@@ -115,6 +128,14 @@ void *measureWorker(void *args) {
                     __sync_lock_test_and_set(&ret.first->second, loads[i]);
                     //__sync_lock_release(&ret.first->second);
                 }
+#else
+                auto ret = store->insert_or_assign(loads[i], loads[i]);
+                if (ret.first->second == loads[i]) {
+                    hit++;
+                } else {
+                    fail++;
+                }
+#endif
 #endif
             }
         }
