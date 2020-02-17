@@ -20,7 +20,8 @@ typedef folly::AtomicHashMap <uint64_t, uint64_t> fmap;
 
 #include "folly/concurrency/ConcurrentHashMap.h"
 
-typedef folly::ConcurrentHashMap<uint64_t, uint64_t> fmap;
+//typedef folly::ConcurrentHashMap<uint64_t, uint64_t> fmap;
+typedef folly::ConcurrentHashMapSIMD<uint64_t, uint64_t> fmap;
 
 #endif
 
@@ -129,8 +130,14 @@ void *measureWorker(void *args) {
                     //__sync_lock_release(&ret.first->second);
                 }
 #else
-                auto ret = store->insert_or_assign(loads[i], loads[i]);
+                /*auto ret = store->insert_or_assign(loads[i], loads[i]);
                 if (ret.first->second == loads[i]) {
+                    hit++;
+                } else {
+                    fail++;
+                }*/
+                auto ret = store->assign(loads[i], loads[i]);
+                if (ret.value()->second == loads[i]) {
                     hit++;
                 } else {
                     fail++;

@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include "gtest/gtest.h"
 #include "folly/AtomicHashMap.h"
+#include "folly/concurrency/ConcurrentHashMap.h"
 #include "folly/AtomicUnorderedMap.h"
 
 TEST(FollyTest, AtomicHashMapOperation) {
@@ -42,6 +43,42 @@ TEST(FollyTest, AtomicHashMapMultiThreadTest) {
             auto ret = fmap.find(1);
             ASSERT_EQ(ret->second, 1);
             //ASSERT_TRUE(ret->second > 0 && ret->second < 10000000);
+        }
+    }, std::ref(fmap));
+    reader.join();
+    feeder.join();
+}
+
+TEST(FollyTest, ConcurrentHashMapMultiThreadTest) {
+    folly::ConcurrentHashMap<uint64_t, uint64_t> fmap(128);
+    fmap.insert(1, 0);
+    std::thread feeder = std::thread([](folly::ConcurrentHashMap<uint64_t, uint64_t> &fmap) {
+        for (int i = 1; i < 10000000; i++) {
+            auto ret = fmap.assign(1, i);
+        }
+    }, std::ref(fmap));
+    std::thread reader = std::thread([](folly::ConcurrentHashMap<uint64_t, uint64_t> &fmap) {
+        for (int i = 0; i < 10000000; i++) {
+            auto ret = fmap.find(1);
+            ASSERT_TRUE(ret->second > 0 && ret->second < 10000000);
+        }
+    }, std::ref(fmap));
+    reader.join();
+    feeder.join();
+}
+
+TEST(FollyTest, ConcurrentHashMapSIMDMultiThreadTest) {
+    folly::ConcurrentHashMapSIMD<uint64_t, uint64_t> fmap(128);
+    fmap.insert(1, 0);
+    std::thread feeder = std::thread([](folly::ConcurrentHashMapSIMD<uint64_t, uint64_t> &fmap) {
+        for (int i = 1; i < 10000000; i++) {
+            auto ret = fmap.assign(1, i);
+        }
+    }, std::ref(fmap));
+    std::thread reader = std::thread([](folly::ConcurrentHashMapSIMD<uint64_t, uint64_t> &fmap) {
+        for (int i = 0; i < 10000000; i++) {
+            auto ret = fmap.find(1);
+            ASSERT_TRUE(ret->second > 0 && ret->second < 10000000);
         }
     }, std::ref(fmap));
     reader.join();
