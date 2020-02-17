@@ -134,7 +134,7 @@ endif ()
 option(WITH_LH_TESTS "build with lhests" ON)
 if (WITH_LH_TESTS)
     set(LH_TEST
-            tests/LH_MicroTest.cpp)
+            tests/Pure/LH_MicroTest.cpp)
 endif ()
 
 option(WITH_FH_TESTS "build with fast hash tests" ON)
@@ -143,14 +143,14 @@ if (WITH_FH_TESTS)
             tests/FH_Unit/faster_function_test.cpp
             tests/FH_Unit/in_memory_test.cpp
             tests/FH_Unit/faster_struct_test.cpp
-            tests/FH_InsertDeleteUpsertTest.cpp
-            tests/FH_RoundInsertDeleteTest.cpp
-            tests/FH_MicroDeleteTest.cpp
-            tests/FH_MicroGrowingTest.cpp
-            tests/FH_MicroCTest.cpp
-            tests/FH_MicroTest.cpp
-            tests/FH_YCSB.cpp
-            tests/FH_StableRUTest.cpp
+            tests/Pure/FH_InsertDeleteUpsertTest.cpp
+            tests/Pure/FH_RoundInsertDeleteTest.cpp
+            tests/Pure/FH_MicroDeleteTest.cpp
+            tests/Pure/FH_MicroGrowingTest.cpp
+            tests/Pure/FH_MicroCTest.cpp
+            tests/Pure/FH_MicroTest.cpp
+            tests/YCSB/FH_YCSB.cpp
+            tests/Pure/FH_StableRUTest.cpp
             utils/FH_UnitTest.cpp
             utils/EP_UnitTest.cpp)
 endif ()
@@ -168,8 +168,8 @@ if (WITH_MH_TESTS)
             tests/MH_Efficiency/EpochTBUsageTest.cpp
             tests/MH_Efficiency/EpochBenchmark.cpp
             utils/MH_UnitTest.cpp
-            tests/MH_MicroTest.cpp
-            tests/MH_YCSB.cpp)
+            tests/Pure/MH_MicroTest.cpp
+            tests/YCSB/MH_YCSB.cpp)
 endif ()
 
 option(WITH_UTILS "build with utils" ON)
@@ -467,7 +467,7 @@ if (WITH_JUNCTION)
 
     set(JUNCTION_TEST
             tests/CF2_Unit/Junction_Usage.cpp
-            tests/JH_MicroTest.cpp)
+            tests/Pure/JH_MicroTest.cpp)
 
     foreach (sourcefile ${JUNCTION_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
@@ -508,7 +508,7 @@ if (WITH_LIBCUCKOO)
 
     set(CUKOO_TEST
             tests/CF2_Unit/CUCKOO_Usage.cpp
-            tests/CH_MicroTest.cpp)
+            tests/Pure/CH_MicroTest.cpp)
 
     foreach (sourcefile ${CUKOO_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
@@ -533,7 +533,7 @@ if (WITH_AWLMAP)
     ExternalProject_Add(awlmap
             PREFIX "${AWLMAP_PREFIX}"
             GIT_REPOSITORY https://github.com/huangjiahua/concurrent_hash_map
-            GIT_TAG master
+            GIT_TAG opt
             UPDATE_COMMAND ""
             INSTALL_COMMAND ""
             BUILD_COMMAND $(MAKE) -j8
@@ -561,8 +561,8 @@ if (WITH_AWLMAP)
 
     set(AWLMAP_TEST
             tests/AWL_Unit/awlmap_Usage.cpp
-            tests/AH_MicroTest.cpp
-            tests/AA_MicroTest.cpp)
+            tests/Pure/AH_MicroTest.cpp
+            tests/Pure/AA_MicroTest.cpp)
 
     foreach (sourcefile ${AWLMAP_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
@@ -603,11 +603,15 @@ if (WITH_FOLLY)
             ${FOLLY_PREFIX}/src/folly-build
     )
 
+    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+        add_definitions(-DFOLLY_NDEBUG=1)
+    endif ()
+
     link_directories(${FOLLY_PREFIX}/src/folly-build/)
 
     set(FOLLY_TEST
             tests/CF2_Unit/Folly_Usage.cpp
-            tests/OH_MicroTest.cpp)
+            tests/Pure/OH_MicroTest.cpp)
 
     foreach (sourcefile ${FOLLY_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
@@ -670,3 +674,5 @@ if (WITH_QUARTZ)
         target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} nvmemul pthread)
     endforeach (sourcefile ${QUARTZ_TEST})
 endif ()
+
+add_subdirectory(tests/MicroBench)

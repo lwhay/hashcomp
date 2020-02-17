@@ -68,6 +68,7 @@ TEST(FollyTest, ConcurrentHashMapMultiThreadTest) {
 }
 
 TEST(FollyTest, ConcurrentHashMapSIMDMultiThreadTest) {
+#ifndef FOLLY_NDEBUG
     folly::ConcurrentHashMapSIMD<uint64_t, uint64_t> fmap(128);
     fmap.insert(1, 0);
     std::thread feeder = std::thread([](folly::ConcurrentHashMapSIMD<uint64_t, uint64_t> &fmap) {
@@ -83,6 +84,7 @@ TEST(FollyTest, ConcurrentHashMapSIMDMultiThreadTest) {
     }, std::ref(fmap));
     reader.join();
     feeder.join();
+#endif
 }
 
 /*TEST(FollyTest, AtomicUnorderedMapOperation) {

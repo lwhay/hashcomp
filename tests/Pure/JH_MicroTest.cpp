@@ -1,5 +1,5 @@
 //
-// Created by Michael on 1/4/20.
+// Created by iclab on 10/12/19.
 //
 
 #include <iostream>
@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <unordered_set>
 #include "tracer.h"
-#include "concurrent_hash_map.h"
+#include "junction/ConcurrentMap_Leapfrog.h"
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
@@ -17,30 +17,18 @@
 
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
-#define PARTIAL_DATA       2   // 1: < 65536; 2: >= 65536; 0: ALL
-#define REDO_INCASEOF_FAIL 0
-#if REDO_INCASEOF_FAIL
-
-#define CACHE_SIZE (1llu << 8)
-thread_local uint64_t cache[CACHE_SIZE];
-
-#endif
 
 #define COUNT_HASH         1
-
-#define DEFAULT_STORE_BASE 100000000
 
 struct Value {
     uint64_t value;
 public:
     Value(uint64_t v) : value(v) {}
 
-    ~Value() {}
-
     uint64_t get() { return value; }
 };
 
-typedef ConcurrentHashMap<uint64_t, /*Value **/uint64_t, std::hash<uint64_t>, std::equal_to<>> maptype;
+typedef junction::ConcurrentMap_Leapfrog<uint64_t, Value *> maptype;
 
 maptype *store;
 
@@ -86,7 +74,7 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        store->Insert(loads[i], loads[i]/*new Value(loads[i])*/);
+        store->assign(loads[i], new Value(loads[i]));
         set.insert(loads[i]);
         inserted++;
     }
@@ -97,7 +85,7 @@ void *insertWorker(void *args) {
     //struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = 0; i < total_count; i++) {
-        store->Insert(loads[i], loads[i]/*new Value(loads[i])*/);
+        store->assign(loads[i], new Value(loads[i]));
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -109,9 +97,6 @@ void *measureWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t hit = 0;
     uint64_t fail = 0;
-#if REDO_INCASEOF_FAIL
-    uint64_t cursor = 0;
-#endif
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
 #if INPUT_METHOD == 0
@@ -119,95 +104,25 @@ void *measureWorker(void *args) {
 #elif INPUT_METHOD == 1
                 for (int i = work->tid; i < total_count; i += thread_number) {
 #else
-                for (int i = work->tid * total_count / thread_number;
-                     i < (work->tid + 1) * total_count / thread_number; i++) {
+            for (int i = work->tid * total_count / thread_number;
+                 i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
 #if TEST_LOOKUP
-                uint64_t /*Value **/value;
-#if PARTIAL_DATA == 1
-                if (loads[i] < 65536) {
-#elif PARTIAL_DATA == 2
-                if (loads[i] >= 65536) {
-#endif
-#ifndef DISABLE_FAST_TABLE
-                    maptype::AsyncReturnCode ret = store->AsyncFind(loads[i], value);
-#if REDO_INCASEOF_FAIL
-                    if (maptype::AsyncReturnCode::Pending == ret) {
-                        if (cursor == CACHE_SIZE) {
-                            for (int j = 0; j < CACHE_SIZE; j++) {
-                                bool reret = store->Find(cache[j], value);
-                                if (reret && value == cache[j]) hit++;
-                                else fail++;
-                            }
-                            cursor = 0;
-                        }
-                        cache[cursor] = loads[i];
-                        cursor++;
-                    } else if (maptype::AsyncReturnCode::Ok == ret) hit++;
-                    else fail++;
-#else
-                    if (ret == maptype::AsyncReturnCode::Ok && value/*->get()*/ == loads[i])
-                        hit++;
-                    else
-                        fail++;
-#endif
-#else
-                    bool ret = store->Find(loads[i], value);
-                    if (ret && value == loads[i]) hit++;
-                    else fail++;
-#endif
-#if PARTIAL_DATA > 0
-                }
-#endif
-#else
-#ifndef DISABLE_FAST_TABLE
-                maptype::AsyncReturnCode ret = store->AsyncInsert(loads[i], loads[i]);
-#if REDO_INCASEOF_FAIL
-                if (maptype::AsyncReturnCode::Pending == ret) {
-                    if (cursor == CACHE_SIZE) {
-                        for (int j = 0; j < CACHE_SIZE; j++) {
-                            bool reret = store->Insert(cache[j], cache[j]);
-                            if (reret) hit++;
-                            else fail++;
-                        }
-                        cursor = 0;
-                    }
-                    cache[cursor] = loads[i];
-                    cursor++;
-                } else if (maptype::AsyncReturnCode::Ok == ret) hit++;
-                else fail++;
-#else
-                if (ret == maptype::AsyncReturnCode::Ok)
+                uint64_t value = store->get(loads[i])->get();
+                if (value == loads[i])
                     hit++;
                 else
                     fail++;
-#endif
 #else
-                bool ret = store->Insert(loads[i], loads[i]/*new Value(loads[i])*/);
-                if (ret)
+                Value *old;
+                if (old = store->exchange(loads[i], new Value(loads[i])))
                     hit++;
                 else
                     fail++;
-#endif
+                delete old;
 #endif
             }
         }
-#ifndef DISABLE_FAST_TABLE
-#if REDO_INCASEOF_FAIL
-        for (int i = 0; i < cursor; i++) {
-#if TEST_LOOKUP
-            uint64_t value;
-            bool reret = store->Find(cache[i], value);
-            if (reret && value == cache[i]) hit++;
-            else fail++;
-#else
-            bool reret = store->Insert(cache[i], cache[i]);
-            if (reret) hit++;
-            else fail++;
-#endif
-        }
-#endif
-#endif
     } catch (exception e) {
         cout << work->tid << endl;
     }
@@ -289,7 +204,7 @@ int main(int argc, char **argv) {
     }
     if (argc > 6)
         root_capacity = std::atoi(argv[6]);
-    store = new maptype(root_capacity, 20, thread_number);
+    store = new maptype(root_capacity);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
@@ -300,7 +215,7 @@ int main(int argc, char **argv) {
     cout << "multiinsert" << endl;
     multiWorkers();
     cout << "operations: " << success << " failure: " << failure << " throughput: "
-         << (double) (success /*+ failure*/) * thread_number / total_time << endl;
+         << (double) (success + failure) * thread_number / total_time << endl;
     free(loads);
     finish();
     delete store;
