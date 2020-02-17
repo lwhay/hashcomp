@@ -121,7 +121,7 @@ void *measureWorker(void *args) {
                 for (int i = work->tid * total_count / thread_number;
                      i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
-                if (updatePercentage > 0 && i % totalPercentage % updatePercentage == 0) {
+                if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
 #if INPLACE
                     bool ret = store->InplaceUpdate(loads[i], loads[i]);
 #else
@@ -131,7 +131,7 @@ void *measureWorker(void *args) {
                         mhit++;
                     else
                         mfail++;
-                } else if (ereasePercentage > 0 && (i + 1) % totalPercentage % ereasePercentage == 0) {
+                } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     bool ret;
                     if (evenRound % 2 == 0)
                         ret = store->Insert(loads[ereased % total_count] + evenRound,
@@ -238,7 +238,8 @@ int main(int argc, char **argv) {
         root_capacity = std::atoi(argv[8]);
     store = new maptype(root_capacity, 20, thread_number);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
-         << timer_range << " skew: " << skew << endl;
+         << timer_range << " skew: " << skew << " uratio: " << updatePercentage << " eratio: " << ereasePercentage
+         << " root: " << root_capacity << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
     prepare();
