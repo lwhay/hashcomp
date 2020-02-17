@@ -31,9 +31,9 @@ long total_time;
 
 uint64_t exists = 0;
 
-uint64_t success = 0;
+uint64_t read_success = 0, modify_success = 0;
 
-uint64_t failure = 0;
+uint64_t read_failure = 0, modify_failure = 0;
 
 uint64_t total_count = DEFAULT_KEYS_COUNT;
 
@@ -50,6 +50,14 @@ int root_capacity = (1 << 16);
 stringstream *output;
 
 atomic<int> stopMeasure(0);
+
+int updatePercentage = 10;
+
+int ereasePercentage = 0;
+
+int totalPercentage = 100;
+
+int readPercentage = (totalPercentage - updatePercentage - ereasePercentage);
 
 struct target {
     int tid;
@@ -88,8 +96,10 @@ void *measureWorker(void *args) {
     Tracer tracer;
     tracer.startTime();
     struct target *work = (struct target *) args;
-    uint64_t hit = 0;
-    uint64_t fail = 0;
+    uint64_t mhit = 0, rhit = 0;
+    uint64_t mfail = 0, rfail = 0;
+    int evenRound = 0;
+    uint64_t ereased = 0;
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
 #if INPUT_METHOD == 0
@@ -100,29 +110,50 @@ void *measureWorker(void *args) {
             for (int i = work->tid * total_count / thread_number;
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
-#if TEST_LOOKUP
-                uint64_t value = store->find(loads[i]);
-                if (value == loads[i])
-                    hit++;
-                else
-                    fail++;
+                if (updatePercentage > 0 && i % totalPercentage % updatePercentage == 0) {
+#if INPLACE
+                    bool ret = store->InplaceUpdate(loads[i], loads[i]);
 #else
-                if (store->update(loads[i], loads[i]))
-                    hit++;
-                else
-                    fail++;
+                    bool ret = store->update(loads[i], loads[i]/*new Value(loads[i])*/);
 #endif
+                    if (ret)
+                        mhit++;
+                    else
+                        mfail++;
+                } else if (ereasePercentage > 0 && (i + 1) % totalPercentage % ereasePercentage == 0) {
+                    bool ret;
+                    if (evenRound % 2 == 0)
+                        ret = store->insert(loads[ereased % total_count] + evenRound,
+                                            loads[ereased % total_count] + evenRound);
+                    else
+                        ret = store->erase(loads[ereased % total_count] + evenRound);
+                    ereased++;
+                    if (ret)
+                        mhit++;
+                    else
+                        mfail++;
+                } else {
+                    uint64_t value = store->find(loads[i]);
+                    if (value == loads[i])
+                        rhit++;
+                    else
+                        rfail++;
+                }
             }
+            evenRound++;
+            ereased = 0;
         }
     } catch (exception e) {
         cout << work->tid << endl;
     }
 
     long elipsed = tracer.getRunTime();
-    output[work->tid] << work->tid << " " << elipsed << " " << hit << endl;
+    output[work->tid] << work->tid << " " << elipsed << " " << mhit << " " << rhit << endl;
     __sync_fetch_and_add(&total_time, elipsed);
-    __sync_fetch_and_add(&success, hit);
-    __sync_fetch_and_add(&failure, fail);
+    __sync_fetch_and_add(&read_success, rhit);
+    __sync_fetch_and_add(&read_failure, rfail);
+    __sync_fetch_and_add(&modify_success, mhit);
+    __sync_fetch_and_add(&modify_failure, mfail);
 }
 
 void prepare() {
@@ -186,15 +217,17 @@ void multiWorkers() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 5) {
+    if (argc > 7) {
         thread_number = std::atol(argv[1]);
         key_range = std::atol(argv[2]);
         total_count = std::atol(argv[3]);
         timer_range = std::atol(argv[4]);
         skew = std::atof(argv[5]);
+        updatePercentage = std::atoi(argv[6]);
+        ereasePercentage = std::atoi(argv[7]);
     }
-    if (argc > 6)
-        root_capacity = std::atoi(argv[6]);
+    if (argc > 8)
+        root_capacity = std::atoi(argv[8]);
     store = new cmap(root_capacity);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << endl;
@@ -205,8 +238,10 @@ int main(int argc, char **argv) {
     simpleInsert();
     cout << "multiinsert" << endl;
     multiWorkers();
-    cout << "operations: " << success << " failure: " << failure << " throughput: "
-         << (double) (success + failure) * thread_number / total_time << endl;
+    cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "
+         << modify_success << " modify failure: " << modify_failure << " throughput: "
+         << (double) (read_success + read_failure + modify_success + modify_failure) * thread_number / total_time
+         << endl;
     free(loads);
     finish();
     //delete mhash;

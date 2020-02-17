@@ -13,8 +13,73 @@
 #project(Microbench)
 
 include_directories("./")
+include_directories("../")
+include_directories("../../")
 include_directories("../../")
 include_directories("../../src")
+include_directories("../../src/levelhash")
+include_directories("../../src/faster")
+include_directories("../../src/faster/misc")
+include_directories("../../src/faster/io")
+include_directories("../../src/faster/cc")
+include_directories("../../src/faster/core")
+include_directories("../../src/faster/memory")
+include_directories("../../src/faster/api")
+
+set(FH_HYBRID_LIBS
+        ../../src/faster/misc/address.cc
+        ../../src/faster/misc/lss_allocator.cc
+        ../../src/faster/misc/thread.cc
+        )
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    set(FH_HYBRID_LIBS
+            ../../src/faster/io/file_linux.cc
+            ${FH_HYBRID_LIBS})
+else ()
+    set(FH_HYBRID_LIBS
+            ../../src/faster/io/file_windows.cc
+            ${FH_HYBRID_LIBS})
+endif ()
+
+set(FH_HYBRID_TEST
+        FH_HybridTest.cpp)
+
+message("subproject" ${CMAKE_CURRENT_SOURCE_DIR})
+message("faster lib" ${FH_LIBS})
+
+set(LH_HYBRID_LIBS
+        ../../src/levelhash/hash.c
+        ../../src/levelhash/level_hashing.c
+        )
+
+set(LH_HYBRID_TEST
+        LH_HybridTest.cpp)
+
+set(FH_HYBRID_TESTS_EXES ${FH_HYBRID_TEST})
+foreach (sourcefile ${FH_HYBRID_TESTS_EXES})
+    get_filename_component(exename ${sourcefile} NAME_WE)
+    add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile} ${FH_HYBRID_LIBS})
+    set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
+            PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
+            EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
+            EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
+            OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
+            )
+    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${LTBB} ${AIO} ${UUID})
+endforeach (sourcefile ${FH_HYBRID_TESTS_EXES})
+
+set(LH_HYBRID_TESTS_EXES ${LH_HYBRID_TEST})
+foreach (sourcefile ${LH_HYBRID_TESTS_EXES})
+    get_filename_component(exename ${sourcefile} NAME_WE)
+    add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile} ${LH_HYBRID_LIBS})
+    set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
+            PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
+            EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
+            EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
+            OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
+            )
+    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${PTHREAD})
+endforeach (sourcefile ${LH_HYBRID_TESTS_EXES})
 
 #include(ExternalProject)
 if ((CMAKE_SYSTEM_NAME MATCHES "Linux" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 5.1) OR CMAKE_SYSTEM_NAME MATCHES "Darwin")
