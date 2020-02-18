@@ -112,11 +112,7 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-#if INPLACE
-                    bool ret = store->InplaceUpdate(loads[i], loads[i]);
-#else
                     bool ret = store->update(loads[i], loads[i]/*new Value(loads[i])*/);
-#endif
                     if (ret) mhit++;
                     else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
