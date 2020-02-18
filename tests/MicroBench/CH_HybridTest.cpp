@@ -99,13 +99,14 @@ void *measureWorker(void *args) {
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
     int evenRound = 0;
+    uint64_t inserts = 0;
     uint64_t ereased = 0;
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
 #if INPUT_METHOD == 0
             for (int i = 0; i < total_count; i++) {
 #elif INPUT_METHOD == 1
-                for (int i = work->tid; i < total_count; i += thread_number) {
+            for (int i = work->tid; i < total_count; i += thread_number) {
 #else
             for (int i = work->tid * total_count / thread_number;
                  i < (work->tid + 1) * total_count / thread_number; i++) {
@@ -116,35 +117,30 @@ void *measureWorker(void *args) {
 #else
                     bool ret = store->update(loads[i], loads[i]/*new Value(loads[i])*/);
 #endif
-                    if (ret)
-                        mhit++;
-                    else
-                        mfail++;
+                    if (ret) mhit++;
+                    else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     bool ret;
-                    if (evenRound % 2 == 0)
-                        ret = store->insert(loads[ereased % total_count] + evenRound,
-                                            loads[ereased % total_count] + evenRound);
-                    else
-                        ret = store->erase(loads[ereased % total_count] + evenRound);
-                    ereased++;
-                    if (ret)
-                        mhit++;
-                    else
-                        mfail++;
+                    if (evenRound % 2 == 0) {
+                        uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
+                        ret = store->insert(key, key);
+                    } else {
+                        uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
+                        ret = store->erase(key);
+                    }
+                    if (ret) mhit++;
+                    else mfail++;
                 } else {
                     uint64_t value = store->find(loads[i]);
-                    if (value == loads[i])
-                        rhit++;
-                    else
-                        rfail++;
+                    if (value == loads[i]) rhit++;
+                    else rfail++;
                 }
             }
-            evenRound++;
-            ereased = 0;
+            if (evenRound++ % 2 == 0) ereased = 0;
+            else inserts = 0;
         }
     } catch (exception e) {
-        cout << work->tid << endl;
+        cout << work->tid << ":" << ereased << endl;
     }
 
     long elipsed = tracer.getRunTime();
@@ -198,11 +194,6 @@ void multiWorkers() {
     timer.start();
     for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], nullptr, measureWorker, &parms[i]);
-#if WITH_NUMA == 1
-        fixedThread(i, workers[i]);
-#elif WITH_NUMA == 2
-        maskThread(i, workers[i]);
-#endif
     }
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
@@ -225,13 +216,14 @@ int main(int argc, char **argv) {
         skew = std::atof(argv[5]);
         updatePercentage = std::atoi(argv[6]);
         ereasePercentage = std::atoi(argv[7]);
+        readPercentage = totalPercentage - updatePercentage - ereasePercentage;
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
     store = new cmap(root_capacity);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
-         << timer_range << " skew: " << skew << " uratio: " << updatePercentage << " eratio: " << ereasePercentage
-         << " root: " << root_capacity << endl;
+         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
+         << readPercentage << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
     prepare();
