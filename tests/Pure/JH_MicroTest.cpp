@@ -75,7 +75,7 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        store->assign(loads[i], new Value(loads[i]));
+        while (!store->assign(loads[i], new Value(loads[i])));
         set.insert(loads[i]);
         inserted++;
     }
@@ -86,7 +86,7 @@ void *insertWorker(void *args) {
     //struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = 0; i < total_count; i++) {
-        store->assign(loads[i], new Value(loads[i]));
+        while (!store->assign(loads[i], new Value(loads[i])));
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);

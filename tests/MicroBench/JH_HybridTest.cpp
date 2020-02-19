@@ -83,7 +83,7 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        store->assign(loads[i], loads[i]);
+        while (!store->assign(loads[i], loads[i]));
         set.insert(loads[i]);
         inserted++;
     }
@@ -94,7 +94,7 @@ void *insertWorker(void *args) {
     //struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = 0; i < total_count; i++) {
-        store->assign(loads[i], loads[i]);
+        while (!store->assign(loads[i], loads[i]));
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -120,17 +120,20 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-                    bool ret = store->exchange(loads[i], loads[i]);
+                    bool ret = false;
+                    while (!store->exchange(loads[i], loads[i]));
                     if (ret) mhit++;
                     else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     bool ret;
                     if (evenRound % 2 == 0) {
                         uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
-                        ret = store->assign(key, key);
+                        ret = false;
+                        while (!ret) ret = store->assign(key, key);
                     } else {
                         uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-                        ret = store->erase(key);
+                        ret = false;
+                        while (!ret) ret = store->erase(key);
                     }
                     if (ret) mhit++;
                     else mfail++;
