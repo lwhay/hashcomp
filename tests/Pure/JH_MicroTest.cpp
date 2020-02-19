@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <unordered_set>
 #include "tracer.h"
+#include "concurrent_hash_map.h"
 #include "junction/ConcurrentMap_Leapfrog.h"
 
 #define DEFAULT_THREAD_NUM (8)
@@ -102,7 +103,7 @@ void *measureWorker(void *args) {
 #if INPUT_METHOD == 0
             for (int i = 0; i < total_count; i++) {
 #elif INPUT_METHOD == 1
-                for (int i = work->tid; i < total_count; i += thread_number) {
+            for (int i = work->tid; i < total_count; i += thread_number) {
 #else
             for (int i = work->tid * total_count / thread_number;
                  i < (work->tid + 1) * total_count / thread_number; i++) {
@@ -204,7 +205,7 @@ int main(int argc, char **argv) {
     }
     if (argc > 6)
         root_capacity = std::atoi(argv[6]);
-    store = new maptype(root_capacity);
+    store = new maptype(util::nextPowerOf2(root_capacity));
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
