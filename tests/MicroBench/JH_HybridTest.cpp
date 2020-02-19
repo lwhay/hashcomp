@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <unordered_set>
 #include "tracer.h"
+#include "concurrent_hash_map.h"
 #include "junction/ConcurrentMap_Leapfrog.h"
 
 #define DEFAULT_THREAD_NUM (8)
@@ -223,7 +224,7 @@ int main(int argc, char **argv) {
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
-    store = new maptype(root_capacity);
+    store = new maptype(util::nextPowerOf2(root_capacity));
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
          << readPercentage << endl;
