@@ -83,7 +83,8 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        while (!store->assign(loads[i], loads[i]));
+        bool ret = false;
+        while (!ret) ret = store->assign(loads[i], loads[i]);
         set.insert(loads[i]);
         inserted++;
     }
@@ -94,7 +95,8 @@ void *insertWorker(void *args) {
     //struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = 0; i < total_count; i++) {
-        while (!store->assign(loads[i], loads[i]));
+        bool ret = false;
+        while (!ret) ret = store->assign(loads[i], loads[i]);
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -121,7 +123,7 @@ void *measureWorker(void *args) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
                     bool ret = false;
-                    while (!store->exchange(loads[i], loads[i]));
+                    while (!ret) ret = store->exchange(loads[i], loads[i]);
                     if (ret) mhit++;
                     else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
