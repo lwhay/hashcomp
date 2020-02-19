@@ -83,8 +83,7 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        bool ret = false;
-        while (!ret) ret = store->assign(loads[i], loads[i]);
+        store->assign(loads[i], loads[i]);
         set.insert(loads[i]);
         inserted++;
     }
