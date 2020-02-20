@@ -230,7 +230,8 @@ int main(int argc, char **argv) {
     cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "
          << modify_success << " modify failure: " << modify_failure << " throughput: "
          << (double) (read_success + read_failure + modify_success + modify_failure) * thread_number / total_time
-         << endl;
+         << " hash size: " << store->bucket_count() << " capacity: " << store->capacity() << " load factor: "
+         << store->load_factor() << endl;
     free(loads);
     finish();
     //delete mhash;
