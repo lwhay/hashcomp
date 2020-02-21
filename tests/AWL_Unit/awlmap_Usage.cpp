@@ -31,13 +31,22 @@ TEST(awlmapTests, UnionTest) {
 TEST(awlmapTests, UnitOperations) {
     ConcurrentHashMap<int, int, std::hash<int>, std::equal_to<>> map(16, 3, 1);
     for (int i = 0; i < 100; i++) {
-        map.Insert(1, 1);
+        map.Insert(i, i);
     }
     int v;
 
     for (int i = 0; i < 100; i++) {
-        map.Find(1, v);
-        ASSERT_EQ(v, 1);
+        map.Find(i, v);
+        ASSERT_EQ(v, i);
+    }
+
+    for (int i = 0; i < 100; i++) {
+        map.Delete(i);
+    }
+
+    for (int i = 0; i < 100; i++) {
+        bool ret = map.Find(i, v);
+        ASSERT_EQ(ret, false);
     }
 }
 
