@@ -125,6 +125,10 @@ private:
 const char *existingFilePath = "./testfile.dat";
 
 namespace ycsb {
+char *loadpath = "./load.dat";
+
+char *runpath = "./run.dat";
+
 char *YCSB_command[5] = {"READ", "INSERT", "DELETE", "UPDATE", "SCAN"};
 
 enum YCSB_operator {

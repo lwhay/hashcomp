@@ -5,10 +5,9 @@
 #include <iostream>
 #include <sstream>
 #include <chrono>
-#include <string>
-#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <unordered_set>
 #include "tracer.h"
 #include "dict/concurrent_dict.h"
@@ -37,15 +36,11 @@ public:
 
 using namespace concurrent_dict;
 
-using namespace ycsb;
-
 typedef ConcurrentDict maptype;
 
 maptype *store;
 
-std::vector<YCSB_request *> loads;
-
-std::vector<YCSB_request *> runs;
+uint64_t *loads;
 
 long total_time;
 
@@ -81,6 +76,7 @@ int readPercentage = (totalPercentage - updatePercentage - ereasePercentage);
 
 struct target {
     int tid;
+    uint64_t *insert;
     maptype *store;
 };
 
@@ -92,8 +88,11 @@ void simpleInsert() {
     Tracer tracer;
     tracer.startTime();
     int inserted = 0;
-    for (int i = 0; i < total_count; i++, inserted++) {
-        store->Insert(Slice(loads[i]->getKey()), Slice(loads[i]->getVal()));
+    unordered_set<uint64_t> set;
+    for (int i = 0; i < total_count; i++) {
+        store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
+        set.insert(loads[i]);
+        inserted++;
     }
     cout << inserted << " " << tracer.getRunTime() << endl;
 }
@@ -102,7 +101,7 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
-        store->Insert(Slice(loads[i]->getKey()), Slice(loads[i]->getVal()));
+        store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -114,35 +113,50 @@ void *measureWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
+    int evenRound = 0;
+    uint64_t ereased = 0, inserts = 0;
     std::string dummyVal;
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
+#if INPUT_METHOD == 0
+            for (int i = 0; i < total_count; i++) {
+#elif INPUT_METHOD == 1
+            for (int i = work->tid; i < total_count; i += thread_number) {
+#else
             for (int i = work->tid * total_count / thread_number;
                  i < (work->tid + 1) * total_count / thread_number; i++) {
-                switch (static_cast<int>(runs[i]->getOp())) {
-                    case 0: {
-                        bool ret = store->Find(Slice(runs[i]->getKey()), &dummyVal);
-                        if (ret /*&& (dummyVal.compare(runs[i]->getVal()) == 0)*/) rhit++;
-                        else rfail++;
-                        break;
+#endif
+                if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
+#if INPLACE
+                    bool ret = store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
+#else
+                    bool ret = store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
+#endif
+                    if (ret)
+                        mhit++;
+                    else
+                        mfail++;
+                } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
+                    bool ret;
+                    if (evenRound % 2 == 0) {
+                        uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
+                        ret = store->Insert(Slice((char *) &key), Slice((char *) &key));
+                    } else {
+                        uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
+                        ret = store->Delete(Slice((char *) &key), &dummyVal);
                     }
-                    case 1:
-                    case 3: {
-                        bool ret = store->Insert(Slice(runs[i]->getKey()), Slice(runs[i]->getVal()));
-                        if (ret) mhit++;
-                        else mfail++;
-                        break;
-                    }
-                    case 2: {
-                        bool ret = store->Delete(Slice(runs[i]->getKey()), &dummyVal);
-                        if (ret) mhit++;
-                        else mfail++;
-                        break;
-                    }
-                    default:
-                        break;
+                    if (ret) mhit++;
+                    else mfail++;
+                } else {
+                    bool ret = store->Find(Slice((char *) &loads[i]), &dummyVal);
+                    if (ret && (dummyVal.compare((char *) &loads[i]) == 0))
+                        rhit++;
+                    else
+                        rfail++;
                 }
             }
+            if (evenRound++ % 2 == 0) ereased = 0;
+            else inserts = 0;
         }
     } catch (exception e) {
         cout << work->tid << endl;
@@ -165,11 +179,20 @@ void prepare() {
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
         parms[i].store = store;
+        parms[i].insert = (uint64_t *) calloc(total_count / thread_number, sizeof(uint64_t *));
+        char buf[DEFAULT_STR_LENGTH];
+        for (int j = 0; j < total_count / thread_number; j++) {
+            std::sprintf(buf, "%d", i + j * thread_number);
+            parms[i].insert[j] = j;
+        }
     }
 }
 
 void finish() {
     cout << "finish" << endl;
+    for (int i = 0; i < thread_number; i++) {
+        delete[] parms[i].insert;
+    }
     delete[] parms;
     delete[] workers;
     delete[] output;
@@ -179,6 +202,12 @@ void multiWorkers() {
     output = new stringstream[thread_number];
     Tracer tracer;
     tracer.startTime();
+    /*for (int i = 0; i < thread_number; i++) {
+        pthread_create(&workers[i], nullptr, insertWorker, &parms[i]);
+    }
+    for (int i = 0; i < thread_number; i++) {
+        pthread_join(workers[i], nullptr);
+    }*/
     cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     Timer timer;
     timer.start();
@@ -214,24 +243,18 @@ int main(int argc, char **argv) {
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
          << readPercentage << endl;
-    YCSBLoader loader(loadpath, total_count);
-    loads = loader.load();
-    size_t old_count = total_count;
-    total_count = loader.size();
+    loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
     prepare();
     cout << "simple" << endl;
     simpleInsert();
-    YCSBLoader runner(runpath, old_count);
-    runs = runner.load();
-    total_count = runner.size();
     cout << "multiinsert" << endl;
     multiWorkers();
     cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "
          << modify_success << " modify failure: " << modify_failure << " throughput: "
          << (double) (read_success + read_failure + modify_success + modify_failure) * thread_number / total_time
          << endl;
-    loads.clear();
-    runs.clear();
+    free(loads);
     finish();
     delete store;
     return 0;

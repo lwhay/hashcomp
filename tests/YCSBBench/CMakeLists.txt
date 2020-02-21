@@ -166,7 +166,8 @@ if (WITH_LIBCUCKOO)
     link_directories(${LIBCUCKOO_PREFIX}/src/libcukoo-build/)
 
     set(CUKOO_YCSB_TEST
-            CH_YCSBTest.cpp)
+            CH_YCSBTest.cpp
+            CH_MicroBench.cpp)
 
     foreach (sourcefile ${CUKOO_YCSB_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
@@ -218,7 +219,8 @@ if (WITH_AWLMAP)
             )
 
     set(AWLMAP_YCSB_TEST
-            AH_YCSBTest.cpp)
+            AH_YCSBTest.cpp
+            AH_MicroBench.cpp)
 
     foreach (sourcefile ${AWLMAP_YCSB_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
