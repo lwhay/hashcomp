@@ -150,16 +150,16 @@ void simpleOperationTests() {
 
     UniversalHashTable<char *, char *, std::hash<char *>, 4, 16> uhash;
     for (int i = 0; i < 5; i++) {
-        uhash.Insert(dummy[i], dummy[i]);
+        uhash.Insert(dummy_set[i], dummy_set[i]);
     }
     ConcurrentHashTable<char *, char *, std::hash<char *>, 4, 16> chash;
     for (int i = 0; i < 5; i++) {
-        chash.Insert(dummy[i], dummy[i]);
+        chash.Insert(dummy_set[i], dummy_set[i]);
     }
     BasicHashTable<char *, char *, std::hash<char *>, std::equal_to<char *>,
             std::allocator<std::pair<const char *, char *>>, 4> bhash;
     for (int i = 0; i < 5; i++) {
-        bhash.Insert(dummy[i], dummy[i]);
+        bhash.Insert(dummy_set[i], dummy_set[i]);
     }
 }
 
