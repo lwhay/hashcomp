@@ -18,7 +18,7 @@
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
 
-#define INPLACE           1
+#define INPLACE            0
 
 #define COUNT_HASH         1
 
@@ -138,7 +138,7 @@ void *measureWorker(void *args) {
                         ret = store->Insert(key, key);
                     } else {
                         uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-                        ret = store->InplaceUpdate(key, key);
+                        ret = store->Delete(key);
                     }
                     if (ret) mhit++;
                     else mfail++;
