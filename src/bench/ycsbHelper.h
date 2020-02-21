@@ -10,7 +10,7 @@
 
 using namespace std;
 
-char *dummy[]{
+char *dummy_set[]{
         "abwerewrsdfrwereweewrewrrewrwerw",
         "abwerewrsdfrwereweewrewrrewrwerw"
         "abwerewrsdfrwereweewrewrrewrwerw"
@@ -74,7 +74,7 @@ char *dummy[]{
         "abwerewrsdfrwereweewrewrrewrwerw"
 };
 
-char *update[]{
+char *update_set[]{
         "werewsdvcxewwrsdfxcvwerwesdfwerw",
         "werewsdvcxewwrsdfxcvwerwesdfwerw"
         "werewsdvcxewwrsdfxcvwerwesdfwerw"
