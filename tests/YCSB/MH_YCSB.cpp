@@ -49,24 +49,24 @@ neatlib::LockFreeHashTable<char *, char *, std::hash<char *>, 4, 16> *mhash;
 
 void simpleInsert() {
     for (int i = 0; i < 4; i++) {
-        mhash->Insert(dummy[i], dummy[i]);
+        mhash->Insert(dummy_set[i], dummy_set[i]);
     }
     for (int i = 0; i < 4; i++) {
-        cout << mhash->Get(dummy[i]).second << endl;
+        cout << mhash->Get(dummy_set[i]).second << endl;
     }
 }
 
 
 void initYCSB(int vscale) {
     for (int i = 0; i < total; i++) {
-        mhash->Insert(sinput[i], dummy[vscale]);
+        mhash->Insert(sinput[i], dummy_set[vscale]);
     }
 }
 
 void *initYCSB(void *args) {
     threadConfig *conf = static_cast<threadConfig *>(args);
     for (int i = conf->tid; i < total; i += paral) {
-        if (!mhash->Insert(sinput[i], dummy[conf->vscale])) {
+        if (!mhash->Insert(sinput[i], dummy_set[conf->vscale])) {
             cout << conf->tid << " " << i << endl;
         }
     }
@@ -93,7 +93,7 @@ void verifyYCSB(int vscale) {
         for (int i = 0; i < total; i++) {
             //cout << i << endl;
             pair<char *, char *> kv = mhash->Get(sinput[i]);
-            if (!equalTo(kv.first, sinput[i]) || !equalTo(kv.second, dummy[vscale])) {
+            if (!equalTo(kv.first, sinput[i]) || !equalTo(kv.second, dummy_set[vscale])) {
                 missed++;
             } else {
                 found++;
@@ -102,7 +102,7 @@ void verifyYCSB(int vscale) {
         cout << "Found: " << found << " missed: " << missed << endl;
     } else {
         for (int i = 0; i < total; i++) {
-            mhash->Update(sinput[i], dummy[vscale]);
+            mhash->Update(sinput[i], dummy_set[vscale]);
         }
     }
 }
