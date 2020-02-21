@@ -556,14 +556,16 @@ if (WITH_AWLMAP)
 
     set(AWLMAP_LIBS
             ${AWLMAP_PREFIX}/src/awlmap/hash_map/concurrent_hash_map.cpp
+            ${AWLMAP_PREFIX}/src/awlmap/dict/concurrent_dict.cpp
             ${AWLMAP_PREFIX}/src/awlmap/hash_map/thread.cpp
-            ${AWLMAP_PREFIX}/src/awlmap/my_haz_ptr/haz_ptr/haz_ptr.cpp
+            #${AWLMAP_PREFIX}/src/awlmap/my_haz_ptr/haz_ptr/haz_ptr.cpp
             )
 
     set(AWLMAP_TEST
             tests/AWL_Unit/awlmap_Usage.cpp
             tests/Pure/AH_MicroTest.cpp
-            tests/Pure/AA_MicroTest.cpp)
+            tests/Pure/AA_MicroTest.cpp
+            utils/YCSBLoader_UnitTest.cpp)
 
     foreach (sourcefile ${AWLMAP_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
