@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sstream>
 #include <chrono>
+#include <cstring>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unordered_set>
