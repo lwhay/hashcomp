@@ -92,7 +92,7 @@ void simpleInsert() {
     Tracer tracer;
     tracer.startTime();
     int inserted = 0;
-    for (int i = 0; i < total_count; i++, inserted++) {
+    for (int i = 0; i < key_range; i++, inserted++) {
         store->Insert(Slice(loads[i]->getKey()), Slice(loads[i]->getVal()));
     }
     cout << inserted << " " << tracer.getRunTime() << endl;
@@ -101,7 +101,7 @@ void simpleInsert() {
 void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
-    for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
+    for (int i = work->tid * key_range / thread_number; i < (work->tid + 1) * key_range / thread_number; i++) {
         store->Insert(Slice(loads[i]->getKey()), Slice(loads[i]->getVal()));
         inserted++;
     }
@@ -211,19 +211,18 @@ int main(int argc, char **argv) {
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
     store = new maptype(root_capacity, 20, thread_number);
-    cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
-         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
-         << readPercentage << endl;
-    YCSBLoader loader(loadpath, total_count);
+    YCSBLoader loader(loadpath, key_range);
     loads = loader.load();
-    size_t old_count = total_count;
-    total_count = loader.size();
+    key_range = loader.size();
     prepare();
     cout << "simple" << endl;
     simpleInsert();
-    YCSBLoader runner(runpath, old_count);
+    YCSBLoader runner(runpath, total_count);
     runs = runner.load();
     total_count = runner.size();
+    cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
+         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
+         << readPercentage << endl;
     cout << "multiinsert" << endl;
     multiWorkers();
     cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "

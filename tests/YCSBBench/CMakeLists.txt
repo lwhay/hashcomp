@@ -126,7 +126,8 @@ if (WITH_JUNCTION)
     link_directories(${JUNCTION_PREFIX}/src/junction-deps-build/turf)
 
     set(JUNCTION_YCSB_TEST
-            JH_YCSBTest.cpp)
+            JH_YCSBTest.cpp
+            JH_MicroBench.cpp)
 
     foreach (sourcefile ${JUNCTION_YCSB_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)

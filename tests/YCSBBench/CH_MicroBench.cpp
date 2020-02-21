@@ -16,9 +16,6 @@
 #define DEFAULT_KEYS_COUNT (1 << 20)
 #define DEFAULT_KEYS_RANGE (1 << 2)
 
-#define DEFAULT_STR_LENGTH 256
-//#define DEFAULT_KEY_LENGTH 8
-
 #define COUNT_HASH         1
 
 typedef libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>, std::equal_to<char *>,
@@ -84,9 +81,9 @@ void simpleInsert() {
 }
 
 void *insertWorker(void *args) {
-    //struct target *work = (struct target *) args;
+    struct target *work = (struct target *) args;
     uint64_t inserted = 0;
-    for (int i = 0; i < total_count; i++) {
+    for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
         store->insert((char *) &loads[i], (char *) &loads[i]);
         inserted++;
     }
@@ -178,9 +175,6 @@ void finish() {
 
 void multiWorkers() {
     output = new stringstream[thread_number];
-    Tracer tracer;
-    tracer.startTime();
-    cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     Timer timer;
     timer.start();
     for (int i = 0; i < thread_number; i++) {
