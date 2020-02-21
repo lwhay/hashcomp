@@ -21,9 +21,9 @@ typedef folly::AtomicHashMap <uint64_t, uint64_t> fmap;
 #include "folly/concurrency/ConcurrentHashMap.h"
 
 #ifdef FOLLY_NDEBUG
-typedef folly::ConcurrentHashMap<uint64_t, uint64_t> fmap;
+typedef folly::ConcurrentHashMap<char *, char *> fmap;
 #else
-typedef folly::ConcurrentHashMapSIMD<uint64_t, uint64_t> fmap;
+typedef folly::ConcurrentHashMapSIMD<char*, char*> fmap;
 #endif
 
 #endif
@@ -90,7 +90,7 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        store->insert(loads[i], loads[i]);
+        store->insert((char *) &loads[i], (char *) &loads[i]);
         set.insert(loads[i]);
         inserted++;
     }
@@ -101,7 +101,7 @@ void *insertWorker(void *args) {
     //struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = 0; i < total_count; i++) {
-        store->insert(loads[i], loads[i]);
+        store->insert((char *) &loads[i], (char *) &loads[i]);
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -127,24 +127,24 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-                    auto ret = store->insert_or_assign(loads[i], loads[i]/*new Value(loads[i])*/);
-                    if (ret.first->second == loads[i]) mhit++;
+                    auto ret = store->insert_or_assign((char *) &loads[i], (char *) &loads[i]);
+                    if (std::strcmp(ret.first->second, (char *) &loads[i]) == 0) mhit++;
                     else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     if (evenRound % 2 == 0) {
                         uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
-                        auto ret = store->insert(key, key);
+                        auto ret = store->insert((char *) &key, (char *) &key);
                         if (ret.second) mhit++;
                         else mfail++;
                     } else {
                         uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-                        auto ret = store->erase(key);
+                        auto ret = store->erase((char *) &key);
                         if (ret == sizeof(uint8_t)) mhit++;
                         else mfail++;
                     }
                 } else {
-                    uint64_t value = store->find(loads[i])->second;
-                    if (value == loads[i]) rhit++;
+                    char *value = store->find((char *) &loads[i])->second;
+                    if (std::strcmp(value, (char *) &loads[i]) == 0) rhit++;
                     else rfail++;
                 }
             }

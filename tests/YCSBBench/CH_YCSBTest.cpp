@@ -20,8 +20,8 @@
 
 #define COUNT_HASH         1
 
-typedef libcuckoo::cuckoohash_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
-        std::allocator<std::pair<const uint64_t, uint64_t>>, 8> cmap;
+typedef libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>, std::equal_to<char *>,
+        std::allocator<std::pair<const char *, char *>>, 8> cmap;
 
 cmap *store;
 
@@ -75,7 +75,7 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        store->insert(loads[i], loads[i]);
+        store->insert((char *) &loads[i], (char *) &loads[i]);
         set.insert(loads[i]);
         inserted++;
     }
@@ -86,7 +86,7 @@ void *insertWorker(void *args) {
     //struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = 0; i < total_count; i++) {
-        store->insert(loads[i], loads[i]);
+        store->insert((char *) &loads[i], (char *) &loads[i]);
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -112,23 +112,23 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-                    bool ret = store->update(loads[i], loads[i]/*new Value(loads[i])*/);
+                    bool ret = store->update((char *) &loads[i], (char *) &loads[i]);
                     if (ret) mhit++;
                     else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     bool ret;
                     if (evenRound % 2 == 0) {
                         uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
-                        ret = store->insert(key, key);
+                        ret = store->insert((char *) &key, (char *) &key);
                     } else {
                         uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-                        ret = store->erase(key);
+                        ret = store->erase((char *) &key);
                     }
                     if (ret) mhit++;
                     else mfail++;
                 } else {
-                    uint64_t value = store->find(loads[i]);
-                    if (value == loads[i]) rhit++;
+                    char *value = store->find((char *) &loads[i]);
+                    if (std::strcmp(value, (char *) &loads[i]) == 0) rhit++;
                     else rfail++;
                 }
             }
