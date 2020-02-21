@@ -130,7 +130,8 @@ void *measureWorker(void *args) {
 #if INPLACE
                     bool ret = store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
 #else
-                    bool ret = store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
+                    bool ret = store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]),
+                                             InsertType::MUST_EXIST);
 #endif
                     if (ret)
                         mhit++;
