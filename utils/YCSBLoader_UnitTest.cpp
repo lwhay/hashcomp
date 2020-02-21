@@ -11,6 +11,8 @@
 #include "dict/concurrent_dict.h"
 #include "dict/slice.h"
 
+using namespace ycsb;
+
 TEST(YCSBLoaderTest, Deliminator) {
     YCSBLoader loader("../res/ycsb_data/run-a.dat");
     vector<YCSB_request *> ret = loader.load();

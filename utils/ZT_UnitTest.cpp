@@ -111,7 +111,7 @@ void *insertWorker(void *args) {
     param->runtime = tracer.getRunTime();
 }
 
-void insert() {
+void multiInsert() {
     total_runtime = 0;
     total_counter = 0;
     min_runtime = std::numeric_limits<long>::max();
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
     if (simple) {
         simpleOperationTests();
     } else {
-        insert();
+        multiInsert();
     }
 
     cout << "Insert: " << tracer.getRunTime() << " minTime: " << min_runtime << " maxTime: " << max_runtime

@@ -66,7 +66,7 @@ void *worker(void *args) {
     param->runtime = tracer.getRunTime();
 }
 
-void insert() {
+void multiInsert() {
     total_runtime = 0;
     pthread_t threads[pdegree];
     paramstruct params[pdegree];
@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
 #endif
     Tracer tracer;
     tracer.startTime();
-    insert();
+    multiInsert();
     cout << "Insert: " << tracer.getRunTime() << " minTime: " << min_runtime << " maxTime: " << max_runtime
          << " avgTime: " << ((double) total_runtime / pdegree) << " avgTpt: "
          << ((double) total * pdegree / total_runtime) << endl;

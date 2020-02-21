@@ -124,6 +124,7 @@ private:
 
 const char *existingFilePath = "./testfile.dat";
 
+namespace ycsb {
 char *YCSB_command[5] = {"READ", "INSERT", "DELETE", "UPDATE", "SCAN"};
 
 enum YCSB_operator {
@@ -222,6 +223,7 @@ public:
 
     size_t size() { return numberOfRequests; }
 };
+}
 
 template<typename R>
 class RandomGenerator {

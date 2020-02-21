@@ -390,7 +390,7 @@ void *worker(void *args) {
     param->runtime = tracer.getRunTime();
 }
 
-void insert() {
+void multiInsert() {
     total_runtime = 0;
     pthread_t threads[pdegree];
     paramstruct params[pdegree];
@@ -433,7 +433,7 @@ int main(int argc, char **argv) {
         mhasherTests();
         multiHasherTests();
     } else {
-        insert();
+        multiInsert();
     }
     cout << "Ist: " << tracer.getRunTime() << endl;
     tracer.startTime();
