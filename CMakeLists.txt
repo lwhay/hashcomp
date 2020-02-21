@@ -149,7 +149,7 @@ if (WITH_FH_TESTS)
             tests/Pure/FH_MicroGrowingTest.cpp
             tests/Pure/FH_MicroCTest.cpp
             tests/Pure/FH_MicroTest.cpp
-            tests/YCSB/FH_YCSB.cpp
+            tests/YCSBBench/FH_YCSB.cpp
             tests/Pure/FH_StableRUTest.cpp
             utils/FH_UnitTest.cpp
             utils/EP_UnitTest.cpp)
@@ -169,7 +169,7 @@ if (WITH_MH_TESTS)
             tests/MH_Efficiency/EpochBenchmark.cpp
             utils/MH_UnitTest.cpp
             tests/Pure/MH_MicroTest.cpp
-            tests/YCSB/MH_YCSB.cpp)
+            tests/YCSBBench/MH_YCSB.cpp)
 endif ()
 
 option(WITH_UTILS "build with utils" ON)
@@ -682,3 +682,4 @@ if (WITH_QUARTZ)
 endif ()
 
 add_subdirectory(tests/MicroBench)
+add_subdirectory(tests/YCSBBench)

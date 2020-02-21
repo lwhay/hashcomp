@@ -24,9 +24,17 @@ TEST(YCSBLoaderTest, Deliminator) {
     for (int i = 0; i < loader.size(); i++) delete ret[i];
 }
 
-TEST(YCSBLoaderTest, CMapTester) {
+using concurrent_dict::ConcurrentDict;
+using concurrent_dict::Slice;
+
+TEST(YCSBLoaderTest, CMapInserter) {
     using concurrent_dict::ConcurrentDict;
-    using concurrent_dict::Slice;
+    ConcurrentDict map(128, 20, 1);
+    uint64_t key = 0;
+    map.Insert(Slice((char *) &key), Slice((char *) &key));
+}
+
+TEST(YCSBLoaderTest, CMapTester) {
     std::unordered_map<string, string> umap;
     ConcurrentDict map(128, 20, 1);
 
@@ -47,6 +55,19 @@ TEST(YCSBLoaderTest, CMapTester) {
         string realv = umap.find(ret[i]->getKey())->second;
         if (ret[i]->getOp() == YCSB_operator::lookup) ASSERT_STREQ(realv.c_str(), value.c_str());
     }
+
+    for (int i = 0; i < loads.size(); i++) {
+        std::string value;
+        map.Delete(Slice(ret[i]->getKey()), &value);
+        ASSERT_STREQ(value.c_str(), "");
+    }
+
+    for (int i = 0; i < loads.size(); i++) {
+        std::string value;
+        map.Find(Slice(ret[i]->getKey()), &value);
+        if (ret[i]->getOp() == YCSB_operator::lookup) ASSERT_STREQ(value.c_str(), "");
+    }
+
     for (int i = 0; i < loader.size(); i++) delete src[i];
     for (int i = 0; i < loads.size(); i++) delete ret[i];
 }
