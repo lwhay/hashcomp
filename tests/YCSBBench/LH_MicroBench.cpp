@@ -8,9 +8,9 @@
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
-#define DEFAULT_KEYS_RANGE (1 << 2)
+#define DEFAULT_KEYS_RANGE (1 << 20)
 
-uint64 *loads;
+uint64_t *loads;
 
 long total_time;
 
@@ -99,11 +99,10 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
-        if (!level_insert(work->levelHash, (uint8_t *) &[i], (uint8_t *) &loads[i])) {
-            fail++;
-        }
+        level_insert(work->levelHash, (uint8_t *) &loads[i], (uint8_t *) &loads[i]);
+        inserted++;
     }
-    __sync_fetch_and_add(&exists, fail);
+    __sync_fetch_and_add(&exists, inserted);
 }
 
 void *measureWorker(void *args) {
@@ -115,8 +114,8 @@ void *measureWorker(void *args) {
     int evenRound = 0;
     uint64_t inserts = 0;
     uint64_t ereased = 0;
-    uint8_t *value;
-
+    char Key[sizeof(uint64_t)];
+    char Val[sizeof(uint64_t)];
     while (stopMeasure.load(memory_order_relaxed) == 0) {
 #if INPUT_METHOD == 0
         for (int i = 0; i < total_count; i++) {
@@ -134,15 +133,22 @@ void *measureWorker(void *args) {
                 int ret;
                 if (evenRound % 2 == 0) {
                     uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
-                    ret = level_insert(work->levelHash, (uint8_t *) &key, (uint8_t *) &key);
+                    /*std::memcpy(Key, &key, sizeof(uint64_t));
+                    std::memcpy(Val, &key, sizeof(uint64_t));*/
+                    std::memset(Key, '0', sizeof(uint64_t));
+                    std::sprintf(Key, "%llu", key);
+                    std::memcpy(Val, Key, sizeof(uint64_t));
+                    ret = level_insert(work->levelHash, (uint8_t *) Key, (uint8_t *) Val);
                 } else {
                     uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-                    level_delete(work->levelHash, (uint8_t *) &key);
+                    std::memset(Key, '0', sizeof(uint64_t));
+                    std::sprintf(Key, "%llu", key);
+                    level_delete(work->levelHash, (uint8_t *) Key);
                 }
                 if (ret == 0) mhit++;
                 else mfail++;
             } else {
-                int ret = level_query(work->levelHash, (uint8_t *) &loads[i], value);
+                int ret = level_query(work->levelHash, (uint8_t *) &loads[i], (uint8_t *) Val);
                 if (ret == 0) rhit++;
                 else rfail++;
             }

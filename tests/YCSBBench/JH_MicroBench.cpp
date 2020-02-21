@@ -127,9 +127,9 @@ void *measureWorker(void *args) {
                     if (ret) mhit++;
                     else mfail++;
                 } else {
-                    char *value = store->get((char *) &loads[i]);
-                    if (std::strcmp(value, (char *) &loads[i]) == 0) rhit++;
-                    else rfail++;
+                    //char *ret = store->get((char *) &loads[i]);
+                    /*if (ret) rhit++;
+                    else rfail++;*/
                 }
             }
             if (evenRound++ % 2 == 0) ereased = 0;

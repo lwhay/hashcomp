@@ -136,43 +136,6 @@ void simpleInsert() {
     cout << found << " " << tracer.getRunTime() << endl;
 }
 
-void uniqueInsert() {
-    uint8_t *uniques = (uint8_t *) calloc(DEFAULT_KEY_LENGTH * total_count, sizeof(uint8_t));
-    char buf[DEFAULT_STR_LENGTH];
-    for (int i = 0; i < total_count; i++) {
-        std::sprintf(buf, "%d", i);
-        memcpy(uniques + i * DEFAULT_KEY_LENGTH, buf, DEFAULT_KEY_LENGTH);
-
-    }
-    Tracer tracer;
-    tracer.startTime();
-    int inserted = 0;
-    for (int i = 0; i < total_count; i++) {
-        if (!level_insert(levelHash, &uniques[i * DEFAULT_KEY_LENGTH], &uniques[i * DEFAULT_KEY_LENGTH])) {
-            inserted++;
-        }
-        /*if (false && (i % 100000 == 0 || (i - 10000000) % 100 == 1)) {
-            memset(buf, 0, DEFAULT_STR_LENGTH);
-            memcpy(buf, &uniques[i * DEFAULT_KEY_LENGTH], DEFAULT_KEY_LENGTH);
-            cout << i << " " << buf << " " << uniques[i * DEFAULT_KEY_LENGTH] << endl;
-        }*/
-    }
-    cout << inserted << " " << tracer.getRunTime() << endl;
-    tracer.startTime();
-    uint64_t found = 0;
-    uint8_t value[DEFAULT_KEY_LENGTH];
-    for (int i = 0; i < total_count; i++) {
-        found += (0 == level_query(levelHash, &uniques[i * DEFAULT_KEY_LENGTH], value));
-    }
-    cout << found << " " << tracer.getRunTime() << endl;
-    tracer.startTime();
-    found = 0;
-    for (int i = 0; i < total_count; i++) {
-        found += (0 == level_delete(levelHash, &uniques[i * DEFAULT_KEY_LENGTH]));
-    }
-    cout << found << " " << tracer.getRunTime() << endl;
-}
-
 void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t fail = 0;

@@ -14,7 +14,7 @@
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
-#define DEFAULT_KEYS_RANGE (1 << 2)
+#define DEFAULT_KEYS_RANGE (1 << 20)
 
 #define COUNT_HASH         1
 
@@ -59,7 +59,6 @@ int readPercentage = (totalPercentage - updatePercentage - ereasePercentage);
 
 struct target {
     int tid;
-    uint64_t *insert;
     cmap *store;
 };
 
@@ -154,20 +153,11 @@ void prepare() {
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
         parms[i].store = store;
-        parms[i].insert = (uint64_t *) calloc(total_count / thread_number, sizeof(uint64_t *));
-        char buf[DEFAULT_STR_LENGTH];
-        for (int j = 0; j < total_count / thread_number; j++) {
-            std::sprintf(buf, "%d", i + j * thread_number);
-            parms[i].insert[j] = j;
-        }
     }
 }
 
 void finish() {
     cout << "finish" << endl;
-    for (int i = 0; i < thread_number; i++) {
-        delete[] parms[i].insert;
-    }
     delete[] parms;
     delete[] workers;
     delete[] output;

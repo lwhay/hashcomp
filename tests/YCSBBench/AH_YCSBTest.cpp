@@ -16,24 +16,11 @@
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
-#define DEFAULT_KEYS_RANGE (1 << 2)
-
-#define DEFAULT_STR_LENGTH 256
-//#define DEFAULT_KEY_LENGTH 8
+#define DEFAULT_KEYS_RANGE (1 << 20)
 
 #define INPLACE            0
 
 #define COUNT_HASH         1
-
-struct Value {
-    uint64_t value;
-public:
-    Value(uint64_t v) : value(v) {}
-
-    ~Value() {}
-
-    uint64_t get() { return value; }
-};
 
 using namespace concurrent_dict;
 

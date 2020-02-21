@@ -42,7 +42,8 @@ else ()
 endif ()
 
 set(FH_YCSB_TEST
-        FH_YCSBTest.cpp)
+        FH_YCSBTest.cpp
+        FH_MicroBench.cpp)
 
 message("subproject" ${CMAKE_CURRENT_SOURCE_DIR})
 message("faster lib" ${FH_LIBS})
@@ -53,7 +54,8 @@ set(LH_YCSB_LIBS
         )
 
 set(LH_YCSB_TEST
-        LH_YCSBTest.cpp)
+        LH_YCSBTest.cpp
+        LH_MicroBench.cpp)
 
 set(FH_YCSB_TESTS_EXES ${FH_YCSB_TEST})
 foreach (sourcefile ${FH_YCSB_TESTS_EXES})
@@ -126,8 +128,9 @@ if (WITH_JUNCTION)
     link_directories(${JUNCTION_PREFIX}/src/junction-deps-build/turf)
 
     set(JUNCTION_YCSB_TEST
-            JH_YCSBTest.cpp
-            JH_MicroBench.cpp)
+            #JH_YCSBTest.cpp
+            #JH_MicroBench.cpp
+            )
 
     foreach (sourcefile ${JUNCTION_YCSB_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
@@ -265,6 +268,7 @@ if (WITH_FOLLY)
     link_directories(${FOLLY_PREFIX}/src/folly-build/)
 
     set(FOLLY_YCSB_TEST
+            OH_MicroBench.cpp
             OH_YCSBTest.cpp)
 
     foreach (sourcefile ${FOLLY_YCSB_TEST})

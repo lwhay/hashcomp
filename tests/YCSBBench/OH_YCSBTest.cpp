@@ -3,10 +3,7 @@
 //
 
 #include <iostream>
-#include <sstream>
 #include <chrono>
-#include <cstring>
-#include <stdio.h>
 #include <stdlib.h>
 #include <unordered_set>
 #include "tracer.h"
@@ -24,24 +21,24 @@ typedef folly::AtomicHashMap <uint64_t, uint64_t> fmap;
 #ifdef FOLLY_NDEBUG
 typedef folly::ConcurrentHashMap<char *, char *> fmap;
 #else
-typedef folly::ConcurrentHashMapSIMD<char*, char*> fmap;
+typedef folly::ConcurrentHashMapSIMD<char *, char *> fmap;
 #endif
 
 #endif
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
-#define DEFAULT_KEYS_RANGE (1 << 2)
-
-#define DEFAULT_STR_LENGTH 256
-//#define DEFAULT_KEY_LENGTH 8
+#define DEFAULT_KEYS_RANGE (1 << 20)
 
 #define COUNT_HASH         1
 
+using namespace ycsb;
 
 fmap *store;
 
-uint64_t *loads;
+std::vector<YCSB_request *> loads;
+
+std::vector<YCSB_request *> runs;
 
 long total_time;
 
@@ -77,7 +74,6 @@ int readPercentage = (totalPercentage - updatePercentage - ereasePercentage);
 
 struct target {
     int tid;
-    uint64_t *insert;
     fmap *store;
 };
 
@@ -89,20 +85,18 @@ void simpleInsert() {
     Tracer tracer;
     tracer.startTime();
     int inserted = 0;
-    unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        store->insert((char *) &loads[i], (char *) &loads[i]);
-        set.insert(loads[i]);
+        store->insert(loads[i]->getKey(), loads[i]->getVal());
         inserted++;
     }
     cout << inserted << " " << tracer.getRunTime() << endl;
 }
 
 void *insertWorker(void *args) {
-    //struct target *work = (struct target *) args;
+    struct target *work = (struct target *) args;
     uint64_t inserted = 0;
-    for (int i = 0; i < total_count; i++) {
-        store->insert((char *) &loads[i], (char *) &loads[i]);
+    for (int i = work->tid * key_range / thread_number; i < (work->tid + 1) * key_range / thread_number; i++) {
+        store->insert(loads[i]->getKey(), loads[i]->getVal());
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -119,38 +113,37 @@ void *measureWorker(void *args) {
     uint64_t ereased = 0;
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
-#if INPUT_METHOD == 0
-            for (int i = 0; i < total_count; i++) {
-#elif INPUT_METHOD == 1
-            for (int i = work->tid; i < total_count; i += thread_number) {
-#else
             for (int i = work->tid * total_count / thread_number;
                  i < (work->tid + 1) * total_count / thread_number; i++) {
-#endif
-                if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-                    auto ret = store->insert_or_assign((char *) &loads[i], (char *) &loads[i]);
-                    if (std::strcmp(ret.first->second, (char *) &loads[i]) == 0) mhit++;
-                    else mfail++;
-                } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
-                    if (evenRound % 2 == 0) {
-                        uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
-                        auto ret = store->insert((char *) &key, (char *) &key);
+                switch (static_cast<int>(runs[i]->getOp())) {
+                    case 0: {
+                        char *ret = store->find(runs[i]->getKey())->second;
+                        if (ret /*&& (dummyVal.compare(runs[i]->getVal()) == 0)*/) rhit++;
+                        else rfail++;
+                        break;
+                    }
+                    case 1: {
+                        auto ret = store->insert(runs[i]->getKey(), runs[i]->getVal());
                         if (ret.second) mhit++;
                         else mfail++;
-                    } else {
-                        uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-                        auto ret = store->erase((char *) &key);
-                        if (ret == sizeof(uint8_t)) mhit++;
-                        else mfail++;
+                        break;
                     }
-                } else {
-                    char *value = store->find((char *) &loads[i])->second;
-                    if (std::strcmp(value, (char *) &loads[i]) == 0) rhit++;
-                    else rfail++;
+                    case 2: {
+                        bool ret = store->erase(runs[i]->getKey());
+                        if (ret) mhit++;
+                        else mfail++;
+                        break;
+                    }
+                    case 3: {
+                        auto ret = store->assign(runs[i]->getKey(), runs[i]->getVal());
+                        if (ret) mhit++;
+                        else mfail++;
+                        break;
+                    }
+                    default:
+                        break;
                 }
             }
-            if (evenRound++ % 2 == 0) ereased = 0;
-            else inserts = 0;
         }
     } catch (exception e) {
         cout << work->tid << endl;
@@ -173,20 +166,11 @@ void prepare() {
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
         parms[i].store = store;
-        parms[i].insert = (uint64_t *) calloc(total_count / thread_number, sizeof(uint64_t *));
-        char buf[DEFAULT_STR_LENGTH];
-        for (int j = 0; j < total_count / thread_number; j++) {
-            std::sprintf(buf, "%d", i + j * thread_number);
-            parms[i].insert[j] = j;
-        }
     }
 }
 
 void finish() {
     cout << "finish" << endl;
-    for (int i = 0; i < thread_number; i++) {
-        delete[] parms[i].insert;
-    }
     delete[] parms;
     delete[] workers;
     delete[] output;
@@ -194,24 +178,10 @@ void finish() {
 
 void multiWorkers() {
     output = new stringstream[thread_number];
-    Tracer tracer;
-    tracer.startTime();
-    /*for (int i = 0; i < thread_number; i++) {
-        pthread_create(&workers[i], nullptr, insertWorker, &parms[i]);
-    }
-    for (int i = 0; i < thread_number; i++) {
-        pthread_join(workers[i], nullptr);
-    }*/
-    cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     Timer timer;
     timer.start();
     for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], nullptr, measureWorker, &parms[i]);
-#if WITH_NUMA == 1
-        fixedThread(i, workers[i]);
-#elif WITH_NUMA == 2
-        maskThread(i, workers[i]);
-#endif
     }
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
@@ -239,21 +209,26 @@ int main(int argc, char **argv) {
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
     store = new fmap(root_capacity);
-    cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
-         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
-         << readPercentage << endl;
-    loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
+    YCSBLoader loader(loadpath, key_range);
+    loads = loader.load();
+    key_range = loader.size();
     prepare();
     cout << "simple" << endl;
     simpleInsert();
+    YCSBLoader runner(runpath, total_count);
+    runs = runner.load();
+    total_count = runner.size();
+    cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
+         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
+         << readPercentage << endl;
     cout << "multiinsert" << endl;
     multiWorkers();
     cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "
          << modify_success << " modify failure: " << modify_failure << " throughput: "
          << (double) (read_success + read_failure + modify_success + modify_failure) * thread_number / total_time
          << endl;
-    free(loads);
+    loads.clear();
+    runs.clear();
     finish();
     //delete mhash;
     return 0;
