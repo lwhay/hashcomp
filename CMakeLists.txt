@@ -529,6 +529,7 @@ if (WITH_AWLMAP)
     set(AWLMAP_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/awlmap")
     message(STATUS "BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
     message(STATUS "AWLMAP_PREFIX: ${AWLMAP_PREFIX}")
+    message(STATUS "ENABLE_CACHE_DATA_NODE: ${ENABLE_CACHE_DATA_NODE}")
     message(STATUS "DISABLE_FAST_TABLE: ${DISABLE_FAST_TABLE}")
     ExternalProject_Add(awlmap
             PREFIX "${AWLMAP_PREFIX}"
@@ -537,7 +538,7 @@ if (WITH_AWLMAP)
             UPDATE_COMMAND ""
             INSTALL_COMMAND ""
             BUILD_COMMAND $(MAKE) -j8
-            CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DDISABLE_FAST_TABLE=${DISABLE_FAST_TABLE} cmake -DCMAKE_INSTALL_PREFIX=../install -DBUILD_EXAMPLES=1 -DBUILD_TESTS=1
+            CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DDISABLE_FAST_TABLE=${DISABLE_FAST_TABLE} -DENABLE_CACHE_DATA_NODE=${ENABLE_CACHE_DATA_NODE} cmake -DCMAKE_INSTALL_PREFIX=../install -DBUILD_EXAMPLES=1 -DBUILD_TESTS=1
             LOG_DOWNLOAD ON
             LOG_CONFIGURE ON
             LOG_BUILD ON
@@ -577,6 +578,9 @@ if (WITH_AWLMAP)
         target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${ATOMIC})
         if (${DISABLE_FAST_TABLE})
             target_compile_definitions(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} PUBLIC DISABLE_FAST_TABLE)
+        endif ()
+        if (${ENABLE_CACHE_DATA_NODE})
+            target_compile_definitions(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} PUBLIC ENABLE_CACHE_DATA_NODE)
         endif ()
     endforeach (sourcefile ${AWLMAP_TEST})
 endif ()
