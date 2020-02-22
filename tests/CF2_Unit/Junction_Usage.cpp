@@ -3,6 +3,7 @@
 //
 
 #include <cstdint>
+#include <string>
 #include <cstring>
 #include <deque>
 #include <functional>
@@ -44,6 +45,58 @@ TEST(JunctionTests, GrampaOperations) {
     ASSERT_EQ(jmap.get(1)->get(), 2);
     junction::DefaultQSBR.update(context);
     junction::DefaultQSBR.destroyContext(context);
+}
+
+
+TEST(JunctionTests, StringTest) {
+    /*junction::ConcurrentMap_Leapfrog<std::string, std::string> map;
+    map.assign((turf::u8 *) "key", (turf::u8 *) "value");*/
+}
+
+TEST(JunctionTests, TurfUptrTest) {
+    char *key = "key";
+    char *value = "value";
+    char *key1 = "key";
+    junction::ConcurrentMap_Leapfrog<turf::uptr, turf::uptr> map;
+    map.assign((turf::uptr) key, (turf::uptr) value);
+    char oldv[6];
+    std::strcpy(oldv, value);
+
+    //Verify value is maintained by map
+    value = "exception";
+    turf::uptr output = 0;
+    output = map.get((turf::uptr) "key");
+    ASSERT_STREQ((char *) output, "value");
+    ASSERT_STREQ(value, "exception");
+    output = map.exchange((turf::uptr) "key", (turf::uptr) "dummy");
+    ASSERT_STREQ((char *) output, "value");
+    ASSERT_STREQ((char *) value, "exception");
+    ASSERT_STREQ((char *) map.get((turf::uptr) key1), "dummy");
+
+    turf::uptr ret = map.erase((turf::uptr) key);
+    ASSERT_STREQ((char *) ret, "dummy");
+    ASSERT_EQ(map.get((turf::uptr) key1), 0);
+    ret = map.erase((turf::uptr) key);
+    ASSERT_STREQ((char *) ret, nullptr);
+
+    ASSERT_EQ(map.get((turf::uptr) key), 0);
+    //Verify key is not maintained by map
+    char *tk = new char[5];
+    std::strcpy(tk, key);
+    map.assign((turf::uptr) tk, (turf::uptr) value);
+    ASSERT_EQ(map.get((turf::uptr) tk), (turf::uptr) value);
+    ASSERT_EQ(map.get((turf::uptr) key), 0);
+    std::memset(tk, 0, 5);
+    delete tk;
+    ASSERT_EQ(map.get((turf::uptr) key), 0);
+
+    //Verify value is not maintained by map
+    char *tv = new char[5];
+    std::strcpy(tv, value);
+    map.assign((turf::uptr) key, (turf::uptr) tv);
+    std::memset(tv, 0, 5);
+    delete tv;
+    ASSERT_STREQ((char *) map.get((turf::uptr) key), "");
 }
 
 int main(int argc, char **argv) {

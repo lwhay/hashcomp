@@ -18,7 +18,7 @@
 
 #define COUNT_HASH         1
 
-typedef junction::ConcurrentMap_Leapfrog<char *, char *> maptype;
+typedef junction::ConcurrentMap_Leapfrog<turf::uptr, turf::uptr> maptype;
 
 maptype *store;
 
@@ -70,8 +70,9 @@ void simpleInsert() {
     tracer.startTime();
     int inserted = 0;
     unordered_set<uint64_t> set;
-    for (int i = 0; i < total_count; i++) {
-        store->assign((char *) &loads[i], (char *) &loads[i]);
+    for (int i = 0; i < key_range; i++) {
+        bool ret = false;
+        while (!ret) ret = store->assign((turf::uptr) &loads[i], (turf::uptr) &loads[i]);
         set.insert(loads[i]);
         inserted++;
     }
@@ -81,9 +82,8 @@ void simpleInsert() {
 void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
-    for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
-        bool ret = false;
-        while (!ret) ret = store->assign((char *) &loads[i], (char *) &loads[i]);
+    for (int i = work->tid * key_range / thread_number; i < (work->tid + 1) * key_range / thread_number; i++) {
+        store->assign((turf::uptr) &loads[i], (turf::uptr) &loads[i]);
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -110,26 +110,28 @@ void *measureWorker(void *args) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
                     bool ret = false;
-                    while (!ret) ret = store->exchange((char *) &loads[i], (char *) &loads[i]);
-                    if (ret) mhit++;
-                    else mfail++;
+                    while (!ret) ret = store->exchange((turf::uptr) &loads[i], (turf::uptr) &loads[i]);
+                    mhit++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
-                    bool ret;
+                    bool ret = false;
                     if (evenRound % 2 == 0) {
                         uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
-                        ret = false;
-                        while (!ret) ret = store->assign((char *) &key, (char *) &key);
+                        ret = store->assign((turf::uptr) &key, (turf::uptr) &key);
+#ifdef JUNCTION_DEBUG
+                        assert((uint64_t *) store->get((turf::uptr) &key) == &key);
+#endif
                     } else {
                         uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-                        ret = false;
-                        while (!ret) ret = store->erase((char *) &key);
+                        /*while (!ret) */
+                        //Here the address of key is not what we have ingested in line 118.
+                        ret = store->erase((turf::uptr) &key);
                     }
                     if (ret) mhit++;
                     else mfail++;
                 } else {
-                    //char *ret = store->get((char *) &loads[i]);
-                    /*if (ret) rhit++;
-                    else rfail++;*/
+                    uint64_t ret = *(uint64_t *) store->get((turf::uptr) &loads[i]);
+                    if (ret == loads[i]) rhit++;
+                    else rfail++;
                 }
             }
             if (evenRound++ % 2 == 0) ereased = 0;

@@ -21,17 +21,17 @@ typedef folly::AtomicHashMap <char*, char*> fmap;
 
 #include "folly/concurrency/ConcurrentHashMap.h"
 
-#ifdef FOLLY_NDEBUG
+#ifdef FOLLY_DEBUG
 typedef folly::ConcurrentHashMap<char *, char *> fmap;
 #else
-typedef folly::ConcurrentHashMapSIMD<char*, char*> fmap;
+typedef folly::ConcurrentHashMapSIMD<char *, char *> fmap;
 #endif
 
 #endif
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
-#define DEFAULT_KEYS_RANGE (1 << 2)
+#define DEFAULT_KEYS_RANGE (1 << 20)
 
 #define COUNT_HASH         1
 

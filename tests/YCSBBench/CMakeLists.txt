@@ -128,8 +128,8 @@ if (WITH_JUNCTION)
     link_directories(${JUNCTION_PREFIX}/src/junction-deps-build/turf)
 
     set(JUNCTION_YCSB_TEST
-            #JH_YCSBTest.cpp
-            #JH_MicroBench.cpp
+            JH_YCSBTest.cpp
+            JH_MicroBench.cpp
             )
 
     foreach (sourcefile ${JUNCTION_YCSB_TEST})
@@ -281,6 +281,6 @@ if (WITH_FOLLY)
                 OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
                 )
         add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} folly)
-        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} -lboost_regex -lfolly -lgflags -lglog -ldl gtest -ldouble-conversion ${PTHREAD} ${ATOMIC})
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} -lfolly -lboost_regex -lboost_filesystem -lboost_program_options -lgflags -lglog -ldl gtest -ldouble-conversion ${PTHREAD} ${ATOMIC})
     endforeach (sourcefile ${FOLLY_YCSB_TEST})
 endif ()

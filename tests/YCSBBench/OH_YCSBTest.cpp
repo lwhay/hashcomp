@@ -18,10 +18,10 @@ typedef folly::AtomicHashMap <uint64_t, uint64_t> fmap;
 
 #include "folly/concurrency/ConcurrentHashMap.h"
 
-#ifdef FOLLY_NDEBUG
+#ifdef FOLLY_DEBUG
 typedef folly::ConcurrentHashMap<char *, char *> fmap;
 #else
-typedef folly::ConcurrentHashMapSIMD<char *, char *> fmap;
+typedef folly::ConcurrentHashMapSIMD<string, string> fmap;
 #endif
 
 #endif
@@ -85,7 +85,7 @@ void simpleInsert() {
     Tracer tracer;
     tracer.startTime();
     int inserted = 0;
-    for (int i = 0; i < total_count; i++) {
+    for (int i = 0; i < key_range; i++) {
         store->insert(loads[i]->getKey(), loads[i]->getVal());
         inserted++;
     }
@@ -108,17 +108,14 @@ void *measureWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
-    int evenRound = 0;
-    uint64_t inserts = 0;
-    uint64_t ereased = 0;
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
             for (int i = work->tid * total_count / thread_number;
                  i < (work->tid + 1) * total_count / thread_number; i++) {
                 switch (static_cast<int>(runs[i]->getOp())) {
                     case 0: {
-                        char *ret = store->find(runs[i]->getKey())->second;
-                        if (ret /*&& (dummyVal.compare(runs[i]->getVal()) == 0)*/) rhit++;
+                        string ret = store->find(runs[i]->getKey())->second;
+                        if (ret.compare("")) rhit++;
                         else rfail++;
                         break;
                     }

@@ -20,7 +20,7 @@
 
 using namespace ycsb;
 
-typedef junction::ConcurrentMap_Leapfrog<char *, char *> maptype;
+typedef junction::ConcurrentMap_Leapfrog<turf::uptr, turf::uptr> maptype;
 
 maptype *store;
 

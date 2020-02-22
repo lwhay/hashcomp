@@ -68,7 +68,7 @@ TEST(FollyTest, ConcurrentHashMapMultiThreadTest) {
 }
 
 TEST(FollyTest, ConcurrentHashMapSIMDMultiThreadTest) {
-#ifndef FOLLY_NDEBUG
+#ifndef FOLLY_DEBUG
     folly::ConcurrentHashMapSIMD<uint64_t, uint64_t> fmap(128);
     fmap.insert(1, 0);
     std::thread feeder = std::thread([](folly::ConcurrentHashMapSIMD<uint64_t, uint64_t> &fmap) {

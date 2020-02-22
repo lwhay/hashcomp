@@ -610,7 +610,8 @@ if (WITH_FOLLY)
     )
 
     if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-        add_definitions(-DFOLLY_NDEBUG=1)
+        add_definitions(-DJUNCTION_DEBUG=1)
+        add_definitions(-DFOLLY_DEBUG=1)
     endif ()
 
     link_directories(${FOLLY_PREFIX}/src/folly-build/)
