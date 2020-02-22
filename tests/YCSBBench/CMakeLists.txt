@@ -128,7 +128,7 @@ if (WITH_JUNCTION)
     link_directories(${JUNCTION_PREFIX}/src/junction-deps-build/turf)
 
     set(JUNCTION_YCSB_TEST
-            JH_YCSBTest.cpp
+            #JH_YCSBTest.cpp
             JH_MicroBench.cpp
             )
 
