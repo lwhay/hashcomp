@@ -205,6 +205,7 @@ public:
         while (std::getline(lf, line)) {
             std::vector<std::string> fields;
             supersplit(line, fields, " ", 3);
+            if (fields.size() < 2) continue;
             for (int i = 0; i < 5; i++) {
                 if (fields[0].compare(YCSB_command[i]) == 0) {
                     if (i % 2 == 0) {

@@ -1,3 +1,11 @@
+[WARN]  Running against a source checkout. In order to get our runtime dependencies we'll have to invoke Maven. Depending on the state of your system, this may take ~30-45 seconds
+[DEBUG]  Running 'mvn -pl site.ycsb:core -am package -DskipTests dependency:build-classpath -DincludeScope=compile -Dmdep.outputFilterFile=true'
+/home/iclab/Tools/jdk/bin/java -cp /kolla/asterixdb/YCSB/core/conf:/kolla/asterixdb/YCSB/core/target/core-0.18.0-SNAPSHOT.jar:/home/iclab/.m2/repository/org/apache/htrace/htrace-core4/4.1.0-incubating/htrace-core4-4.1.0-incubating.jar:/home/iclab/.m2/repository/org/hdrhistogram/HdrHistogram/2.1.4/HdrHistogram-2.1.4.jar:/home/iclab/.m2/repository/org/codehaus/jackson/jackson-mapper-asl/1.9.4/jackson-mapper-asl-1.9.4.jar:/home/iclab/.m2/repository/org/codehaus/jackson/jackson-core-asl/1.9.4/jackson-core-asl-1.9.4.jar site.ycsb.Client -db site.ycsb.BasicDB -p fieldlength=8 -p fieldcount=1 -P workloads/workloada -load
+Command line: -db site.ycsb.BasicDB -p fieldlength=8 -p fieldcount=1 -P workloads/workloada -load
+YCSB Client 0.18.0-SNAPSHOT
+
+Loading workload...
+Starting test.
 ***************** properties *****************
 "insertproportion"="0"
 "fieldcount"="1"
