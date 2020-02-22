@@ -171,7 +171,7 @@ class YCSBLoader {
 private:
     char *inputpath;
     size_t numberOfRequests;
-    size_t limitOfReqeusts;
+    size_t limitOfRequests;
 
     void supersplit(const std::string &s, std::vector<std::string> &v, const std::string &c,
                     size_t n = std::numeric_limits<size_t>::max()) {
@@ -196,7 +196,7 @@ private:
 public:
     YCSBLoader(char *path, size_t number = std::numeric_limits<size_t>::max()) : inputpath(path),
                                                                                  numberOfRequests(0),
-                                                                                 limitOfReqeusts(number) {}
+                                                                                 limitOfRequests(number) {}
 
     std::vector<YCSB_request *> load() {
         std::vector<YCSB_request *> requests;
@@ -217,7 +217,7 @@ public:
                                 new YCSB_request(static_cast<YCSB_operator>(i), strdup(fields[2].substr(4).c_str()),
                                                  fields[2].length(), strdup(fields[3].c_str()), fields[3].length()));
                     }
-                    if (++numberOfRequests == limitOfReqeusts) goto complete;
+                    if (++numberOfRequests == limitOfRequests) goto complete;
                 }
             }
         }

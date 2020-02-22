@@ -21,8 +21,10 @@
 
 using namespace ycsb;
 
-typedef libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>, std::equal_to<char *>,
-        std::allocator<std::pair<const char *, char *>>, 8> cmap;
+typedef libcuckoo::cuckoohash_map<string, string> cmap;
+
+/*typedef libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>*//*, std::equal_to<char *>,
+        std::allocator<std::pair<const char *, char *>>, 32*//*> cmap;*/
 
 cmap *store;
 
@@ -77,8 +79,9 @@ void simpleInsert() {
     int inserted = 0;
     for (int i = 0; i < key_range; i++, inserted++) {
         store->insert(loads[i]->getKey(), loads[i]->getVal());
+        assert(std::strcmp(store->find(loads[i]->getKey()).c_str(), loads[i]->getVal()) == 0);
     }
-    cout << inserted << " " << tracer.getRunTime() << endl;
+    cout << inserted << " " << tracer.getRunTime() << " " << store->size() << endl;
 }
 
 void *insertWorker(void *args) {
@@ -103,8 +106,8 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
                 switch (static_cast<int>(runs[i]->getOp())) {
                     case 0: {
-                        bool ret = store->find(runs[i]->getKey());
-                        if (ret /*&& (dummyVal.compare(runs[i]->getVal()) == 0)*/) rhit++;
+                        string ret = store->find(runs[i]->getKey());
+                        if (ret.compare("") /*&& (dummyVal.compare(runs[i]->getVal()) == 0)*/) rhit++;
                         else rfail++;
                         break;
                     }
@@ -136,7 +139,8 @@ void *measureWorker(void *args) {
     }
 
     long elipsed = tracer.getRunTime();
-    output[work->tid] << work->tid << " " << elipsed << " " << mhit << " " << rhit << endl;
+    output[work->tid] << work->tid << " " << elipsed << " " << mhit << " " << mfail << " " << rhit << " " << rfail
+                      << endl;
     __sync_fetch_and_add(&total_time, elipsed);
     __sync_fetch_and_add(&read_success, rhit);
     __sync_fetch_and_add(&read_failure, rfail);
@@ -209,7 +213,8 @@ int main(int argc, char **argv) {
     total_count = runner.size();
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
-         << readPercentage << endl;
+         << readPercentage << " hash size: " << store->bucket_count() << " capacity: " << store->capacity()
+         << " load factor: " << store->load_factor() << " loads: " << store->size() << endl;
     cout << "multiinsert" << endl;
     multiWorkers();
     cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "
