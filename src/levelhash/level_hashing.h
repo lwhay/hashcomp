@@ -14,8 +14,8 @@ extern "C" {
 #endif
 
 #define ASSOC_NUM 4                       // The number of slots in a bucket
-#define KEY_LEN 8                        // The maximum length of a key
-#define VALUE_LEN 8                      // The maximum length of a value
+#define KEY_LEN 20                        // The maximum length of a key
+#define VALUE_LEN 256                     // The maximum length of a value
 #define READ_WRITE_NUM 350000             // The total number of read and write operations in the workload
 
 typedef struct entry {                     // A slot storing a key-value item

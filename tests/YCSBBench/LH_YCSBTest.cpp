@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstring>
+#include <unordered_set>
 #include "tracer.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +14,9 @@
 #define DEFAULT_STR_LENGTH 256
 #define DEFAULT_KEY_LENGTH 8
 
-uint8_t *loads;
+std::vector<ycsb::YCSB_request *> loads;
+
+std::vector<ycsb::YCSB_request *> runs;
 
 long total_time;
 
@@ -51,7 +54,6 @@ int readPercentage = (totalPercentage - updatePercentage - ereasePercentage);
 
 struct target {
     int tid;
-    uint8_t **insert;
     level_hash *levelHash;
 };
 
@@ -77,35 +79,11 @@ void prepare() {
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
         parms[i].levelHash = levelHash;
-        parms[i].insert = (uint8_t **) calloc(total_count / thread_number, sizeof(uint8_t *));
-        char buf[DEFAULT_STR_LENGTH];
-        for (int j = 0; j < total_count / thread_number; j++) {
-            std::sprintf(buf, "%d", i + j * thread_number);
-            parms[i].insert[j] = (uint8_t *) malloc(DEFAULT_KEY_LENGTH * sizeof(uint8_t));
-            memcpy(parms[i].insert[j], buf, DEFAULT_KEY_LENGTH);
-        }
     }
-}
-
-void restart() {
-    cout << "\tdestroy" << endl;
-    level_destroy(levelHash);
-    cout << "\treinit" << endl;
-    levelHash = level_init(level_calculate(key_range));
-    for (int i = 0; i < thread_number; i++) {
-        parms[i].levelHash = levelHash;
-    }
-    cout << "\trestarted" << endl;
 }
 
 void finish() {
     cout << "finish" << endl;
-    for (int i = 0; i < thread_number; i++) {
-        for (int j = 0; j < total_count / thread_number; j++) {
-            delete[] parms[i].insert[j];
-        }
-        delete[] parms[i].insert;
-    }
     delete[] parms;
     delete[] workers;
     delete[] output;
@@ -115,36 +93,12 @@ void simpleInsert() {
     Tracer tracer;
     tracer.startTime();
     int inserted = 0;
-    for (int i = 0; i < total_count; i++) {
-        if (!level_insert(levelHash, &loads[i * DEFAULT_KEY_LENGTH], &loads[i * DEFAULT_KEY_LENGTH])) {
+    for (int i = 0; i < key_range; i++) {
+        if (level_insert(levelHash, (uint8_t *) loads[i]->getKey(), (uint8_t *) loads[i]->getVal()) == 0) {
             inserted++;
         }
     }
     cout << inserted << " " << tracer.getRunTime() << endl;
-    tracer.startTime();
-    uint64_t found = 0;
-    uint8_t value[DEFAULT_KEY_LENGTH];
-    for (int i = 0; i < total_count; i++) {
-        found += (0 == level_query(levelHash, &loads[i * DEFAULT_KEY_LENGTH], value));
-    }
-    cout << found << " " << tracer.getRunTime() << endl;
-    tracer.startTime();
-    found = 0;
-    for (int i = 0; i < total_count; i++) {
-        found += (0 == level_delete(levelHash, &loads[i * DEFAULT_KEY_LENGTH]));
-    }
-    cout << found << " " << tracer.getRunTime() << endl;
-}
-
-void *insertWorker(void *args) {
-    struct target *work = (struct target *) args;
-    uint64_t fail = 0;
-    for (int i = 0; i < total_count /*/ thread_number*/; i++) { // Here, we found a bug in multi-thread settings.
-        if (!level_insert(work->levelHash, &loads[i * DEFAULT_KEY_LENGTH], &loads[i * DEFAULT_KEY_LENGTH])) {
-            fail++;
-        }
-    }
-    __sync_fetch_and_add(&exists, fail);
 }
 
 void *measureWorker(void *args) {
@@ -153,49 +107,41 @@ void *measureWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
-    int evenRound = 0;
-    uint64_t inserts = 0;
-    uint64_t ereased = 0;
-    uint8_t value[DEFAULT_KEY_LENGTH];
-    char newkey[DEFAULT_KEY_LENGTH];
-    char newvalue[DEFAULT_KEY_LENGTH];
+    uint8_t value[DEFAULT_STR_LENGTH];
     while (stopMeasure.load(memory_order_relaxed) == 0) {
-#if INPUT_METHOD == 0
-        for (int i = 0; i < total_count; i++) {
-#elif INPUT_METHOD == 1
-        for (int i = work->tid; i < total_count; i += thread_number) {
-#else
         for (int i = work->tid * total_count / thread_number;
              i < (work->tid + 1) * total_count / thread_number; i++) {
-#endif
-            if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-                int ret = level_update(work->levelHash, &loads[i * DEFAULT_KEY_LENGTH], &loads[i * DEFAULT_KEY_LENGTH]);
-                if (ret == 0) mhit++;
-                else mfail++;
-            } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
-                int ret;
-                if (evenRound % 2 == 0) {
-                    uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
-                    std::memset(newkey, '0', DEFAULT_KEY_LENGTH);
-                    std::sprintf(newkey, "%llu", key);
-                    std::memcpy(newvalue, newkey, DEFAULT_KEY_LENGTH);
-                    ret = level_insert(work->levelHash, (uint8_t *) newkey, (uint8_t *) newvalue);
-                } else {
-                    uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-                    std::memset(newkey, '0', DEFAULT_KEY_LENGTH);
-                    std::sprintf(newkey, "%llu", key);
-                    level_delete(work->levelHash, (uint8_t *) newkey);
+            switch (static_cast<int>(runs[i]->getOp())) {
+                case 0: {
+                    int ret = level_query(work->levelHash, (uint8_t *) runs[i], value);
+                    if (ret == 0) rhit++;
+                    else rfail++;
+                    break;
                 }
-                if (ret == 0) mhit++;
-                else mfail++;
-            } else {
-                int ret = level_query(work->levelHash, &loads[i * DEFAULT_KEY_LENGTH], value);
-                if (ret == 0) rhit++;
-                else rfail++;
+                case 1: {
+                    int ret = level_insert(work->levelHash, (uint8_t *) runs[i]->getKey(),
+                                           (uint8_t *) runs[i]->getVal());
+                    if (ret == 0) mhit++;
+                    else mfail++;
+                    break;
+                }
+                case 2: {
+                    int ret = level_delete(work->levelHash, (uint8_t *) runs[i]->getKey());
+                    if (ret == 0) mhit++;
+                    else mfail++;
+                    break;
+                }
+                case 3: {
+                    int ret = level_update(work->levelHash, (uint8_t *) runs[i]->getKey(),
+                                           (uint8_t *) runs[i]->getVal());
+                    if (ret == 0) mhit++;
+                    else mfail++;
+                    break;
+                }
+                default:
+                    break;
             }
         }
-        if (evenRound++ % 2 == 0) ereased = 0;
-        else inserts = 0;
     }
 
     long elipsed = tracer.getRunTime();
@@ -209,15 +155,6 @@ void *measureWorker(void *args) {
 
 void multiWorkers() {
     output = new stringstream[thread_number];
-    Tracer tracer;
-    tracer.startTime();
-    for (int i = 0; i < 1/*thread_number*/; i++) {
-        pthread_create(&workers[i], nullptr, insertWorker, &parms[i]);
-    }
-    for (int i = 0; i < 1/*thread_number*/; i++) {
-        pthread_join(workers[i], nullptr);
-    }
-    cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     Timer timer;
     timer.start();
     for (int i = 0; i < thread_number; i++) {
@@ -249,29 +186,27 @@ int main(int argc, char **argv) {
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
+    levelHash = level_init(level_calculate(root_capacity));
+    ycsb::YCSBLoader loader(ycsb::loadpath, key_range);
+    loads = loader.load();
+    key_range = loader.size();
+    prepare();
+    cout << "simple" << endl;
+    simpleInsert();
+    ycsb::YCSBLoader runner(ycsb::runpath, total_count);
+    runs = runner.load();
+    total_count = runner.size();
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
          << readPercentage << endl;
-    loads = (uint8_t *) calloc(DEFAULT_KEY_LENGTH * total_count, sizeof(uint8_t));
-    RandomGenerator<uint8_t>::generate(loads, DEFAULT_KEY_LENGTH, key_range, total_count, skew);
-    levelHash = level_init(level_calculate(root_capacity));
-    cout << "simple" << endl;
-    simpleInsert();
-    prepare();
-    cout << "restart" << endl;
-    restart();
-    cout << "unique" << endl;
-    //uniqueInsert();
-    //prepare();
-    cout << "restart" << endl;
-    restart();
     cout << "multiinsert" << endl;
     multiWorkers();
     cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "
          << modify_success << " modify failure: " << modify_failure << " throughput: "
          << (double) (read_success + read_failure + modify_success + modify_failure) * thread_number / total_time
          << endl;
-    free(loads);
+    loads.clear();
+    runs.clear();
     level_destroy(levelHash);
     return 0;
 }
