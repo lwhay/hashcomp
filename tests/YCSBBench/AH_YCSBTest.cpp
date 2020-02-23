@@ -22,8 +22,6 @@
 
 #define COUNT_HASH         1
 
-#define STRING             1
-
 using namespace concurrent_dict;
 
 using namespace ycsb;
@@ -82,7 +80,7 @@ void simpleInsert() {
     tracer.startTime();
     int inserted = 0;
     for (int i = 0; i < key_range; i++, inserted++) {
-#if STRING
+#if WITH_STRING
         store->Insert(Slice(string(loads[i]->getKey())), Slice(string(loads[i]->getVal())));
 #else
         store->Insert(Slice(loads[i]->getKey()), Slice(loads[i]->getVal()));
@@ -95,7 +93,7 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = work->tid * key_range / thread_number; i < (work->tid + 1) * key_range / thread_number; i++) {
-#if STRING
+#if WITH_STRING
         store->Insert(Slice(string(loads[i]->getKey())), Slice(string(loads[i]->getVal())));
 #else
         store->Insert(Slice(loads[i]->getKey()), Slice(loads[i]->getVal()));
@@ -118,7 +116,7 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
                 switch (static_cast<int>(runs[i]->getOp())) {
                     case 0: {
-#if STRING
+#if WITH_STRING
                         bool ret = store->Find(Slice(string(runs[i]->getKey())), &dummyVal);
 #else
                         bool ret = store->Find(Slice(runs[i]->getKey()), &dummyVal);
@@ -129,7 +127,7 @@ void *measureWorker(void *args) {
                     }
                     case 1:
                     case 3: {
-#if STRING
+#if WITH_STRING
                         bool ret = store->Insert(Slice(string(runs[i]->getKey())), Slice(string(runs[i]->getVal())));
 #else
                         bool ret = store->Insert(Slice(runs[i]->getKey()), Slice(runs[i]->getVal()));
@@ -139,7 +137,7 @@ void *measureWorker(void *args) {
                         break;
                     }
                     case 2: {
-#if STRING
+#if WITH_STRING
                         bool ret = store->Delete(Slice(string(runs[i]->getKey())), &dummyVal);
 #else
                         bool ret = store->Delete(Slice(runs[i]->getKey()), &dummyVal);

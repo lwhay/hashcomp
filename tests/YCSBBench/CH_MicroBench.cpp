@@ -18,8 +18,12 @@
 
 #define COUNT_HASH         1
 
+#if WITH_STRING
+typedef libcuckoo::cuckoohash_map<string, string> cmap;
+#else
 typedef libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>, std::equal_to<char *>,
         std::allocator<std::pair<const char *, char *>>, 8> cmap;
+#endif
 
 cmap *store;
 
@@ -109,23 +113,40 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
+#if WITH_STRING
+                    bool ret = store->update(string((char *) &loads[i]), string((char *) &loads[i]));
+#else
                     bool ret = store->update((char *) &loads[i], (char *) &loads[i]);
+#endif
                     if (ret) mhit++;
                     else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     bool ret;
                     if (evenRound % 2 == 0) {
                         uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
+#if WITH_STRING
+                        ret = store->insert(string((char *) &key, 8), string((char *) &key, 8));
+#else
                         ret = store->insert((char *) &key, (char *) &key);
+#endif
                     } else {
                         uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
+#if WITH_STRING
+                        ret = store->erase(string((char *) &key, 8));
+#else
                         ret = store->erase((char *) &key);
+#endif
                     }
                     if (ret) mhit++;
                     else mfail++;
                 } else {
+#if WITH_STRING
+                    string value = store->find(string((char *) &loads[i]));
+                    if (value.compare((char *) &loads[i]) == 0) rhit++;
+#else
                     char *value = store->find((char *) &loads[i]);
                     if (std::strcmp(value, (char *) &loads[i]) == 0) rhit++;
+#endif
                     else rfail++;
                 }
             }

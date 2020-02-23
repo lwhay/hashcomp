@@ -21,12 +21,15 @@ typedef folly::AtomicHashMap <char*, char*> fmap;
 
 #include "folly/concurrency/ConcurrentHashMap.h"
 
+#if WITH_STRING
+typedef folly::ConcurrentHashMap<string, string> fmap;
+#else
 #ifdef FOLLY_DEBUG
 typedef folly::ConcurrentHashMap<char *, char *> fmap;
 #else
 typedef folly::ConcurrentHashMapSIMD<char *, char *> fmap;
 #endif
-
+#endif
 #endif
 
 #define DEFAULT_THREAD_NUM (8)
@@ -86,7 +89,11 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
+#if WITH_STRING
+        store->insert(string((char *) &loads[i]), string((char *) &loads[i]));
+#else
         store->insert((char *) &loads[i], (char *) &loads[i]);
+#endif
         set.insert(loads[i]);
         inserted++;
     }
@@ -97,7 +104,11 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
+#if WITH_STRING
+        store->insert(string((char *) &loads[i]), string((char *) &loads[i]));
+#else
         store->insert((char *) &loads[i], (char *) &loads[i]);
+#endif
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -123,24 +134,42 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-                    auto ret = store->insert_or_assign((char *) &loads[i], (char *) &loads[i]);
-                    if (std::strcmp(ret.first->second, (char *) &loads[i]) == 0) mhit++;
+#if WITH_STRING
+                    auto ret = store->insert_or_assign(string((char *) &loads[i]), string((char *) &loads[i]));
+                    if (ret.first->second.compare((char *) &loads[i]) == 0) mhit++;
+#else
+                        auto ret = store->insert_or_assign((char *) &loads[i], (char *) &loads[i]);
+                        if (std::strcmp(ret.first->second, (char *) &loads[i]) == 0) mhit++;
+#endif
                     else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     if (evenRound % 2 == 0) {
                         uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
+#if WITH_STRING
+                        auto ret = store->insert(string((char *) &key, 8), string((char *) &key, 8));
+#else
                         auto ret = store->insert((char *) &key, (char *) &key);
+#endif
                         if (ret.second) mhit++;
                         else mfail++;
                     } else {
                         uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
+#if WITH_STRING
+                        auto ret = store->erase(string((char *) &key, 8));
+#else
                         auto ret = store->erase((char *) &key);
+#endif
                         if (ret == sizeof(uint8_t)) mhit++;
                         else mfail++;
                     }
                 } else {
-                    char *value = store->find((char *) &loads[i])->second;
-                    if (std::strcmp(value, (char *) &loads[i]) == 0) rhit++;
+#if WITH_STRING
+                    string value = store->find((char *) &loads[i])->second;
+                    if (value.compare((char *) &loads[i]) == 0) rhit++;
+#else
+                        char *value = store->find((char *) &loads[i])->second;
+                        if (std::strcmp(value, (char *) &loads[i]) == 0) rhit++;
+#endif
                     else rfail++;
                 }
             }

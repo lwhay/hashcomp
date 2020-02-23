@@ -20,6 +20,8 @@
 
 #define TEST_LOOKUP        1
 
+#define WITH_STRING        1
+
 #define INPUT_METHOD 2 //0: duplicated; 1: stepping; 2: segmented
 
 #define FUZZY_BOUND 0

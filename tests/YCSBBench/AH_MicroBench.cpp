@@ -86,7 +86,11 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
+#if WITH_STRING
+        store->Insert(Slice(string((char *) &loads[i])), Slice(string((char *) &loads[i])));
+#else
         store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
+#endif
         set.insert(loads[i]);
         inserted++;
     }
@@ -97,7 +101,11 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
+#if WITH_STRING
+        store->Insert(Slice(string((char *) &loads[i])), Slice(string((char *) &loads[i])));
+#else
         store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
+#endif
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -123,8 +131,8 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-#if INPLACE
-                    bool ret = store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
+#if WITH_STRING
+                    bool ret = store->Insert(Slice(string((char *) &loads[i])), Slice(string((char *) &loads[i])));
 #else
                     bool ret = store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]),
                                              InsertType::MUST_EXIST);
@@ -137,15 +145,27 @@ void *measureWorker(void *args) {
                     bool ret;
                     if (evenRound % 2 == 0) {
                         uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
-                        ret = store->Insert(Slice((char *) &key), Slice((char *) &key));
+#if WITH_STRING
+                        ret = store->Insert(Slice(string((char *) &key, 8)), Slice(string((char *) &key, 8)));
+#else
+                        ret = store->Insert(Slice((char *) &key, 8), Slice((char *) &key, 8));
+#endif
                     } else {
                         uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-                        ret = store->Delete(Slice((char *) &key), &dummyVal);
+#if WITH_STRING
+                        ret = store->Delete(Slice(string((char *) &key, 8)), &dummyVal);
+#else
+                        ret = store->Delete(Slice((char *) &key, 8), &dummyVal);
+#endif
                     }
                     if (ret) mhit++;
                     else mfail++;
                 } else {
+#if WITH_STRING
+                    bool ret = store->Find(Slice(string((char *) &loads[i])), &dummyVal);
+#else
                     bool ret = store->Find(Slice((char *) &loads[i]), &dummyVal);
+#endif
                     if (ret && (dummyVal.compare((char *) &loads[i]) == 0))
                         rhit++;
                     else
