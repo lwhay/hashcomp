@@ -89,7 +89,7 @@ void simpleInsert() {
         store->insert(loads[i]->getKey(), loads[i]->getVal());
         inserted++;
     }
-    cout << inserted << " " << tracer.getRunTime() << endl;
+    cout << inserted << " " << set.size() << " " << tracer.getRunTime() << endl;
 }
 
 void *insertWorker(void *args) {
