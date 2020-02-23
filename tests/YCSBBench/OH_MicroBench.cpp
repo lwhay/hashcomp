@@ -187,7 +187,7 @@ void *measureWorker(void *args) {
                     if (value.compare((char *) &loads[i]) == 0) rhit++;
 #elif WITH_STRING == 2
                     string value = store->find(string((char *) &loads[i], UNIT_SIZE))->second;
-                    if (value.compare((char *) &loads[i]) == 0) rhit++;
+                    if (value.compare(string((char *) &loads[i], UNIT_SIZE)) == 0) rhit++;
 #else
                         char *value = store->find((char *) &loads[i])->second;
                         if (std::strcmp(value, (char *) &loads[i]) == 0) rhit++;

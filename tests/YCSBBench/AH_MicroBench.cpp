@@ -184,10 +184,11 @@ void *measureWorker(void *args) {
                     bool ret = store->Find(Slice(string((char *) &loads[i])), &dummyVal);
 #elif WITH_STRING == 2
                     bool ret = store->Find(Slice(string((char *) &loads[i], UNIT_SIZE)), &dummyVal);
+                    if (ret && (dummyVal.compare(string((char *) &loads[i], UNIT_SIZE)) == 0))
 #else
-                    bool ret = store->Find(Slice((char *) &loads[i]), &dummyVal);
+                        bool ret = store->Find(Slice((char *) &loads[i]), &dummyVal);
+                        if (ret && (dummyVal.compare((char *) &loads[i]) == 0))
 #endif
-                    if (ret && (dummyVal.compare((char *) &loads[i]) == 0))
                         rhit++;
                     else
                         rfail++;
