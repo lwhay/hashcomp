@@ -183,10 +183,10 @@ void *measureWorker(void *args) {
                     }
                 } else {
 #if WITH_STRING == 1
-                    string value = store->find((char *) &loads[i])->second;
+                    string value = store->find(string((char *) &loads[i]))->second;
                     if (value.compare((char *) &loads[i]) == 0) rhit++;
 #elif WITH_STRING == 2
-                    string value = store->find((char *) &loads[i], UNIT_SIZE)->second;
+                    string value = store->find(string((char *) &loads[i], UNIT_SIZE))->second;
                     if (value.compare((char *) &loads[i]) == 0) rhit++;
 #else
                         char *value = store->find((char *) &loads[i])->second;
