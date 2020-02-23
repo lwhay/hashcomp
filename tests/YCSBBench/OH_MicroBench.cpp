@@ -151,7 +151,7 @@ void *measureWorker(void *args) {
 #elif WITH_STRING == 2
                     auto ret = store->insert_or_assign(string((char *) &loads[i], UNIT_SIZE),
                                                        string((char *) &loads[i], UNIT_SIZE));
-                    if (ret.first->second.compare((char *) &loads[i]) == 0) mhit++;
+                    if (ret.first->second.compare(string((char *) &loads[i], UNIT_SIZE)) == 0) mhit++;
 #else
                         auto ret = store->insert_or_assign((char *) &loads[i], (char *) &loads[i]);
                         if (std::strcmp(ret.first->second, (char *) &loads[i]) == 0) mhit++;
