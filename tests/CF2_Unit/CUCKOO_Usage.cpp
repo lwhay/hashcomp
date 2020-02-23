@@ -22,6 +22,27 @@ TEST(CuckooTests, UnitOperations) {
     ASSERT_EQ(cmap.contains(1), false);
 }
 
+TEST(CuckooTests, StringTest) {
+    libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>, std::equal_to<char *>,
+            std::allocator<std::pair<const char *, char *>>, 8> cmap(128);
+    char *key = "123456789";
+    char *val = "123456789";
+    cmap.insert_or_assign(key, val);
+    char *ksh = "123456789";
+    ksh = "012345678";
+    ASSERT_EQ(cmap.contains(ksh), 0);
+    ASSERT_STREQ(cmap.find(key), "123456789");
+    /*ASSERT_STREQ(cmap.find(ksh), "123456789");*/
+
+    {
+        uint64_t ik = 234234234151234323llu;
+        cmap.insert_or_assign((char *) &ik, (char *) &ik);
+    }
+    uint64_t uk = 234234234151234323llu;
+    ASSERT_EQ(*(uint64_t *) (char *) &uk, 234234234151234323llu);
+    ASSERT_EQ(cmap.contains((char *) &uk), 0);
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

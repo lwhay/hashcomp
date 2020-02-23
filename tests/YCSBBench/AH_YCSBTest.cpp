@@ -22,6 +22,8 @@
 
 #define COUNT_HASH         1
 
+#define STRING             1
+
 using namespace concurrent_dict;
 
 using namespace ycsb;
@@ -80,7 +82,11 @@ void simpleInsert() {
     tracer.startTime();
     int inserted = 0;
     for (int i = 0; i < key_range; i++, inserted++) {
+#if STRING
+        store->Insert(Slice(string(loads[i]->getKey())), Slice(string(loads[i]->getVal())));
+#else
         store->Insert(Slice(loads[i]->getKey()), Slice(loads[i]->getVal()));
+#endif
     }
     cout << inserted << " " << tracer.getRunTime() << endl;
 }
@@ -89,7 +95,11 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = work->tid * key_range / thread_number; i < (work->tid + 1) * key_range / thread_number; i++) {
+#if STRING
+        store->Insert(Slice(string(loads[i]->getKey())), Slice(string(loads[i]->getVal())));
+#else
         store->Insert(Slice(loads[i]->getKey()), Slice(loads[i]->getVal()));
+#endif
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -108,20 +118,32 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
                 switch (static_cast<int>(runs[i]->getOp())) {
                     case 0: {
+#if STRING
+                        bool ret = store->Find(Slice(string(runs[i]->getKey())), &dummyVal);
+#else
                         bool ret = store->Find(Slice(runs[i]->getKey()), &dummyVal);
+#endif
                         if (ret /*&& (dummyVal.compare(runs[i]->getVal()) == 0)*/) rhit++;
                         else rfail++;
                         break;
                     }
                     case 1:
                     case 3: {
+#if STRING
+                        bool ret = store->Insert(Slice(string(runs[i]->getKey())), Slice(string(runs[i]->getVal())));
+#else
                         bool ret = store->Insert(Slice(runs[i]->getKey()), Slice(runs[i]->getVal()));
+#endif
                         if (ret) mhit++;
                         else mfail++;
                         break;
                     }
                     case 2: {
+#if STRING
+                        bool ret = store->Delete(Slice(string(runs[i]->getKey())), &dummyVal);
+#else
                         bool ret = store->Delete(Slice(runs[i]->getKey()), &dummyVal);
+#endif
                         if (ret) mhit++;
                         else mfail++;
                         break;
