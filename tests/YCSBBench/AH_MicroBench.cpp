@@ -88,10 +88,15 @@ void simpleInsert() {
     unordered_set<string> stset;
     double avglength = .0;
     for (int i = 0; i < total_count; i++) {
-#if WITH_STRING
+#if WITH_STRING == 1
         store->Insert(Slice(string((char *) &loads[i])), Slice(string((char *) &loads[i])));
         stset.insert(string((char *) &loads[i]));
         avglength += string((char *) &loads[i]).size();
+#elif  WITH_STRING == 2
+        string kv((char *) &loads[i], UNIT_SIZE);
+        store->Insert(Slice(kv), Slice(kv));
+        stset.insert(kv);
+        avglength += kv.size();
 #else
         store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
 #endif
@@ -105,8 +110,10 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
-#if WITH_STRING
+#if WITH_STRING == 1
         store->Insert(Slice(string((char *) &loads[i])), Slice(string((char *) &loads[i])));
+#elif WITH_STRING == 2
+        store->Insert(Slice(string((char *) &loads[i], UNIT_SIZE)), Slice(string((char *) &loads[i], UNIT_SIZE)));
 #else
         store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]));
 #endif
@@ -135,8 +142,11 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-#if WITH_STRING
+#if WITH_STRING == 1
                     bool ret = store->Insert(Slice(string((char *) &loads[i])), Slice(string((char *) &loads[i])));
+#elif WITH_STRING == 2
+                    bool ret = store->Insert(Slice(string((char *) &loads[i], UNIT_SIZE)),
+                                             Slice(string((char *) &loads[i], UNIT_SIZE)));
 #else
                     bool ret = store->Insert(Slice((char *) &loads[i]), Slice((char *) &loads[i]),
                                              InsertType::MUST_EXIST);
@@ -149,15 +159,20 @@ void *measureWorker(void *args) {
                     bool ret;
                     if (evenRound % 2 == 0) {
                         uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
-#if WITH_STRING
-                        ret = store->Insert(Slice(string((char *) &key, 8)), Slice(string((char *) &key, 8)));
+#if WITH_STRING == 1
+                        ret = store->Insert(Slice(string((char *) &key)), Slice(string((char *) &key)));
+#elif WITH_STRING == 2
+                        ret = store->Insert(Slice(string((char *) &key, UNIT_SIZE)),
+                                            Slice(string((char *) &key, UNIT_SIZE)));
 #else
                         ret = store->Insert(Slice((char *) &key, 8), Slice((char *) &key, 8));
 #endif
                     } else {
                         uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-#if WITH_STRING
-                        ret = store->Delete(Slice(string((char *) &key, 8)), &dummyVal);
+#if WITH_STRING == 1
+                        ret = store->Delete(Slice(string((char *) &key)), &dummyVal);
+#elif WITH_STRING == 2
+                        ret = store->Delete(Slice(string((char *) &key, UNIT_SIZE)), &dummyVal);
 #else
                         ret = store->Delete(Slice((char *) &key, 8), &dummyVal);
 #endif
@@ -165,8 +180,10 @@ void *measureWorker(void *args) {
                     if (ret) mhit++;
                     else mfail++;
                 } else {
-#if WITH_STRING
+#if WITH_STRING == 1
                     bool ret = store->Find(Slice(string((char *) &loads[i])), &dummyVal);
+#elif WITH_STRING == 2
+                    bool ret = store->Find(Slice(string((char *) &loads[i], UNIT_SIZE)), &dummyVal);
 #else
                     bool ret = store->Find(Slice((char *) &loads[i]), &dummyVal);
 #endif

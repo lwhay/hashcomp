@@ -91,10 +91,15 @@ void simpleInsert() {
     unordered_set<string> stset;
     double avglength = .0;
     for (int i = 0; i < total_count; i++) {
-#if WITH_STRING
+#if WITH_STRING == 1
         store->insert(string((char *) &loads[i]), string((char *) &loads[i]));
         stset.insert(string((char *) &loads[i]));
         avglength += string((char *) &loads[i]).size();
+#elif WITH_STRING == 2
+        string kv((char *) &loads[i], UNIT_SIZE);
+        store->insert(kv, kv);
+        stset.insert(kv);
+        avglength += kv.size();
 #else
         store->insert((char *) &loads[i], (char *) &loads[i]);
 #endif
@@ -108,8 +113,10 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
-#if WITH_STRING
+#if WITH_STRING == 1
         store->insert(string((char *) &loads[i]), string((char *) &loads[i]));
+#elif WITH_STRING == 2
+        store->insert(string((char *) &loads[i], UNIT_SIZE), string((char *) &loads[i], UNIT_SIZE));
 #else
         store->insert((char *) &loads[i], (char *) &loads[i]);
 #endif
@@ -138,8 +145,12 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-#if WITH_STRING
+#if WITH_STRING == 1
                     auto ret = store->insert_or_assign(string((char *) &loads[i]), string((char *) &loads[i]));
+                    if (ret.first->second.compare((char *) &loads[i]) == 0) mhit++;
+#elif WITH_STRING == 2
+                    auto ret = store->insert_or_assign(string((char *) &loads[i], UNIT_SIZE),
+                                                       string((char *) &loads[i], UNIT_SIZE));
                     if (ret.first->second.compare((char *) &loads[i]) == 0) mhit++;
 #else
                         auto ret = store->insert_or_assign((char *) &loads[i], (char *) &loads[i]);
@@ -149,8 +160,10 @@ void *measureWorker(void *args) {
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     if (evenRound % 2 == 0) {
                         uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
-#if WITH_STRING
-                        auto ret = store->insert(string((char *) &key, 8), string((char *) &key, 8));
+#if WITH_STRING == 1
+                        auto ret = store->insert(string((char *) &key, UNIT_SIZE), string((char *) &key, UNIT_SIZE));
+#elif WITH_STRING == 2
+                        auto ret = store->insert(string((char *) &key, UNIT_SIZE), string((char *) &key, UNIT_SIZE));
 #else
                         auto ret = store->insert((char *) &key, (char *) &key);
 #endif
@@ -158,8 +171,10 @@ void *measureWorker(void *args) {
                         else mfail++;
                     } else {
                         uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
-#if WITH_STRING
-                        auto ret = store->erase(string((char *) &key, 8));
+#if WITH_STRING == 1
+                        auto ret = store->erase(string((char *) &key, UNIT_SIZE));
+#elif WITH_STRING == 2
+                        auto ret = store->erase(string((char *) &key, UNIT_SIZE));
 #else
                         auto ret = store->erase((char *) &key);
 #endif
@@ -167,8 +182,11 @@ void *measureWorker(void *args) {
                         else mfail++;
                     }
                 } else {
-#if WITH_STRING
+#if WITH_STRING == 1
                     string value = store->find((char *) &loads[i])->second;
+                    if (value.compare((char *) &loads[i]) == 0) rhit++;
+#elif WITH_STRING == 2
+                    string value = store->find((char *) &loads[i], UNIT_SIZE)->second;
                     if (value.compare((char *) &loads[i]) == 0) rhit++;
 #else
                         char *value = store->find((char *) &loads[i])->second;
