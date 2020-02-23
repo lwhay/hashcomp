@@ -88,16 +88,20 @@ void simpleInsert() {
     tracer.startTime();
     int inserted = 0;
     unordered_set<uint64_t> set;
+    unordered_set<string> stset;
+    double avglength = .0;
     for (int i = 0; i < total_count; i++) {
 #if WITH_STRING
         store->insert(string((char *) &loads[i]), string((char *) &loads[i]));
+        stset.insert(string((char *) &loads[i]));
+        avglength += string((char *) &loads[i]).size();
 #else
         store->insert((char *) &loads[i], (char *) &loads[i]);
 #endif
         set.insert(loads[i]);
         inserted++;
     }
-    cout << inserted << " " << tracer.getRunTime() << endl;
+    cout << inserted << " " << set.size() << " " << avglength / total_count << tracer.getRunTime() << endl;
 }
 
 void *insertWorker(void *args) {

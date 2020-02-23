@@ -85,11 +85,12 @@ void simpleInsert() {
     Tracer tracer;
     tracer.startTime();
     int inserted = 0;
+    std::unordered_set<string> set;
     for (int i = 0; i < key_range; i++) {
         store->insert(loads[i]->getKey(), loads[i]->getVal());
         inserted++;
     }
-    cout << inserted << " " << set.size() << " " << tracer.getRunTime() << endl;
+    cout << inserted << tracer.getRunTime() << endl;
 }
 
 void *insertWorker(void *args) {
