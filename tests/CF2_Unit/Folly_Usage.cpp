@@ -95,7 +95,7 @@ TEST(FollyTest, ConcurrentHashMapSIMDMultiThreadTest) {
     ASSERT_EQ(fmap.find(1)->second, 1);
 }*/
 
-TEST(FollyTest, StringTest) {
+TEST(FollyTest, StringTest1) {
 #ifdef FOLLY_DEBUG
     folly::ConcurrentHashMap<char *, char *> cmap;
 #else
@@ -125,7 +125,14 @@ TEST(FollyTest, StringTest) {
         ASSERT_STREQ(qkey, "0123456789");
         ASSERT_STREQ(qval, sval);
     }
+}
 
+TEST(FollyTest, StringTest2) {
+#ifdef FOLLY_DEBUG
+    folly::ConcurrentHashMap<char *, char *> cmap;
+#else
+    folly::ConcurrentHashMapSIMD<char *, char *> cmap(128);
+#endif
     {
         uint64_t ik = 234234234151234323llu;
         cmap.insert_or_assign((char *) &ik, (char *) &ik);
@@ -133,12 +140,15 @@ TEST(FollyTest, StringTest) {
     uint64_t uk = 234234234151234323llu;
     ASSERT_EQ(*(uint64_t *) (char *) &uk, 234234234151234323llu);
     ASSERT_EQ(cmap.find((char *) &uk), cmap.end());
+}
 
+TEST(FollyTest, StringTest3) {
 #ifdef FOLLY_DEBUG
     folly::ConcurrentHashMap<std::string, std::string> smap(128);
 #else
     folly::ConcurrentHashMapSIMD<std::string, std::string> smap(128);
 #endif
+    uint64_t uk = 234234234151234323llu;
     {
         uint64_t ik = 234234234151234323llu;
         smap.insert((char *) &ik, (char *) &ik);
@@ -156,7 +166,14 @@ TEST(FollyTest, StringTest) {
     ASSERT_EQ(smap.find(std::string((char *) &uk))->second.compare((char *) &uk), 0);
     uint64_t ik = 234234234151234323llu;
     ASSERT_EQ(smap.find(std::string((char *) &ik)), smap.end());
+}
 
+TEST(FollyTest, StringTest4) {
+#ifdef FOLLY_DEBUG
+    folly::ConcurrentHashMap<std::string, std::string> smap(128);
+#else
+    folly::ConcurrentHashMapSIMD<std::string, std::string> smap(128);
+#endif
     {
         char *skey = new char[11];
         std::memset(skey, 0, 11);
