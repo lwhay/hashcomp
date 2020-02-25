@@ -107,7 +107,19 @@ TEST(CuckooTests, StringTest) {
     }
     uint64_t uk = 234234234151234323llu;
     ASSERT_EQ(*(uint64_t *) (char *) &uk, 234234234151234323llu);
-    ASSERT_EQ(cmap.contains((char *) &uk), 0);
+    ASSERT_EQ(cmap.contains((char *) &uk), false);
+
+    libcuckoo::cuckoohash_map<std::string, std::string> smap;
+    {
+        uint64_t ik = 234234234151234323llu;
+        smap.insert((char *) &ik, (char *) &ik);
+    }
+    ASSERT_EQ(smap.contains((char *) &uk), false);
+    {
+        uint64_t ik = 234234234151234323llu;
+        smap.insert(std::string((char *) &ik), std::string((char *) &ik));
+    }
+    ASSERT_EQ(smap.contains(std::string((char *) &uk)), false);
 }
 
 int main(int argc, char **argv) {
