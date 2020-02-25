@@ -89,7 +89,7 @@ TEST(CuckooTests, UnitOperations) {
     ASSERT_EQ(cmap.contains(1), false);
 }
 
-TEST(CuckooTests, StringTest) {
+TEST(CuckooTests, StringTest1) {
     libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>, std::equal_to<char *>,
             std::allocator<std::pair<const char *, char *>>, 8> cmap(128);
     char *key = "123456789";
@@ -126,7 +126,11 @@ TEST(CuckooTests, StringTest) {
         ASSERT_EQ(sval, nullptr);
         ASSERT_EQ(cmap.find(qkey, qval), true);
     }
+}
 
+TEST(CuckooTests, StringTest2) {
+    libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>, std::equal_to<char *>,
+            std::allocator<std::pair<const char *, char *>>, 8> cmap(128);
     {
         uint64_t ik = 234234234151234323llu;
         cmap.insert_or_assign((char *) &ik, (char *) &ik);
@@ -134,8 +138,11 @@ TEST(CuckooTests, StringTest) {
     uint64_t uk = 234234234151234323llu;
     ASSERT_EQ(*(uint64_t *) (char *) &uk, 234234234151234323llu);
     ASSERT_EQ(cmap.contains((char *) &uk), false);
+}
 
+TEST(CuckooTests, StringTest3) {
     libcuckoo::cuckoohash_map<std::string, std::string> smap;
+    uint64_t uk = 234234234151234323llu;
     {
         uint64_t ik = 234234234151234323llu;
         smap.insert((char *) &ik, (char *) &ik);
@@ -151,7 +158,11 @@ TEST(CuckooTests, StringTest) {
     std::string value;
     ASSERT_EQ(smap.find(std::string((char *) &ik), value), false);
     ASSERT_EQ(smap.contains(std::string((char *) &uk)), false);
+}
 
+TEST(CuckooTests, StringTest4) {
+    libcuckoo::cuckoohash_map<std::string, std::string> smap;
+    std::string value;
     {
         char *skey = new char[11];
         std::memset(skey, 0, 11);
