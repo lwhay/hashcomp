@@ -95,6 +95,100 @@ TEST(FollyTest, ConcurrentHashMapSIMDMultiThreadTest) {
     ASSERT_EQ(fmap.find(1)->second, 1);
 }*/
 
+TEST(FollyTest, StringTest) {
+#ifdef FOLLY_DEBUG
+    folly::ConcurrentHashMap<char *, char *> cmap;
+#else
+    folly::ConcurrentHashMapSIMD<char *, char *> cmap(128);
+#endif
+    char *key = "123456789";
+    char *val = "123456789";
+    cmap.insert_or_assign(key, val);
+    char *ksh = "123456789";
+    ksh = "012345678";
+    ASSERT_NE(cmap.find(ksh), nullptr);
+    ASSERT_STREQ(cmap.find(key)->second, "123456789");
+    /*ASSERT_STREQ(cmap.find(ksh), "123456789");*/
+
+    {
+        char *skey = new char[11];
+        std::memset(skey, 0, 11);
+        std::strcpy(skey, "0123456789");
+        char *sval = "1234567890";
+        ASSERT_EQ(cmap.insert(skey, sval), true);
+        ASSERT_EQ(cmap.size(), 2);
+        delete skey;
+        skey = nullptr;
+        char *qkey = new char[11];
+        char *qval;
+        std::memset(qkey, 0, 11);
+        std::strcpy(qkey, "0123456789");
+        ASSERT_NE(cmap.find(qkey), nullptr);
+        ASSERT_STREQ(qkey, "0123456789");
+        ASSERT_STREQ(qval, sval);
+    }
+
+    {
+        uint64_t ik = 234234234151234323llu;
+        cmap.insert_or_assign((char *) &ik, (char *) &ik);
+    }
+    uint64_t uk = 234234234151234323llu;
+    ASSERT_EQ(*(uint64_t *) (char *) &uk, 234234234151234323llu);
+    ASSERT_EQ(cmap.find((char *) &uk), nullptr);
+
+#ifdef FOLLY_DEBUG
+    folly::ConcurrentHashMap<std::string, std::string> smap;
+#else
+    folly::ConcurrentHashMapSIMD<std::string, std::string> smap(128);
+#endif
+    {
+        uint64_t ik = 234234234151234323llu;
+        smap.insert((char *) &ik, (char *) &ik);
+    }
+    ASSERT_EQ(smap.find((char *) &uk), nullptr);
+    {
+        uint64_t ik = 234234234151234323llu;
+        smap.insert(std::string((char *) &ik), std::string((char *) &ik));
+    }
+    ASSERT_EQ(smap.find(std::string((char *) &uk)), nullptr);
+    uint64_t ik = 234234234151234323llu;
+    std::string value;
+    ASSERT_EQ(smap.find(std::string((char *) &ik)), nullptr);
+
+    {
+        char *skey = new char[11];
+        std::memset(skey, 0, 11);
+        std::strcpy(skey, "0123456789");
+        char *sval = "1234567890";
+        ASSERT_EQ(smap.insert(skey, sval), true);
+        ASSERT_EQ(smap.size(), 3);
+        delete skey;
+        skey = nullptr;
+        char *qkey = new char[11];
+        std::memset(qkey, 0, 11);
+        std::strcpy(qkey, "0123456789");
+        ASSERT_EQ(smap.find(qkey), true);
+        ASSERT_STREQ(qkey, "0123456789");
+        ASSERT_STREQ(value.c_str(), sval);
+    }
+    {
+        char *skey = new char[11];
+        std::memset(skey, 0, 11);
+        std::strcpy(skey, "1234567890");
+        char *sval = "1234567890";
+        ASSERT_EQ(smap.insert(std::string(skey), std::string(sval)), true);
+        ASSERT_EQ(smap.size(), 4);
+        delete skey;
+        skey = nullptr;
+        char *qkey = new char[11];
+        std::memset(qkey, 0, 11);
+        std::strcpy(qkey, "1234567890");
+        ASSERT_NE(smap.find(std::string(qkey)), nullptr);
+        ASSERT_STREQ(qkey, "1234567890");
+        ASSERT_STREQ(value.c_str(), sval);
+    }
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -102,6 +102,24 @@ TEST(CuckooTests, StringTest) {
     /*ASSERT_STREQ(cmap.find(ksh), "123456789");*/
 
     {
+        char *skey = new char[11];
+        std::memset(skey, 0, 11);
+        std::strcpy(skey, "0123456789");
+        char *sval = "1234567890";
+        ASSERT_EQ(cmap.insert(skey, sval), true);
+        ASSERT_EQ(cmap.size(), 2);
+        delete skey;
+        skey = nullptr;
+        char *qkey = new char[11];
+        char *qval;
+        std::memset(qkey, 0, 11);
+        std::strcpy(qkey, "0123456789");
+        ASSERT_EQ(cmap.find(qkey, qval), true);
+        ASSERT_STREQ(qkey, "0123456789");
+        ASSERT_STREQ(qval, sval);
+    }
+
+    {
         uint64_t ik = 234234234151234323llu;
         cmap.insert_or_assign((char *) &ik, (char *) &ik);
     }
@@ -118,8 +136,46 @@ TEST(CuckooTests, StringTest) {
     {
         uint64_t ik = 234234234151234323llu;
         smap.insert(std::string((char *) &ik), std::string((char *) &ik));
+        ASSERT_EQ(smap.contains(std::string((char *) &uk)), false);
+        ASSERT_EQ(smap.size(), 2);
     }
+    uint64_t ik = 234234234151234323llu;
+    std::string value;
+    ASSERT_EQ(smap.find(std::string((char *) &ik), value), false);
     ASSERT_EQ(smap.contains(std::string((char *) &uk)), false);
+
+    {
+        char *skey = new char[11];
+        std::memset(skey, 0, 11);
+        std::strcpy(skey, "0123456789");
+        char *sval = "1234567890";
+        ASSERT_EQ(smap.insert(skey, sval), true);
+        ASSERT_EQ(smap.size(), 3);
+        delete skey;
+        skey = nullptr;
+        char *qkey = new char[11];
+        std::memset(qkey, 0, 11);
+        std::strcpy(qkey, "0123456789");
+        ASSERT_EQ(smap.find(qkey, value), true);
+        ASSERT_STREQ(qkey, "0123456789");
+        ASSERT_STREQ(value.c_str(), sval);
+    }
+    {
+        char *skey = new char[11];
+        std::memset(skey, 0, 11);
+        std::strcpy(skey, "1234567890");
+        char *sval = "1234567890";
+        ASSERT_EQ(smap.insert(std::string(skey), std::string(sval)), true);
+        ASSERT_EQ(smap.size(), 4);
+        delete skey;
+        skey = nullptr;
+        char *qkey = new char[11];
+        std::memset(qkey, 0, 11);
+        std::strcpy(qkey, "1234567890");
+        ASSERT_EQ(smap.find(std::string(qkey), value), true);
+        ASSERT_STREQ(qkey, "1234567890");
+        ASSERT_STREQ(value.c_str(), sval);
+    }
 }
 
 int main(int argc, char **argv) {

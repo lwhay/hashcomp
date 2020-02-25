@@ -78,7 +78,11 @@ void simpleInsert() {
     tracer.startTime();
     int inserted = 0;
     for (int i = 0; i < key_range; i++, inserted++) {
+#if WITH_STRING
+        store->insert(string(loads[i]->getKey()), std::string(loads[i]->getVal()));
+#else
         store->insert(loads[i]->getKey(), loads[i]->getVal());
+#endif
         assert(std::strcmp(store->find(loads[i]->getKey()).c_str(), loads[i]->getVal()) == 0);
     }
     cout << inserted << " " << tracer.getRunTime() << " " << store->size() << endl;
@@ -88,7 +92,11 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = work->tid * key_range / thread_number; i < (work->tid + 1) * key_range / thread_number; i++) {
+#if WITH_STRING
+        store->insert(string(loads[i]->getKey()), std::string(loads[i]->getVal()));
+#else
         store->insert(loads[i]->getKey(), loads[i]->getVal());
+#endif
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -106,25 +114,41 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
                 switch (static_cast<int>(runs[i]->getOp())) {
                     case 0: {
+#if WITH_STRING
+                        string ret = store->find(string(runs[i]->getKey()));
+#else
                         string ret = store->find(runs[i]->getKey());
+#endif
                         if (ret.compare("") /*&& (dummyVal.compare(runs[i]->getVal()) == 0)*/) rhit++;
                         else rfail++;
                         break;
                     }
                     case 1: {
+#if WITH_STRING
+                        bool ret = store->insert(string(runs[i]->getKey()), string(runs[i]->getVal()));
+#else
                         bool ret = store->insert(runs[i]->getKey(), runs[i]->getVal());
+#endif
                         if (ret) mhit++;
                         else mfail++;
                         break;
                     }
                     case 2: {
+#if WITH_STRING
+                        bool ret = store->erase(string(runs[i]->getKey()));
+#else
                         bool ret = store->erase(runs[i]->getKey());
+#endif
                         if (ret) mhit++;
                         else mfail++;
                         break;
                     }
                     case 3: {
+#if WITH_STRING
+                        bool ret = store->update(string(runs[i]->getKey()), string(runs[i]->getVal()));
+#else
                         bool ret = store->update(runs[i]->getKey(), runs[i]->getVal());
+#endif
                         if (ret) mhit++;
                         else mfail++;
                         break;

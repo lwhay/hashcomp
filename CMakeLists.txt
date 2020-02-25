@@ -134,7 +134,8 @@ endif ()
 option(WITH_LH_TESTS "build with lhests" ON)
 if (WITH_LH_TESTS)
     set(LH_TEST
-            tests/Pure/LH_MicroTest.cpp)
+            tests/Pure/LH_MicroTest.cpp
+            tests/CF2_Unit/Level_Usage.cpp)
 endif ()
 
 option(WITH_FH_TESTS "build with fast hash tests" ON)
@@ -264,7 +265,7 @@ foreach (sourcefile ${LH_TESTS_EXES})
             EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
             OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
             )
-    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${PTHREAD})
+    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${PTHREAD} gtest)
 endforeach (sourcefile ${LH_TESTS_EXES})
 
 set(FH_TESTS_EXES ${FH_TEST})
