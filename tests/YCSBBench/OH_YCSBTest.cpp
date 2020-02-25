@@ -18,18 +18,10 @@ typedef folly::AtomicHashMap <uint64_t, uint64_t> fmap;
 
 #include "folly/concurrency/ConcurrentHashMap.h"
 
-#if WITH_STRING
 #ifdef FOLLY_DEBUG
 typedef folly::ConcurrentHashMap<string, string> fmap;
 #else
 typedef folly::ConcurrentHashMapSIMD<string, string> fmap;
-#endif
-#else
-#ifdef FOLLY_DEBUG
-typedef folly::ConcurrentHashMap<char *, char *> fmap;
-#else
-typedef folly::ConcurrentHashMapSIMD<char *, char *> fmap;
-#endif
 #endif
 
 #endif

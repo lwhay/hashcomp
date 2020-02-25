@@ -21,10 +21,12 @@
 
 using namespace ycsb;
 
+/*#if WITH_STRING
 typedef libcuckoo::cuckoohash_map<string, string> cmap;
-
-/*typedef libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>*//*, std::equal_to<char *>,
-        std::allocator<std::pair<const char *, char *>>, 32*//*> cmap;*/
+#else
+typedef libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>, std::equal_to<char *>, std::allocator<std::pair<const char *, char *>>, 8> cmap;
+#endif*/
+typedef libcuckoo::cuckoohash_map<string, string> cmap;
 
 cmap *store;
 

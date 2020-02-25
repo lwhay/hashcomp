@@ -20,7 +20,7 @@
 
 #define TEST_LOOKUP        1
 
-#define WITH_STRING        2   // 0: unstable char*, 1: naive string, 2: fixed-length string
+#define WITH_STRING        0   // 0: unstable char*, 1: naive string, 2: fixed-length string
 
 #define UNIT_SIZE          (8)
 
