@@ -167,7 +167,7 @@ TEST(FollyTest, StringTest) {
         char *qkey = new char[11];
         std::memset(qkey, 0, 11);
         std::strcpy(qkey, "0123456789");
-        ASSERT_EQ(smap.find(qkey), true);
+        ASSERT_EQ(smap.find(qkey), nullptr);
         ASSERT_STREQ(qkey, "0123456789");
         ASSERT_STREQ(value.c_str(), sval);
     }
