@@ -2,6 +2,7 @@
 // Created by Michael on 2/25/20.
 //
 
+#include <cstring>
 #include <cstdint>
 #include <functional>
 #include "gtest/gtest.h"
