@@ -4,16 +4,8 @@
 #include <stdlib.h>
 #include "faster.h"
 
-#define CONTEXT_TYPE 0
-#if CONTEXT_TYPE == 0
 
-#include "kvcontext.h"
-
-#elif CONTEXT_TYPE == 2
-
-#include "cvkvcontext.h"
-
-#endif
+#include "stringcontext.h"
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
@@ -89,12 +81,7 @@ void simpleInsert() {
         auto callback = [](IAsyncContext *ctxt, Status result) {
             CallbackContext<UpsertContext> context{ctxt};
         };
-#if CONTEXT_TYPE == 0
-        UpsertContext context{loads[i], loads[i]};
-#elif CONTEXT_TYPE == 2
-        UpsertContext context(loads[i], 8);
-        context.reset((uint8_t *) (content + i));
-#endif
+        UpsertContext context{Key((uint8_t *) &loads[i], UNIT_SIZE), Value((uint8_t *) &loads[i], UNIT_SIZE)};
         Status stat = store->Upsert(context, callback, 1);
         inserted++;
     }
@@ -108,12 +95,7 @@ void *insertWorker(void *args) {
         auto callback = [](IAsyncContext *ctxt, Status result) {
             CallbackContext<UpsertContext> context{ctxt};
         };
-#if CONTEXT_TYPE == 0
-        UpsertContext context{loads[i], loads[i]};
-#elif CONTEXT_TYPE == 2
-        UpsertContext context(loads[i], 8);
-        context.reset((uint8_t *) (content + i));
-#endif
+        UpsertContext context{Key((uint8_t *) &loads[i], UNIT_SIZE), Value((uint8_t *) &loads[i], UNIT_SIZE)};
         Status stat = store->Upsert(context, callback, 1);
         inserted++;
     }
@@ -141,12 +123,7 @@ void *measureWorker(void *args) {
                 auto callback = [](IAsyncContext *ctxt, Status result) {
                     CallbackContext<UpsertContext> context{ctxt};
                 };
-#if CONTEXT_TYPE == 0
-                UpsertContext context{loads[i], loads[i]};
-#elif CONTEXT_TYPE == 2
-                UpsertContext context(loads[i], 8);
-            context.reset((uint8_t *) (content + i));
-#endif
+                UpsertContext context{Key((uint8_t *) &loads[i], UNIT_SIZE), Value((uint8_t *) &loads[i], UNIT_SIZE)};
                 Status stat = store->Upsert(context, callback, 1);
                 if (stat == Status::NotFound)
                     mfail++;
@@ -159,12 +136,7 @@ void *measureWorker(void *args) {
                     auto callback = [](IAsyncContext *ctxt, Status result) {
                         CallbackContext<UpsertContext> context{ctxt};
                     };
-#if CONTEXT_TYPE == 0
-                    UpsertContext context{key, key};
-#elif CONTEXT_TYPE == 2
-                    UpsertContext context(key, 8);
-            context.reset((uint8_t *) (content + i));
-#endif
+                    UpsertContext context{Key((uint8_t *) key, UNIT_SIZE), Value((uint8_t *) key, UNIT_SIZE)};
                     Status stat = store->Upsert(context, callback, 1);
                     ret = (stat == Status::Ok);
                 } else {
@@ -172,12 +144,7 @@ void *measureWorker(void *args) {
                     auto callback = [](IAsyncContext *ctxt, Status result) {
                         CallbackContext<DeleteContext> context{ctxt};
                     };
-#if CONTEXT_TYPE == 0
-                    DeleteContext context{key};
-#elif CONTEXT_TYPE == 2
-                    DeleteContext context(key);
-            context.reset((uint8_t *) (content + i));
-#endif
+                    DeleteContext context{Key((uint8_t *) key, UNIT_SIZE)};
                     Status stat = store->Delete(context, callback, 1);
                     ret = (stat == Status::Ok);
                 }
@@ -191,23 +158,13 @@ void *measureWorker(void *args) {
                     CallbackContext<ReadContext> context{ctxt};
                 };
 
-#if CONTEXT_TYPE == 0
-                ReadContext context{loads[i]};
+                ReadContext context{Key((uint8_t *) &loads[i], UNIT_SIZE)};
 
                 Status result = store->Read(context, callback, 1);
-                if (result == Status::Ok && context.Return() == loads[i])
+                if (result == Status::Ok /*&& *(uint64_t *) &context.output_bytes == loads[i]*/)
                     rhit++;
                 else
                     rfail++;
-#elif CONTEXT_TYPE == 2
-                ReadContext context(loads[i]);
-
-            Status result = store->Read(context, callback, 1);
-            if (result == Status::Ok && *(uint64_t *) (context.output_bytes) == total_count - loads[i])
-                rhit++;
-            else
-                rfail++;
-#endif
             }
             if (evenRound++ % 2 == 0) ereased = 0;
             else inserts = 0;
@@ -292,7 +249,7 @@ int main(int argc, char **argv) {
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
     init_size = next_power_of_two(root_capacity / 2);
-    store = new store_t(init_size, 17179869184, "storage");
+    store = new store_t(root_capacity, 17179869184, "storage");
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
          << readPercentage << endl;

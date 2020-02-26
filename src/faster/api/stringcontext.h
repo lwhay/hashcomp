@@ -14,6 +14,57 @@ using namespace FASTER::misc;
 namespace FASTER {
 namespace api {
 
+#define BIG_CONSTANT(x) (x##LLU)
+constexpr uint64_t hashseedA = 151261303;
+constexpr uint64_t hashseedB = 6722461;
+
+uint64_t MurmurHash64A(const void *key, int len, uint64_t seed) {
+    const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
+    const int r = 47;
+
+    uint64_t h = seed ^(len * m);
+
+    const uint64_t *data = (const uint64_t *) key;
+    const uint64_t *end = data + (len / 8);
+
+    while (data != end) {
+        uint64_t k = *data++;
+
+        k *= m;
+        k ^= k >> r;
+        k *= m;
+
+        h ^= k;
+        h *= m;
+    }
+
+    const unsigned char *data2 = (const unsigned char *) data;
+
+    switch (len & 7) {
+        case 7:
+            h ^= uint64_t(data2[6]) << 48;
+        case 6:
+            h ^= uint64_t(data2[5]) << 40;
+        case 5:
+            h ^= uint64_t(data2[4]) << 32;
+        case 4:
+            h ^= uint64_t(data2[3]) << 24;
+        case 3:
+            h ^= uint64_t(data2[2]) << 16;
+        case 2:
+            h ^= uint64_t(data2[1]) << 8;
+        case 1:
+            h ^= uint64_t(data2[0]);
+            h *= m;
+    };
+
+    h ^= h >> r;
+    h *= m;
+    h ^= h >> r;
+
+    return h;
+}
+
 class Key {
 public:
     Key(uint8_t *buf, uint32_t len) : len_{len} {
@@ -21,15 +72,26 @@ public:
         std::memcpy(buf_, buf, len_);
     }
 
-    ~Key() { delete[] buf_; }
+    Key(Key const &key) {
+        len_ = key.len_;
+        buf_ = new uint8_t[len_];
+        std::memcpy(buf_, key.buf_, len_);
+    }
 
-    static inline uint32_t size() {
-        return static_cast<uint32_t>(sizeof(Key)) /*+ len_*/;
+    ~Key() {
+        if (buf_ != nullptr) {
+            delete[] buf_;
+            buf_ = nullptr;
+        }
+    }
+
+    inline uint32_t size() const {
+        return static_cast<uint32_t>(sizeof(Key)) + len_;
     }
 
     inline KeyHash GetHash() const {
         std::hash<uint8_t *> hash_fn;
-        return KeyHash{hash_fn(buf_)};
+        return KeyHash{MurmurHash64A(buf_, len_, hashseedA)};
     }
 
     /// Comparison operators.
@@ -130,7 +192,7 @@ public:
 
     Value(uint8_t *buf, uint32_t length) : gen_lock_{0}, size_(sizeof(Value) + length), length_(length) {
         value_ = new uint8_t[length];
-        std::memcmp(value_, buf, length_);
+        std::memcpy(value_, buf, length_);
     }
 
     Value(Value const &value) {
@@ -138,7 +200,7 @@ public:
         length_ = value.length_;
         size_ = sizeof(Value) + length_;
         value_ = new uint8_t[length_];
-        std::memcmp(value_, value.value_, length_);
+        std::memcpy(value_, value.value_, length_);
     }
 
     ~Value() { delete[] value_; }
@@ -184,7 +246,9 @@ public:
     typedef Key key_t;
     typedef Value value_t;
 
-    UpsertContext(Key key, Value value) : key_{key}, length_{value.length_}, input_buffer(new uint8_t[length_]) {}
+    UpsertContext(Key key, Value value) : key_{key}, length_{value.length_}, input_buffer(new uint8_t[length_]) {
+        std::memcpy(input_buffer, value.value_, length_);
+    }
 
     /// Copy (and deep-copy) constructor.
     UpsertContext(const UpsertContext &other) : key_{other.key_}, length_{other.length_} {
@@ -215,8 +279,8 @@ public:
         value.size_ = sizeof(Value) + length_;
         value.length_ = length_;
         value.reset(input_buffer, length_);
-        /* if (value.buffer() == nullptr) value.reset() = new uint8_t[value.length_];
-         std::memcpy(value.buffer(), input_buffer, length_);*/
+        /*if (value.buffer() == nullptr) value.reset() = new uint8_t[value.length_];
+        std::memcpy(value.buffer(), input_buffer, length_);*/
     }
 
     inline bool PutAtomic(Value &value) {
@@ -276,7 +340,6 @@ public:
         value.gen_lock_.store(0);
         value.size_ = sizeof(Value) + length_;
         value.length_ = length_;
-        std::memset(value.buffer(), 88, length_);
     }
 
 protected:
@@ -300,11 +363,17 @@ public:
     /// Copy (and deep-copy) constructor.
     ReadContext(const ReadContext &other) : key_{other.key_}, output_length{0} {}
 
-    ~ReadContext() { delete[] output_bytes; }
+    ~ReadContext() { /*delete[] output_bytes;*/ }
 
     /// The implicit and explicit interfaces require a key() accessor.
     inline const Key &key() const {
         return key_;
+    }
+
+    inline void Put(Value &value) {
+        value.size_ = key_.size() + sizeof(Value) + output_length;
+        value.length_ = output_length;
+        value.value_ = output_bytes;
     }
 
     inline void Get(const Value &value) {

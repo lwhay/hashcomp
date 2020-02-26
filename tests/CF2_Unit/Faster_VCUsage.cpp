@@ -11,9 +11,9 @@
 
 #define KV_LENGTH 16
 
-#define KEY_RANGE 1
+#define KEY_RANGE 4
 
-#define OPERATION 10000000
+#define OPERATION 100
 
 using namespace FASTER::api;
 
@@ -21,24 +21,58 @@ typedef QueueIoHandler handler_t;
 typedef FileSystemDisk<handler_t, 1073741824ull> disk_t;
 
 using store_t = FasterKv<Key, Value, disk_t>;
-size_t init_size = next_power_of_two(1000000 / 2);
+size_t init_size = next_power_of_two(OPERATION);
 store_t *store;
 
-TEST(FASTERTest, uint64Test) {
+TEST(FASTERTest, singleTest) {
     auto upsertCallback = [](IAsyncContext *ctxt, Status result) {
         CallbackContext<UpsertContext> context{ctxt};
     };
     char key[KV_LENGTH];
     char val[KV_LENGTH];
-    for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
-        for (uint64_t i = 0; i < KEY_RANGE; i++) {
-            std::memset(key, 0, KV_LENGTH);
-            std::sprintf(key, "key%llu", i);
-            std::memset(val, 0, KV_LENGTH);
-            std::sprintf(key, "val%llu", i);
-            UpsertContext upsertContext{Key((uint8_t *) key, KV_LENGTH), Value((uint8_t *) val, KV_LENGTH)};
-            Status uStat = store->Upsert(upsertContext, upsertCallback, 1);
-        }
+    for (uint64_t i = 0; i < OPERATION; i++) {
+        std::memset(key, 0, KV_LENGTH);
+        std::sprintf(key, "key%llu", i);
+        std::memset(val, 0, KV_LENGTH);
+        std::sprintf(val, "val%llu", i);
+        UpsertContext upsertContext{Key((uint8_t *) key, KV_LENGTH), Value((uint8_t *) val, KV_LENGTH)};
+        Status uStat = store->Upsert(upsertContext, upsertCallback, 1);
+    }
+
+    auto readCallback = [](IAsyncContext *ctxt, Status result) {
+        CallbackContext<ReadContext> context{ctxt};
+    };
+    for (int i = 0; i < OPERATION; i++) {
+        std::memset(key, 0, KV_LENGTH);
+        std::sprintf(key, "key%llu", i);
+        ReadContext readContext{Key((uint8_t *) key, KV_LENGTH)};
+        Status uStat = store->Read(readContext, readCallback, 1);
+        ASSERT_EQ(uStat, Status::Ok);
+        std::memset(val, 0, KV_LENGTH);
+        std::sprintf(val, "val%llu", i);
+        Value value;
+        readContext.Put(value);
+        ASSERT_STREQ((char *) value.get(), val);
+    }
+
+    auto deleteCallback = [](IAsyncContext *ctxt, Status result) {
+        CallbackContext<DeleteContext> context{ctxt};
+    };
+    for (int i = 0; i < OPERATION; i++) {
+        std::memset(key, 0, KV_LENGTH);
+        std::sprintf(key, "key%llu", i);
+        DeleteContext deleteContext{Key((uint8_t *) key, KV_LENGTH)};
+        Status uStat = store->Delete(deleteContext, readCallback, 1);
+        ASSERT_EQ(uStat, Status::Ok);
+    }
+
+    for (int i = 0; i < OPERATION; i++) {
+        std::memset(key, 0, KV_LENGTH);
+        std::sprintf(key, "key%llu", i);
+        ReadContext readContext{Key((uint8_t *) key, KV_LENGTH)};
+        Status uStat = store->Read(readContext, readCallback, 1);
+        ASSERT_EQ(uStat, Status::NotFound);
+    }
 }
 
 TEST(FASTERTest, uint64MultiWriters) {
@@ -53,9 +87,9 @@ TEST(FASTERTest, uint64MultiWriters) {
             for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
                 for (uint32_t i = 0; i < KEY_RANGE; i++) {
                     std::memset(key, 0, KV_LENGTH);
-                    std::sprintf(key, "key%llu", i);
+                    std::sprintf(key, "key%llu", i + OPERATION);
                     std::memset(val, 0, KV_LENGTH);
-                    std::sprintf(key, "val%llu", i);
+                    std::sprintf(key, "val%llu", i + OPERATION);
                     UpsertContext upsertContext{Key((uint8_t *) key, KV_LENGTH), Value((uint8_t *) val, KV_LENGTH)};
                     Status uStat = store->Upsert(upsertContext, upsertCallback, 1);
                 }
@@ -79,9 +113,9 @@ TEST(FASTERTest, uint64MultiReaders) {
             for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
                 for (uint32_t i = 0; i < KEY_RANGE; i++) {
                     std::memset(key, 0, KV_LENGTH);
-                    std::sprintf(key, "key%llu", i);
+                    std::sprintf(key, "key%llu", i + OPERATION);
                     std::memset(val, 0, KV_LENGTH);
-                    std::sprintf(key, "val%llu", i);
+                    std::sprintf(key, "val%llu", i + OPERATION);
                     UpsertContext upsertContext{Key((uint8_t *) key, KV_LENGTH), Value((uint8_t *) val, KV_LENGTH)};
                     Status uStat = store->Upsert(upsertContext, upsertCallback, 1);
                 }
@@ -93,14 +127,20 @@ TEST(FASTERTest, uint64MultiReaders) {
                 CallbackContext<ReadContext> context{ctxt};
             };
             char key[KV_LENGTH];
+            char val[KV_LENGTH];
             for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
                 for (int i = 0; i < KEY_RANGE; i++) {
+                    std::memset(key, 0, KV_LENGTH);
+                    std::sprintf(key, "key%llu", i + OPERATION);
+                    std::memset(val, 0, KV_LENGTH);
+                    std::sprintf(key, "val%llu", i + OPERATION);
                     ReadContext readContext{Key((uint8_t *) key, KV_LENGTH)};
                     Status uStat = store->Read(readContext, readCallback, 1);
                     ASSERT_EQ(uStat, Status::Ok);
                     Value value;
-                    //readContext.Put(value);
-                    //ASSERT_EQ(value.Get(), 1000000 + i);
+                    readContext.Put(value);
+                    ASSERT_STREQ((char *) value.get(), val);
+                    //std::cout << key << " " << value.get() << std::endl;
                 }
         }));
     }
@@ -116,14 +156,28 @@ TEST(FASTERTest, uint64MultiDeleters) {
     std::vector<std::thread> deleters;
     for (int i = 0; i < 4; i++) {
         deleters.push_back(std::thread([](int tid) {
+            auto readCallback = [](IAsyncContext *ctxt, Status result) {
+                CallbackContext<ReadContext> context{ctxt};
+            };
             auto deleteCallback = [](IAsyncContext *ctxt, Status result) {
                 CallbackContext<DeleteContext> context{ctxt};
             };
-            uint8_t key[KV_LENGTH];
+            char key[KV_LENGTH];
             for (int i = tid; i < KEY_RANGE; i += 4) {
-                DeleteContext deleteContext{Key((uint8_t *) key, KV_LENGTH)};
-                Status uStat = store->Delete(deleteContext, deleteCallback, 1);
+                if (i >= KEY_RANGE) break;
+                std::memset(key, 0, KV_LENGTH);
+                std::sprintf(key, "key%llu", i + OPERATION);
+                ReadContext readContext{Key((uint8_t *) key, KV_LENGTH)};
+                Status uStat = store->Read(readContext, readCallback, 1);
+                Value value;
+                readContext.Put(value);
+                std::cout << key << " " << Utility::retStatus(uStat) << std::endl;
                 ASSERT_EQ(uStat, Status::Ok);
+
+                DeleteContext deleteContext{Key((uint8_t *) key, KV_LENGTH)};
+                uStat = store->Delete(deleteContext, deleteCallback, 1);
+                std::cout << key << " " << static_cast<uint32_t>(uStat) << std::endl;
+                //ASSERT_EQ(uStat, Status::Ok);
             }
         }, i));
     }
@@ -142,6 +196,8 @@ TEST(FASTERTest, uint64MultiReReaders) {
             char key[KV_LENGTH];
             for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
                 for (uint32_t i = 0; i < KEY_RANGE; i++) {
+                    std::memset(key, 0, KV_LENGTH);
+                    std::sprintf(key, "key%llu", i + OPERATION);
                     ReadContext readContext{Key((uint8_t *) key, KV_LENGTH)};
                     Status uStat = store->Read(readContext, readCallback, 1);
                     ASSERT_EQ(uStat, Status::NotFound);
