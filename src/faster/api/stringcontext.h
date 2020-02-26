@@ -363,7 +363,7 @@ public:
     /// Copy (and deep-copy) constructor.
     ReadContext(const ReadContext &other) : key_{other.key_}, output_length{0} {}
 
-    ~ReadContext() { /*delete[] output_bytes;*/ }
+    ~ReadContext() { delete[] output_bytes; }
 
     /// The implicit and explicit interfaces require a key() accessor.
     inline const Key &key() const {
