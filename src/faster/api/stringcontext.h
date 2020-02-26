@@ -16,28 +16,34 @@ namespace api {
 
 class Key {
 public:
-    Key(uint32_t key) : key_{key} {}
+    Key(uint8_t *buf, uint32_t len) : len_{len} {
+        buf_ = new uint8_t[len_];
+        std::memcpy(buf_, buf, len_);
+    }
 
-    inline static constexpr uint32_t size() {
-        return static_cast<uint32_t>(sizeof(Key));
+    ~Key() { delete[] buf_; }
+
+    static inline uint32_t size() {
+        return static_cast<uint32_t>(sizeof(Key)) /*+ len_*/;
     }
 
     inline KeyHash GetHash() const {
-        std::hash<uint32_t> hash_fn;
-        return KeyHash{hash_fn(key_)};
+        std::hash<uint8_t *> hash_fn;
+        return KeyHash{hash_fn(buf_)};
     }
 
     /// Comparison operators.
     inline bool operator==(const Key &other) const {
-        return key_ == other.key_;
+        return len_ == other.len_ && std::memcmp(buf_, other.buf_, len_) == 0;
     }
 
     inline bool operator!=(const Key &other) const {
-        return key_ != other.key_;
+        return !(*this == other);
     }
 
 private:
-    uint32_t key_;
+    uint32_t len_;
+    uint8_t *buf_;
 };
 
 class UpsertContext;
@@ -122,6 +128,19 @@ class Value {
 public:
     Value() : gen_lock_{0}, size_{0}, length_{0} {}
 
+    Value(uint8_t *buf, uint32_t length) : gen_lock_{0}, size_(sizeof(Value) + length), length_(length) {
+        value_ = new uint8_t[length];
+        std::memcmp(value_, buf, length_);
+    }
+
+    Value(Value const &value) {
+        gen_lock_.store(0);
+        length_ = value.length_;
+        size_ = sizeof(Value) + length_;
+        value_ = new uint8_t[length_];
+        std::memcmp(value_, value.value_, length_);
+    }
+
     ~Value() { delete[] value_; }
 
     inline uint32_t size() const {
@@ -165,7 +184,7 @@ public:
     typedef Key key_t;
     typedef Value value_t;
 
-    UpsertContext(Key key, uint32_t length) : key_{key}, length_{length}, input_buffer(new uint8_t[length_]) {}
+    UpsertContext(Key key, Value value) : key_{key}, length_{value.length_}, input_buffer(new uint8_t[length_]) {}
 
     /// Copy (and deep-copy) constructor.
     UpsertContext(const UpsertContext &other) : key_{other.key_}, length_{other.length_} {
@@ -276,7 +295,7 @@ public:
     typedef Key key_t;
     typedef Value value_t;
 
-    ReadContext(uint32_t key) : key_{key}, output_length{0} {}
+    ReadContext(Key key) : key_{key}, output_length{0} {}
 
     /// Copy (and deep-copy) constructor.
     ReadContext(const ReadContext &other) : key_{other.key_}, output_length{0} {}

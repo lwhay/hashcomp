@@ -43,7 +43,7 @@ TEST(FASTERTest, uint64MultiWriters) {
                 CallbackContext<UpsertContext> context{ctxt};
             };
             for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
-                for (int i = 0; i < KEY_RANGE; i++) {
+                for (uint64_t i = 0; i < KEY_RANGE; i++) {
                     UpsertContext upsertContext{i, i + 1000000};
                     Status uStat = store->Upsert(upsertContext, upsertCallback, 1);
                 }
@@ -63,7 +63,7 @@ TEST(FASTERTest, uint64MultiReaders) {
                 CallbackContext<UpsertContext> context{ctxt};
             };
             for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
-                for (int i = 0; i < KEY_RANGE; i++) {
+                for (uint64_t i = 0; i < KEY_RANGE; i++) {
                     UpsertContext upsertContext{i, i + 1000000};
                     Status uStat = store->Upsert(upsertContext, upsertCallback, 1);
                 }
@@ -75,7 +75,7 @@ TEST(FASTERTest, uint64MultiReaders) {
                 CallbackContext<ReadContext> context{ctxt};
             };
             for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
-                for (int i = 0; i < KEY_RANGE; i++) {
+                for (uint64_t i = 0; i < KEY_RANGE; i++) {
                     ReadContext readContext{i};
                     Status uStat = store->Read(readContext, readCallback, 1);
                     ASSERT_EQ(uStat, Status::Ok);
@@ -100,7 +100,7 @@ TEST(FASTERTest, uint64MultiDeleters) {
             auto deleteCallback = [](IAsyncContext *ctxt, Status result) {
                 CallbackContext<DeleteContext> context{ctxt};
             };
-            for (int i = tid; i < KEY_RANGE; i += 4) {
+            for (uint64_t i = tid; i < KEY_RANGE; i += 4) {
                 DeleteContext deleteContext{i};
                 Status uStat = store->Delete(deleteContext, deleteCallback, 1);
                 ASSERT_EQ(uStat, Status::Ok);
@@ -120,8 +120,8 @@ TEST(FASTERTest, uint64MultiReReaders) {
                 CallbackContext<ReadContext> context{ctxt};
             };
             for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
-                for (int i = 0; i < KEY_RANGE; i++) {
-                    ReadContext readContext{i + 1000000};
+                for (uint64_t i = 0; i < KEY_RANGE; i++) {
+                    ReadContext readContext{i};
                     Status uStat = store->Read(readContext, readCallback, 1);
                     ASSERT_EQ(uStat, Status::NotFound);
                 }
