@@ -7,6 +7,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include "status.h"
 
 namespace FASTER {
 namespace misc {

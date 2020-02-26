@@ -5,9 +5,12 @@
 #ifndef HASHCOMP_KVCONTEXT_H
 #define HASHCOMP_KVCONTEXT_H
 
+#include "faster.h"
+#include "../core/key_hash.h"
 #include "../misc/utility.h"
 
 using namespace FASTER::misc;
+using namespace FASTER::core;
 
 namespace FASTER {
 namespace api {
@@ -106,6 +109,14 @@ public:
     inline void Get(const value_t &value) {
         //ASSERT_TRUE(false);
         value_ = value.value_;
+    }
+
+    inline void Put(value_t &value) {
+        value.value_ = value_;
+    }
+
+    inline void PutAtomic(value_t &value) {
+        value.atomic_value_.store(value_);
     }
 
     inline void GetAtomic(const value_t &value) { atomic_value_.store(value.atomic_value_.load()); }
