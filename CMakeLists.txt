@@ -508,6 +508,7 @@ if (WITH_LIBCUCKOO)
     link_directories(${LIBCUCKOO_PREFIX}/src/libcukoo-build/)
 
     set(CUKOO_TEST
+            tests/CF2_Unit/CUCKOO_Intention.cpp
             tests/CF2_Unit/CUCKOO_Usage.cpp
             tests/Pure/CH_MicroTest.cpp)
 
