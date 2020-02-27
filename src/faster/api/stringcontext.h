@@ -259,7 +259,7 @@ public:
 
     ~UpsertContext() { delete[] input_buffer; }
 
-    void reset(uint8_t *buffer) { std::memcpy(input_buffer, buffer, length_); }
+    //void reset(uint8_t *buffer) { std::memcpy(input_buffer, buffer, length_); }
 
     /// The implicit and explicit interfaces require a key() accessor.
     inline const Key &key() const {
@@ -290,12 +290,8 @@ public:
         }
         if (value.size_ < sizeof(Value) + length_) {
             // Current value is too small for in-place update.
-            value.length_ = length_;
-            value.size_ = sizeof(Value) + length_;
-            value.value_ = new uint8_t[length_];
-            std::memcpy(value.value_, input_buffer, length_);
             value.gen_lock_.unlock(true);
-            return true;
+            return false;
         }
         // In-place update overwrites length and buffer, but not size.
         value.length_ = length_;
