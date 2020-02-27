@@ -24,6 +24,28 @@ using store_t = FasterKv<Key, Value, disk_t>;
 size_t init_size = next_power_of_two(OPERATION);
 store_t *store;
 
+TEST(FASTERTest, incrementalTest) {
+    auto upsertCallback = [](IAsyncContext *ctxt, Status result) {
+        CallbackContext<UpsertContext> context{ctxt};
+    };
+    char key[KV_LENGTH];
+    char *val = new char[KV_LENGTH];
+    std::memset(key, 0, KV_LENGTH);
+    std::sprintf(key, "key%llu", 100000000);
+    std::memset(val, 0, KV_LENGTH);
+    std::memcpy(val, "key", 3);
+
+    for (uint64_t i = 0; i < 200; i++) {
+        char inc[2];
+        std::memset(inc, 0, KV_LENGTH);
+        std::sprintf(inc, "%llu", 1);
+        val = std::strcat(val, inc);
+        UpsertContext upsertContext{Key((uint8_t *) key, KV_LENGTH), Value((uint8_t *) val, std::strlen(val))};
+        Status uStat = store->Upsert(upsertContext, upsertCallback, 1);
+        ASSERT_EQ(uStat, Status::Ok);
+    }
+}
+
 TEST(FASTERTest, singleTest) {
     auto upsertCallback = [](IAsyncContext *ctxt, Status result) {
         CallbackContext<UpsertContext> context{ctxt};

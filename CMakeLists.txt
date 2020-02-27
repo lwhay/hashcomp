@@ -141,8 +141,8 @@ endif ()
 option(WITH_FH_TESTS "build with fast hash tests" ON)
 if (WITH_FH_TESTS)
     set(FH_TEST
-            tests/CF2_Unit/Faster_AtomicUsage.cpp
-            tests/CF2_Unit/Faster_VCUsage.cpp
+            tests/FH_Unit/Faster_AtomicUsage.cpp
+            tests/FH_Unit/Faster_VCUsage.cpp
             tests/FH_Unit/faster_function_test.cpp
             tests/FH_Unit/in_memory_test.cpp
             tests/FH_Unit/faster_struct_test.cpp
