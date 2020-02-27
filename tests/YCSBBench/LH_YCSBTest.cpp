@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
-    levelHash = level_init(level_calculate(root_capacity));
+    levelHash = level_init(level_calculate(root_capacity / 16));
     ycsb::YCSBLoader loader(ycsb::loadpath, key_range);
     loads = loader.load();
     key_range = loader.size();

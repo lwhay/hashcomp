@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
          << readPercentage << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
-    levelHash = level_init(level_calculate(root_capacity));
+    levelHash = level_init(level_calculate(root_capacity / 16));
     cout << "simple" << endl;
     simpleInsert();
     prepare();
