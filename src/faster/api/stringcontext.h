@@ -213,6 +213,7 @@ public:
         gen_lock_.store(0);
         length_ = length;
         size_ = sizeof(Value) + length;
+        //delete[] value_; //Might introduce memory leak here.
         value_ = new uint8_t[length_];
         std::memcpy(value_, value, length);
     }
