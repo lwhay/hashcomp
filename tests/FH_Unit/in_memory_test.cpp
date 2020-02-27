@@ -1050,22 +1050,22 @@ TEST(InMemFaster, UpsertRead_ResizeValue_Concurrent) {
         }
 
         inline bool PutAtomic(Value &value) {
-            /*bool replaced, success;
+            bool replaced, success;
             while (!(success = value.gen_lock_.try_lock(replaced)) && !replaced) {
                 std::this_thread::yield();
             }
             if (replaced) {
                 // Some other thread replaced this record.
                 return success;
-            }*/
-            bool replaced;
+            }
+            /*bool replaced;
             while (!replaced && !value.gen_lock_.try_lock(replaced)) {
                 std::this_thread::yield();
             }
             if (replaced) {
                 // Some other thread replaced this record.
                 return false;
-            }
+            }*/
             if (value.size_ < sizeof(Value) + length_) {
                 // Current value is too small for in-place update.
                 value.gen_lock_.unlock(true);
@@ -1690,22 +1690,22 @@ TEST(InMemFaster, Rmw_ResizeValue_Concurrent) {
         }
 
         inline bool RmwAtomic(Value &value) {
-            /*bool replaced, success;
+            bool replaced, success;
             while (!(success = value.gen_lock_.try_lock(replaced)) && !replaced) {
                 std::this_thread::yield();
             }
             if (replaced) {
                 // Some other thread replaced this record.
                 return success;
-            }*/
-            bool replaced;
+            }
+            /*bool replaced;
             while (!replaced && !value.gen_lock_.try_lock(replaced)) {
                 std::this_thread::yield();
             }
             if (replaced) {
                 // Some other thread replaced this record.
                 return false;
-            }
+            }*/
             if (value.size_ < sizeof(Value) + length_) {
                 // Current value is too small for in-place update.
                 value.gen_lock_.unlock(true);
