@@ -210,6 +210,7 @@ public:
     }
 
     void reset(uint8_t *value, uint32_t length) {
+        gen_lock_.store(0);
         length_ = length;
         size_ = sizeof(Value) + length;
         value_ = new uint8_t[length_];
@@ -275,12 +276,7 @@ public:
 
     /// Non-atomic and atomic Put() methods.
     inline void Put(Value &value) {
-        value.gen_lock_.store(0);
-        value.size_ = sizeof(Value) + length_;
-        value.length_ = length_;
         value.reset(input_buffer, length_);
-        /*if (value.buffer() == nullptr) value.reset() = new uint8_t[value.length_];
-        std::memcpy(value.buffer(), input_buffer, length_);*/
     }
 
     inline bool PutAtomic(Value &value) {
@@ -294,8 +290,12 @@ public:
         }
         if (value.size_ < sizeof(Value) + length_) {
             // Current value is too small for in-place update.
+            value.length_ = length_;
+            value.size_ = sizeof(Value) + length_;
+            value.value_ = new uint8_t[length_];
+            std::memcpy(value.value_, input_buffer, length_);
             value.gen_lock_.unlock(true);
-            return false;
+            return true;
         }
         // In-place update overwrites length and buffer, but not size.
         value.length_ = length_;
