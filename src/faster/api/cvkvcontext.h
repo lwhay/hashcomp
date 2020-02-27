@@ -205,9 +205,9 @@ public:
         while (!(success = value.gen_lock_.try_lock(replaced)) && !replaced) {
             std::this_thread::yield();
         }
-        if (replaced) {
+        if (replaced && !success) {
             // Some other thread replaced this record.
-            return success;
+            return false;
         }
         /*bool replaced;
         while (!replaced && !value.gen_lock_.try_lock(replaced)) {
