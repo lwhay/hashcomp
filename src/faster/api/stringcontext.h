@@ -213,7 +213,7 @@ public:
         gen_lock_.store(0);
         length_ = length;
         size_ = sizeof(Value) + length;
-        //delete[] value_; //Might introduce memory leak here.
+        delete[] value_; //Might introduce memory leak here.
         value_ = new uint8_t[length_];
         std::memcpy(value_, value, length);
     }
@@ -260,7 +260,7 @@ public:
 
     ~UpsertContext() { delete[] input_buffer; }
 
-    //void reset(uint8_t *buffer) { std::memcpy(input_buffer, buffer, length_); }
+    void reset(uint8_t *buffer) { std::memcpy(input_buffer, buffer, length_); }
 
     /// The implicit and explicit interfaces require a key() accessor.
     inline const Key &key() const {
