@@ -11,7 +11,7 @@
 
 #define KV_LENGTH 16
 
-#define KEY_RANGE 4
+#define KEY_RANGE 1
 
 #define OPERATION 100
 
@@ -244,6 +244,59 @@ TEST(FASTERTest, uint64MultiReReaders) {
     }
     for (int i = 0; i < 4; i++) {
         readers[i].join();
+    }
+}
+
+#define OPERATION 10000000
+#define KEY_RANGE 100000
+#define THD_COUNT 4
+
+TEST(FASTERTest, uint64MultiIncrementWriters) {
+    std::vector<std::thread> writers;
+    std::vector<std::thread> rewriters;
+    for (int i = 0; i < THD_COUNT; i++) {
+        writers.push_back(std::thread([]() {
+            auto upsertCallback = [](IAsyncContext *ctxt, Status result) {
+                CallbackContext<UpsertContext> context{ctxt};
+            };
+            char key[KV_LENGTH];
+            char val[255];
+            for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
+                for (uint32_t i = 0; i < KEY_RANGE; i++) {
+                    std::memset(key, 0, KV_LENGTH);
+                    std::sprintf(key, "key%llu", i + 2 * OPERATION);
+                    std::memset(val, 0, 255);
+                    std::sprintf(val, "val%llu", i + 2 * OPERATION);
+                    UpsertContext upsertContext{Key((uint8_t *) key, std::strlen(key)),
+                                                Value((uint8_t *) val, std::strlen(val))};
+                    Status uStat = store->Upsert(upsertContext, upsertCallback, 1);
+                }
+        }));
+    }
+    for (int i = 0; i < THD_COUNT; i++) {
+        rewriters.push_back(std::thread([]() {
+            auto upsertCallback = [](IAsyncContext *ctxt, Status result) {
+                CallbackContext<UpsertContext> context{ctxt};
+            };
+            char key[KV_LENGTH];
+            char val[255];
+            for (uint64_t r = 0; r < OPERATION / KEY_RANGE; r++)
+                for (uint32_t i = 0; i < KEY_RANGE; i++) {
+                    std::memset(key, 0, KV_LENGTH);
+                    std::sprintf(key, "key%llu", i + 2 * OPERATION);
+                    std::memset(val, 0, 255);
+                    std::sprintf(val, "valll%llu", (uint64_t) i + 2 * OPERATION * r);
+                    UpsertContext upsertContext{Key((uint8_t *) key, std::strlen(key)),
+                                                Value((uint8_t *) val, std::strlen(val))};
+                    Status uStat = store->Upsert(upsertContext, upsertCallback, 1);
+                }
+        }));
+    }
+    for (int i = 0; i < THD_COUNT; i++) {
+        writers[i].join();
+    }
+    for (int i = 0; i < THD_COUNT; i++) {
+        rewriters[i].join();
     }
 }
 

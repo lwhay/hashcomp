@@ -80,6 +80,10 @@ public:
     ~Key() {
     }
 
+    uint8_t *get() const {
+        return buf_;
+    }
+
     inline uint32_t size() const {
         return static_cast<uint32_t>(sizeof(Key)) + len_;
     }
@@ -257,7 +261,9 @@ public:
 
     ~UpsertContext() { delete[] input_buffer; }
 
-    void reset(uint8_t *buffer) { std::memcpy(input_buffer, buffer, length_); }
+    void reset(uint8_t *buffer) {
+        std::memcpy(input_buffer, buffer, length_);
+    }
 
     /// The implicit and explicit interfaces require a key() accessor.
     inline const Key &key() const {
@@ -289,6 +295,9 @@ public:
         if (value.size_ < sizeof(Value) + length_) {
             // Current value is too small for in-place update.
             value.gen_lock_.unlock(true);
+            /*std::cout << std::thread::id() << " " << (char *) key_.get() << " " << key_.size() << " " << sizeof(Value)
+                      << " " << value.value_ << " " << value.size() << " " << value.length() << " "
+                      << (char *) input_buffer << " " << sizeof(Value) + length_ << " " << length_ << std::endl;*/
             return false;
         }
         // In-place update overwrites length and buffer, but not size.
