@@ -373,8 +373,8 @@ public:
         return key_;
     }
 
-    inline void Put(Value &value) {
-        value.size_ = key_.size() + sizeof(Value) + output_length;
+    inline void set(Value &value) {
+        value.size_ = sizeof(Value) + output_length;
         value.length_ = output_length;
         value.value_ = new uint8_t[output_length];
         std::memcpy(value.value_, output_bytes, value.length_);
@@ -384,6 +384,7 @@ public:
         // All reads should be atomic (from the mutable tail).
         //ASSERT_TRUE(false);
         output_length = value.length_;
+        if (output_bytes != nullptr) delete[] output_bytes;
         output_bytes = new uint8_t[output_length];
         std::memcpy(output_bytes, value.value_, output_length);
     }
@@ -393,11 +394,12 @@ public:
         do {
             before = value.gen_lock_.load();
             output_length = value.length_;
+            if (output_bytes != nullptr) delete[] output_bytes;
             output_bytes = new uint8_t[output_length];
             std::memcpy(output_bytes, value.buffer(), output_length);
             do {
                 after = value.gen_lock_.load();
-            } while (after.locked || after.replaced);
+            } while (after.locked /*|| after.replaced*/);
         } while (before.gen_number != after.gen_number);
     }
 
