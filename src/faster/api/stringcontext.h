@@ -74,15 +74,10 @@ public:
 
     Key(Key const &key) {
         len_ = key.len_;
-        buf_ = new uint8_t[len_];
-        std::memcpy(buf_, key.buf_, len_);
+        buf_ = key.buf_;
     }
 
     ~Key() {
-        if (buf_ != nullptr) {
-            delete[] buf_;
-            buf_ = nullptr;
-        }
     }
 
     inline uint32_t size() const {
@@ -104,8 +99,8 @@ public:
     }
 
 private:
-    uint32_t len_;
-    uint8_t *buf_;
+    uint32_t len_ = 0;
+    uint8_t *buf_ = nullptr;
 };
 
 class UpsertContext;
@@ -221,6 +216,8 @@ public:
     uint8_t *get() {
         return buffer();
     }
+
+    uint32_t length() { return length_; }
 
     friend class UpsertContext;
 
@@ -370,12 +367,16 @@ public:
     inline void Put(Value &value) {
         value.size_ = key_.size() + sizeof(Value) + output_length;
         value.length_ = output_length;
-        value.value_ = output_bytes;
+        value.value_ = new uint8_t[output_length];
+        std::memcpy(value.value_, output_bytes, value.length_);
     }
 
     inline void Get(const Value &value) {
         // All reads should be atomic (from the mutable tail).
         //ASSERT_TRUE(false);
+        output_length = value.length_;
+        output_bytes = new uint8_t[output_length];
+        std::memcpy(output_bytes, value.value_, output_length);
     }
 
     inline void GetAtomic(const Value &value) {
@@ -400,9 +401,9 @@ protected:
 private:
     Key key_;
 public:
-    uint8_t output_length;
+    uint8_t output_length = 0;
     // Extract two bytes of output.
-    uint8_t *output_bytes;
+    uint8_t *output_bytes = nullptr;
 };
 }
 }
