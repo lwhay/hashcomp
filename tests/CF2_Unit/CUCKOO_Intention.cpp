@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
+#include <vector>
 #include <functional>
 #include <thread>
 #include "tracer.h"
@@ -66,14 +67,34 @@ constexpr uint64_t esize = 1024;
 constexpr uint64_t tsize = 32;
 constexpr uint64_t tries = 64;
 
+constexpr uint64_t key_range = 1000000000;
+constexpr uint64_t key_count = 100000000;
+constexpr uint64_t root_size = 100000000;
+
+typedef folly::ConcurrentHashMap<uint64_t, uint64_t> fmap;
+
+void printstat(fmap &store, uint64_t root_size) {
+    std::vector<std::pair<uint64_t, uint64_t >> cmparray;
+    for (uint64_t i = 0; i < root_size; i++) {
+        if (store.find(i) != store.end()) cmparray.push_back(std::make_pair(i, store.find(i)->second));
+    }
+    std::cout << "root: " << root_size << " volume: " << cmparray.size() << std::endl;
+    std::sort(cmparray.begin(), cmparray.end(),
+              [](std::pair<uint64_t, uint64_t> &a, std::pair<uint64_t, uint64_t> &b) { return b.second < a.second; });
+    for (int i = 0; i < cmparray.size(); i++) {
+        if (i < 1024 || i > (cmparray.size() / 32 * 32) - 1024) {
+            std::cout << cmparray[i].first << ":" << cmparray[i].second << " ";
+            if (i % 32 == 0) {
+                std::cout << std::endl << i / 32 << ":\t";
+            }
+        }
+    }
+}
+
 TEST(CUCKOOIntention, IntHashBalance) {
-    constexpr uint64_t key_range = 1000000000;
-    constexpr uint64_t key_count = 100000000;
-    constexpr uint64_t root_size = 10000000;
     constexpr double skew = 0;
     uint64_t *loads = new uint64_t[key_count];
     RandomGenerator<uint64_t>::generate(loads, key_range, key_count, skew);
-    typedef folly::ConcurrentHashMap<uint64_t, uint64_t> fmap;
     fmap store(root_size);
     for (int i = 0; i < key_count; i++) {
         uint64_t key = loads[i] % root_size;
@@ -82,6 +103,27 @@ TEST(CUCKOOIntention, IntHashBalance) {
         }
         store.assign(key, store.find(key)->second + 1);
     }
+    printstat(store, root_size);
+}
+
+uint64_t key_number = 100000000;
+
+TEST(CUCKOOIntention, StringHashBalance) {
+    ycsb::YCSBLoader loader("./tests/YCSBBench/load.dat", key_range);
+    std::vector<ycsb::YCSB_request *> loads = loader.load();
+    key_number = loader.size();
+    fmap store(root_size);
+    for (int i = 0; i < key_number; i++) {
+        uint64_t key =
+                MurmurHash64A(loads[i]->getKey(), std::strlen(loads[i]->getKey()), std::strlen(loads[i]->getKey())) %
+                root_size;
+
+        if (store.end() == store.find(key)) {
+            store.insert(key, 0);
+        }
+        store.assign(key, store.find(key)->second + 1);
+    }
+    printstat(store, root_size);
 }
 
 bool tableinsert(uint64_t *key, uint64_t *lefttable, uint64_t *righttable) {
