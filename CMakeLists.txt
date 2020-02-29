@@ -510,6 +510,7 @@ if (WITH_LIBCUCKOO)
     link_directories(${LIBCUCKOO_PREFIX}/src/libcukoo-build/)
 
     set(CUKOO_TEST
+            tests/CF2_Unit/CUCKOO_Intention.cpp
             tests/CF2_Unit/CUCKOO_Usage.cpp
             tests/Pure/CH_MicroTest.cpp)
 
@@ -620,7 +621,7 @@ if (WITH_FOLLY)
     link_directories(${FOLLY_PREFIX}/src/folly-build/)
 
     set(FOLLY_TEST
-            tests/CF2_Unit/CUCKOO_Intention.cpp
+            tests/CF2_Unit/Murmur3_Collision.cpp
             tests/CF2_Unit/Folly_Usage.cpp
             tests/Pure/OH_MicroTest.cpp)
 
