@@ -61,36 +61,54 @@ uint64_t MurmurHash64A(const void *key, int len, uint64_t seed) {
     return h;
 }
 
-constexpr uint64_t hashseedA = 151261303;
-constexpr uint64_t hashseedB = 6722461;
-constexpr uint64_t esize = 32;
+constexpr uint64_t esize = 10000000;
 constexpr double eta = 0.5;
+constexpr uint64_t dim = 2;
+constexpr uint64_t hashseeds[dim] = {15126133284972304873llu, 2398702347823893llu};
 constexpr uint64_t tsize = (uint64_t) ((1 + eta) * esize);
 constexpr uint64_t tries = 64;
+constexpr std::hash<uint64_t> hasher;
 
-bool tableinsert(uint64_t *key, uint64_t *lefttable, uint64_t *righttable) {
-    return true;
+bool tableinsert(uint64_t *key, uint64_t *hashtable, uint64_t seed) {
+    uint64_t hash = MurmurHash64A(key, std::strlen((char *) key), seed) % tsize;
+    //std::cout << hash << " ";
+    uint64_t tmp = *key;
+    *key = hashtable[hash];
+    hashtable[hash] = tmp;
+    return (*key == 0);
 }
 
 TEST(CUCKOOIntention, NaiveTest) {
     uint64_t *keys = new uint64_t[esize];
-    uint64_t *lefttable = new uint64_t[tsize];
-    uint64_t *righttable = new uint64_t[tsize];
+    uint64_t *twintables[dim];
+    twintables[0] = new uint64_t[tsize];
+    twintables[1] = new uint64_t[tsize];
     std::memset(keys, 0, esize * sizeof(uint64_t));
-    std::memset(lefttable, 0, tsize * sizeof(uint64_t));
-    std::memset(righttable, 0, tsize * sizeof(uint64_t));
+    std::memset(twintables[0], 0, tsize * sizeof(uint64_t));
+    std::memset(twintables[1], 0, tsize * sizeof(uint64_t));
+    uint64_t cache[dim];
+    std::memset(cache, 0, dim * sizeof(uint64_t));
     size_t totaltries = 0;
     for (int i = 0; i < esize; i++) {
+        keys[i] = i;
         uint64_t curkey = keys[i];
         uint64_t curtry = 0;
+        cache[0] = keys[i];
         do {
-            totaltries++;
-        } while (curtry < tries && !tableinsert(&curkey, lefttable, righttable));
+            curtry++;
+        } while (curtry < tries &&
+                 !tableinsert(cache, twintables[(curtry - 1) % dim], hashseeds[(curtry - 1) % dim]));
+        //std::cout << std::endl;
+#if 0
+        std::cout << i << " " << curkey << " " << curtry << " "
+                  << MurmurHash64A(&keys[i], std::strlen((char *) &keys[i]), hashseeds[0]) % tsize << std::endl;
+#endif
+        totaltries += curtry;
     }
-    delete[] lefttable;
-    delete[] righttable;
+    delete[] twintables[0];
+    delete[] twintables[1];
     delete[] keys;
-    std::cout << totaltries << std::endl;
+    std::cout << esize << " " << tsize << " " << totaltries << " " << esize * tries << std::endl;
 }
 
 int main(int argc, char **argv) {
