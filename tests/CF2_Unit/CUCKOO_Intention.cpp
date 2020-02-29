@@ -7,6 +7,8 @@
 #include <deque>
 #include <functional>
 #include <thread>
+#include "tracer.h"
+#include "folly/concurrency/ConcurrentHashMap.h"
 #include "gtest/gtest.h"
 
 #define BIG_CONSTANT(x) (x##LLU)
@@ -64,6 +66,23 @@ constexpr uint64_t esize = 1024;
 constexpr uint64_t tsize = 32;
 constexpr uint64_t tries = 64;
 
+TEST(CUCKOOIntention, IntHashBalance) {
+    constexpr uint64_t key_range = 1000000000;
+    constexpr uint64_t key_count = 100000000;
+    constexpr uint64_t root_size = 10000000;
+    constexpr double skew = 0;
+    uint64_t *loads = new uint64_t[key_count];
+    RandomGenerator<uint64_t>::generate(loads, key_range, key_count, skew);
+    typedef folly::ConcurrentHashMap<uint64_t, uint64_t> fmap;
+    fmap store(root_size);
+    for (int i = 0; i < key_count; i++) {
+        uint64_t key = loads[i] % root_size;
+        if (store.end() == store.find(key)) {
+            store.insert(key, 0);
+        }
+        store.assign(key, store.find(key)->second + 1);
+    }
+}
 
 bool tableinsert(uint64_t *key, uint64_t *lefttable, uint64_t *righttable) {
     return true;
