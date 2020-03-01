@@ -3,6 +3,7 @@
 //
 #include <algorithm>
 #include <iostream>
+#include <cstring>
 #include <vector>
 #include "tracer.h"
 
