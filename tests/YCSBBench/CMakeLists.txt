@@ -223,6 +223,7 @@ if (WITH_AWLMAP)
             )
 
     set(AWLMAP_YCSB_TEST
+            HasherComparison.cpp
             AH_YCSBTest.cpp
             AH_MicroBench.cpp)
 
