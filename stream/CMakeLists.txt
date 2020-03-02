@@ -34,9 +34,9 @@ if ((CMAKE_SYSTEM_NAME MATCHES "Linux") OR (CMAKE_SYSTEM_NAME MATCHES "Darwin"))
     endif ()
     find_package(Boost 1.50.0 REQUIRED COMPONENTS program_options date_time filesystem iostreams)
     include_directories(${Boost_INCLUDE_DIR})
-    if ((${Boost_VERSION} MATCHES "1.70.0") AND (CMAKE_SYSTEM_NAME MATCHES "Linux"))
-        set(BOOST_PSEUDO "-lboost_program_options -lboost_date_time -lboost_iostreams")
-    endif ()
+    #if ((${Boost_VERSION} VERSION_GREATER 1.70.0) AND (CMAKE_SYSTEM_NAME MATCHES "Linux"))
+    set(BOOST_PSEUDO "-lboost_program_options -lboost_date_time -lboost_iostreams")
+    #endif ()
 else ()
     message("Windows cygwin")
     set(CMAKE_C_COMPILER "gcc")
@@ -76,7 +76,7 @@ foreach (sourcefile ${STREAM_EFFICIENCYTEST})
             EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
             OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
             )
-    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${Boost_LIBRARIES} ${PTHREAD})
+    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${BOOST_PSEUDO} ${Boost_LIBRARIES} ${PTHREAD})
 endforeach (sourcefile ${STREAM_EFFICIENCYTEST})
 
 set(STREAM_UNITTEST
