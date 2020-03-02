@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <cstring>
+#include <unordered_set>
 #include <vector>
 #include "tracer.h"
 
@@ -67,14 +68,28 @@ int main(int argc, char **argv) {
     for (int i = 0; i < loader.size(); i++) {
         uint64_t hk = MurmurHash64A(loads[i]->getKey(), std::strlen(loads[i]->getKey()), 23423423234234234llu);
     }
-    std::cout << "MurHasher: " << tracer.getRunTime() << " with " << loader.size() << std::endl;
+    cout << "MurHasher: " << tracer.getRunTime() << " with " << loader.size() << endl;
 
     std::hash<std::string> hash;
     tracer.startTime();
     for (int i = 0; i < loader.size(); i++) {
         uint64_t hk = hash(loads[i]->getKey());
     }
-    std::cout << "STDHasher: " << tracer.getRunTime() << " with " << loader.size() << std::endl;
+    cout << "STDHasher: " << tracer.getRunTime() << " with " << loader.size() << endl;
+
+    std::unordered_set<uint64_t> murset;
+    tracer.startTime();
+    for (int i = 0; i < loader.size(); i++) {
+        murset.insert(MurmurHash64A(loads[i]->getKey(), std::strlen(loads[i]->getKey()), 23423423234234234llu));
+    }
+    cout << "MurHasher: " << tracer.getRunTime() << " with " << murset.size() << " out of " << loader.size() << endl;
+
+    std::unordered_set<uint64_t> stdset;
+    tracer.startTime();
+    for (int i = 0; i < loader.size(); i++) {
+        stdset.insert(hash(loads[i]->getKey()));
+    }
+    cout << "MurHasher: " << tracer.getRunTime() << " with " << stdset.size() << " out of " << loader.size() << endl;
 
     return 0;
 }
