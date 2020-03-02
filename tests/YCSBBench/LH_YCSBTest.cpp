@@ -7,6 +7,11 @@
 #include <stdlib.h>
 #include "level_hashing.h"
 
+/* Here, we introduce the following parameters instead of the default ones in level_hashing.h.
+ #define KEY_LEN 20
+ #define VALUE_LEN 32
+ * */
+
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
 #define DEFAULT_KEYS_RANGE (1 << 2)
@@ -113,7 +118,7 @@ void *measureWorker(void *args) {
              i < (work->tid + 1) * total_count / thread_number; i++) {
             switch (static_cast<int>(runs[i]->getOp())) {
                 case 0: {
-                    int ret = level_query(work->levelHash, (uint8_t *) runs[i], value);
+                    int ret = level_query(work->levelHash, (uint8_t *) runs[i]->getKey(), value);
                     if (ret == 0) rhit++;
                     else rfail++;
                     break;

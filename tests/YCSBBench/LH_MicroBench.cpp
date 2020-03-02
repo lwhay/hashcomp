@@ -6,6 +6,11 @@
 #include <stdlib.h>
 #include "level_hashing.h"
 
+/* Here, we introduce the following parameters instead of the default ones in level_hashing.h.
+ #define KEY_LEN 8
+ #define VALUE_LEN 8
+ * */
+
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
 #define DEFAULT_KEYS_RANGE (1 << 20)
