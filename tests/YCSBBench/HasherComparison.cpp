@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < loader.size(); i++) {
         stdset.insert(hash(loads[i]->getKey()));
     }
-    cout << "MurHasher: " << tracer.getRunTime() << " with " << stdset.size() << " out of " << loader.size() << endl;
+    cout << "STDHasher: " << tracer.getRunTime() << " with " << stdset.size() << " out of " << loader.size() << endl;
 
     return 0;
 }
