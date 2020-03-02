@@ -291,7 +291,7 @@ int main(int argc, char **argv) {
          << readPercentage << endl;
     loads = (uint8_t *) calloc(DEFAULT_KEY_LENGTH * total_count, sizeof(uint8_t));
     RandomGenerator<uint8_t>::generate(loads, DEFAULT_KEY_LENGTH, key_range, total_count, skew);
-    levelHash = level_init(level_calculate(root_capacity));
+    levelHash = level_init(level_calculate(root_capacity / 16));
     cout << "simple" << endl;
     simpleInsert();
     prepare();
