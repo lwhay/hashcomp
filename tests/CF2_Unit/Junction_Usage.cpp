@@ -84,6 +84,21 @@ TEST(JunctionTests, LeapfrogOperations) {
     junction::DefaultQSBR.destroyContext(context);
 }
 
+TEST(JunctionTests, LeapfrogExchangeOperations) {
+    junction::QSBR::Context context = junction::DefaultQSBR.createContext();
+    junction::ConcurrentMap_Leapfrog<uint64_t, Foo *> jmap(128);
+    jmap.exchange(1, new Foo(1));
+    auto v = jmap.get(1);
+    ASSERT_EQ(v->get(), 1);
+    jmap.exchange(111111111111llu, new Foo(1));
+    ASSERT_EQ(jmap.get(111111111111llu)->get(), 1);
+    jmap.exchange(1, new Foo(2));
+    jmap.find(1);
+    ASSERT_EQ(jmap.get(1)->get(), 2);
+    junction::DefaultQSBR.update(context);
+    junction::DefaultQSBR.destroyContext(context);
+}
+
 TEST(JunctionTests, GrampaOperations) {
     junction::QSBR::Context context = junction::DefaultQSBR.createContext();
     junction::ConcurrentMap_Grampa<int, Foo *> jmap(128);
