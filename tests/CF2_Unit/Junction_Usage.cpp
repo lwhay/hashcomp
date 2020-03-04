@@ -21,6 +21,33 @@ public:
     uint64_t get() { return value; }
 };
 
+TEST(JunctionTests, LeapfrogExchangeAndFind) {
+    junction::QSBR::Context context = junction::DefaultQSBR.createContext();
+    junction::ConcurrentMap_Leapfrog<uint64_t, uint64_t> jmap(128);
+    jmap.exchange(1, 1);
+    auto v = jmap.get(1);
+    ASSERT_EQ(v, 1);
+    jmap.exchange(1, 2);
+    jmap.find(1);
+    ASSERT_EQ(jmap.get(1), 2);
+    junction::DefaultQSBR.update(context);
+    junction::DefaultQSBR.destroyContext(context);
+}
+
+TEST(JunctionTests, LeapfrogAssignAndFind) {
+    junction::QSBR::Context context = junction::DefaultQSBR.createContext();
+    junction::ConcurrentMap_Leapfrog<uint64_t, uint64_t> jmap(128);
+    jmap.assign(1, 1);
+    auto v = jmap.get(1);
+    ASSERT_EQ(v, 1);
+    for (int i = 0; i < 100; i++) jmap.assign(1, 2);
+    jmap.exchange(1, 2);
+    jmap.find(1);
+    ASSERT_EQ(jmap.get(1), 2);
+    junction::DefaultQSBR.update(context);
+    junction::DefaultQSBR.destroyContext(context);
+}
+
 TEST(JunctionTests, LeapfrogOperations) {
     junction::QSBR::Context context = junction::DefaultQSBR.createContext();
     junction::ConcurrentMap_Leapfrog<uint64_t, Foo *> jmap(128);
