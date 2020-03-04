@@ -21,6 +21,29 @@ public:
     uint64_t get() { return value; }
 };
 
+/*template<typename Key, typename Value>
+class FooAccess {
+    Key key;
+    Value value;
+public:
+    constexpr static Key NullKey = Key(0);
+
+    FooAccess(Key k, Value v) : key(k), value(v) {}
+};
+
+TEST(JunctionTests, LeapfrogPtrOperations) {
+    junction::QSBR::Context context = junction::DefaultQSBR.createContext();
+    junction::ConcurrentMap_Leapfrog<Foo *, Foo *> jmap(128);
+    jmap.assign(new Foo(1), new Foo(1));
+    auto v = jmap.get(new Foo(1));
+    ASSERT_EQ(v->get(), 1);
+    jmap.exchange(new Foo(1), new Foo(2));
+    jmap.find(new Foo(1));
+    ASSERT_EQ(jmap.get(new Foo(1))->get(), 2);
+    junction::DefaultQSBR.update(context);
+    junction::DefaultQSBR.destroyContext(context);
+}*/
+
 TEST(JunctionTests, LeapfrogExchangeAndFind) {
     junction::QSBR::Context context = junction::DefaultQSBR.createContext();
     junction::ConcurrentMap_Leapfrog<uint64_t, uint64_t> jmap(128);
@@ -73,7 +96,6 @@ TEST(JunctionTests, GrampaOperations) {
     junction::DefaultQSBR.update(context);
     junction::DefaultQSBR.destroyContext(context);
 }
-
 
 TEST(JunctionTests, StringTest) {
     /*junction::ConcurrentMap_Leapfrog<std::string, std::string> map;

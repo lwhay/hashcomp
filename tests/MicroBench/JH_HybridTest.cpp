@@ -10,7 +10,6 @@
 #include <unordered_set>
 #include "tracer.h"
 #include "concurrent_hash_map.h"
-#include "junction/ConcurrentMap_Leapfrog.h"
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
@@ -29,7 +28,29 @@ public:
     uint64_t get() { return value; }
 };
 
+#define JTYPE 0
+
+#if JTYPE == 0
+
+#include "junction/ConcurrentMap_Leapfrog.h"
+
 typedef junction::ConcurrentMap_Leapfrog<uint64_t, uint64_t> maptype;
+#elif JTYPE == 1
+
+#include "junction/ConcurrentMap_Grampa.h"
+
+typedef junction::ConcurrentMap_Grampa<uint64_t, uint64_t> maptype;
+#elif JTYPE == 2
+
+#include "junction/ConcurrentMap_Crude.h"
+
+typedef junction::ConcurrentMap_Crude<uint64_t, uint64_t> maptype;
+#else
+
+#include "junction/ConcurrentMap_Linear.h"
+
+typedef junction::ConcurrentMap_Linear<uint64_t, uint64_t> maptype;
+#endif
 
 maptype *store;
 
