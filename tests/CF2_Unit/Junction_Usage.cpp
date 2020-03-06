@@ -84,59 +84,95 @@ TEST(JunctionTests, LeapfrogAssignAndFind) {
 
 TEST(JunctionTests, SingleWriterMultiReadersTest) {
     const size_t total_number = (1llu << 20);
-    const size_t thread_count = 8;
+    const size_t thread_count = 2;
+    const size_t total_round = (1 << 4);
     typedef junction::ConcurrentMap_Leapfrog<uint64_t, Foo *> maptype;
     Tracer tracer;
     tracer.startTime();
     maptype jmap(total_number * 2);
     std::cout << "Initialized: " << tracer.getRunTime() << std::endl;
-    tracer.startTime();
-    std::vector<std::thread> writers;
-    for (uint64_t t = 0; t < thread_count; t++) {
-        writers.push_back(std::thread([](maptype &map, uint64_t tid) {
-            for (uint64_t i = tid; i < total_number; i += thread_count) {
-                map.exchange(i, new Foo(i));
-            }
-        }, std::ref(jmap), t));
-    }
-    for (uint64_t t = 0; t < thread_count; t++) writers[t].join();
-    std::cout << "Insertround: " << tracer.getRunTime() << std::endl;
-    tracer.startTime();
-    std::atomic<bool> stop{false};
-    std::vector<std::thread> readers;
-    std::vector<std::thread> erasers;
-    for (uint64_t t = 0; t < thread_count; t++) {
-        readers.push_back(std::thread([](maptype &map, std::atomic<bool> &signal) {
-            double total = .0;
-            while (!signal.load()) {
-                for (int i = 0; i < total_number; i++) {
-                    Foo *ret = map.get(i);
-                    if (ret != nullptr) total += ret->get();
-                    //total += map.get(i)->get();
+    for (int r = 0; r < total_round; r++) {
+        std::cout << "Round: " << r << std::endl;
+        tracer.startTime();
+        std::vector<std::thread> writers;
+        for (uint64_t t = 0; t < thread_count; t++) {
+            writers.push_back(std::thread([](maptype &map, uint64_t tid) {
+                for (uint64_t i = tid; i < total_number; i += thread_count) {
+                    map.exchange(i, new Foo(i));
                 }
+            }, std::ref(jmap), t));
+        }
+        for (uint64_t t = 0; t < thread_count; t++) writers[t].join();
+        std::cout << "\tInsertround: " << tracer.getRunTime() << std::endl;
+        tracer.startTime();
+        std::atomic<bool> stop{false};
+        std::atomic<uint64_t> indicator{0};
+        std::vector<std::thread> readers;
+        std::vector<std::thread> erasers;
+        for (uint64_t t = 0; t < thread_count; t++) {
+            readers.push_back(std::thread(
+                    [](maptype &map, uint64_t tid, std::atomic<bool> &signal, std::atomic<uint64_t> &indicator) {
+                        double total = .0;
+                        while (!signal.load()) {
+                            for (int i = 0; i < total_number; i++) {
+                                Foo *ret = map.get(i);
+                                if (ret != nullptr) total += ret->get();
+                                //total += map.get(i)->get();
+                            }
+                        }
+                        indicator.fetch_or(1llu << tid);
+                    }, std::ref(jmap), t, std::ref(stop), std::ref(indicator)));
+        }
+        //double total = .0;
+        for (uint64_t t = 0; t < thread_count; t++) {
+            erasers.push_back(std::thread([](maptype &map, uint64_t tid, std::atomic<uint64_t> &indicator) {
+                for (uint64_t i = tid; i < total_number; i += thread_count) {
+                    delete map.erase(i);
+                }
+                indicator.fetch_or(1llu << (thread_count + tid));
+            }, std::ref(jmap), t, std::ref(indicator)));
+        }
+
+        uint64_t oldstatus = ((1llu << (2 * thread_count)) - 1) - ((1llu << (thread_count)) - 1);
+        while (true) {
+            uint64_t newstatus = indicator.load();
+            if (newstatus != oldstatus) {
+                oldstatus = oldstatus xor newstatus;
+                for (int i = 0; i < thread_count; i++)
+                    if (oldstatus and (1llu << (thread_count + i)) != 0) {
+                        erasers[i].join();
+                        std::cout << "\t\t" << "E" << i << " joint " << newstatus << std::endl;
+                    }
+                oldstatus = newstatus;
+
+                if (newstatus == 0) break;
             }
-        }, std::ref(jmap), std::ref(stop)));
-    }
-    //double total = .0;
-    for (uint64_t t = 0; t < thread_count; t++) {
-        erasers.push_back(std::thread([](maptype &map, uint64_t tid) {
-            for (uint64_t i = tid; i < total_number; i += thread_count) {
-                delete map.erase(i);
+            std::this_thread::sleep_for(100ms);
+        }
+
+        stop.store(true);
+
+        oldstatus = (1llu << (thread_count)) - 1;
+        while (true) {
+            uint64_t newstatus = (indicator.load() & ((1llu << (thread_count)) - 1));
+            if (newstatus != oldstatus) {
+                oldstatus = oldstatus xor newstatus;
+                for (int i = 0; i < thread_count; i++)
+                    if (oldstatus and (1llu << i) != 0) {
+                        readers[i].join();
+                        std::cout << "\t\t" << "R" << i << " joint " << newstatus << std::endl;
+                    }
+                oldstatus = newstatus;
+
+                if (newstatus == 0) break;
             }
-        }, std::ref(jmap), t));
+            std::this_thread::sleep_for(100ms);
+        }
+        /*for (uint64_t t = 0; t < thread_count; t++) {
+            readers[t].join();
+        }*/
+        std::cout << "\tOperateround: " << tracer.getRunTime() << std::endl;
     }
-    for (uint64_t t = 0; t < thread_count; t++) {
-        erasers[t].join();
-    }
-    /*for (uint64_t i = 0; i < total_number; i++) {
-        delete jmap.erase(i);
-        //total += jmap.get(i)->get();
-    }*/
-    stop.store(true);
-    for (uint64_t t = 0; t < thread_count; t++) {
-        readers[t].join();
-    }
-    std::cout << "Operateround: " << tracer.getRunTime() << std::endl;
 }
 
 TEST(JunctionTests, LeapfrogOperations) {
