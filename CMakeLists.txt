@@ -161,6 +161,7 @@ endif ()
 option(WITH_MH_TESTS "build with multi-level hash tests " ON)
 if (WITH_MH_TESTS)
     set(MH_TEST
+            tests/CF2_Unit/Faster_Epoch.cpp
             tests/MH_Unit/MH_dummy_test.cpp
             tests/MH_Unit/MH_MaskRWPtr_test.cpp
             tests/MH_Efficiency/AtomicMaskByteTest.cpp

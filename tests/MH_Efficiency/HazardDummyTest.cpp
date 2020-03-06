@@ -13,6 +13,7 @@
 #include "wrapper_epoch.h"
 #include "batch_hazard.h"
 #include "brown_hazard.h"
+#include "faster_epoch.h"
 #include "tracer.h"
 
 #define high_intensive 0
@@ -116,6 +117,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             else
 #endif
             if (hash_freent == 6) ptr = ((brown_hazard<node> *) deallocator)->allocate(tid);
+            else if (hash_freent == 7) ptr = ((faster_epoch<node> *) deallocator)->allocate();
             else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
             ptr->value = 1;
@@ -200,6 +202,10 @@ int main(int argc, char **argv) {
         }
         case 6: {
             deallocator = new brown_hazard<node>(thrd_number);
+            break;
+        }
+        case 7: {
+            deallocator = new faster_epoch<node>();
             break;
         }
         default: {
