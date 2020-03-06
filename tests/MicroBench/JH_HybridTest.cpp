@@ -116,7 +116,7 @@ void *insertWorker(void *args) {
     uint64_t inserted = 0;
     for (int i = 0; i < total_count; i++) {
         bool ret = false;
-        while (!ret) ret = store->assign(loads[i], loads[i]);
+        while (!ret) ret = store->exchange(loads[i], loads[i]);
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
