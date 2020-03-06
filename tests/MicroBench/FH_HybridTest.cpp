@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include "tracer.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,10 @@
 #if CONTEXT_TYPE == 0
 
 #include "kvcontext.h"
+
+#elif CONTEXT_TYPE == 1
+
+#include "kvcontext_full.h"
 
 #elif CONTEXT_TYPE == 2
 
@@ -23,6 +28,7 @@
 //#define DEFAULT_KEY_LENGTH 8
 
 using namespace FASTER::api;
+using namespace std;
 
 #ifdef _WIN32
 typedef hreadPoolIoHandler handler_t;
@@ -93,7 +99,7 @@ void simpleInsert() {
         auto callback = [](IAsyncContext *ctxt, Status result) {
             CallbackContext<UpsertContext> context{ctxt};
         };
-#if CONTEXT_TYPE == 0
+#if CONTEXT_TYPE == 0 || CONTEXT_TYPE == 1
         UpsertContext context{loads[i], loads[i]};
 #elif CONTEXT_TYPE == 2
         UpsertContext context(loads[i], 8);
@@ -112,7 +118,7 @@ void *insertWorker(void *args) {
         auto callback = [](IAsyncContext *ctxt, Status result) {
             CallbackContext<UpsertContext> context{ctxt};
         };
-#if CONTEXT_TYPE == 0
+#if CONTEXT_TYPE == 0 || CONTEXT_TYPE == 1
         UpsertContext context{loads[i], loads[i]};
 #elif CONTEXT_TYPE == 2
         UpsertContext context(loads[i], 8);
@@ -145,11 +151,11 @@ void *measureWorker(void *args) {
                 auto callback = [](IAsyncContext *ctxt, Status result) {
                     CallbackContext<UpsertContext> context{ctxt};
                 };
-#if CONTEXT_TYPE == 0
+#if CONTEXT_TYPE == 0 || CONTEXT_TYPE == 1
                 UpsertContext context{loads[i], loads[i]};
 #elif CONTEXT_TYPE == 2
                 UpsertContext context(loads[i], 8);
-            context.reset((uint8_t *) (content + i));
+                context.reset((uint8_t *) (content + i));
 #endif
                 Status stat = store->Upsert(context, callback, 1);
                 if (stat == Status::NotFound)
@@ -163,11 +169,11 @@ void *measureWorker(void *args) {
                     auto callback = [](IAsyncContext *ctxt, Status result) {
                         CallbackContext<UpsertContext> context{ctxt};
                     };
-#if CONTEXT_TYPE == 0
+#if CONTEXT_TYPE == 0 || CONTEXT_TYPE == 1
                     UpsertContext context{key, key};
 #elif CONTEXT_TYPE == 2
                     UpsertContext context(key, 8);
-            context.reset((uint8_t *) (content + i));
+                    context.reset((uint8_t *) (content + i));
 #endif
                     Status stat = store->Upsert(context, callback, 1);
                     ret = (stat == Status::Ok);
@@ -176,11 +182,11 @@ void *measureWorker(void *args) {
                     auto callback = [](IAsyncContext *ctxt, Status result) {
                         CallbackContext<DeleteContext> context{ctxt};
                     };
-#if CONTEXT_TYPE == 0
+#if CONTEXT_TYPE == 0 || CONTEXT_TYPE == 1
                     DeleteContext context{key};
 #elif CONTEXT_TYPE == 2
                     DeleteContext context(key);
-            context.reset((uint8_t *) (content + i));
+                    context.reset((uint8_t *) (content + i));
 #endif
                     Status stat = store->Delete(context, callback, 1);
                     ret = (stat == Status::Ok);
@@ -195,7 +201,7 @@ void *measureWorker(void *args) {
                     CallbackContext<ReadContext> context{ctxt};
                 };
 
-#if CONTEXT_TYPE == 0
+#if CONTEXT_TYPE == 0 || CONTEXT_TYPE == 1
                 ReadContext context{loads[i]};
 
                 Status result = store->Read(context, callback, 1);
@@ -206,11 +212,11 @@ void *measureWorker(void *args) {
 #elif CONTEXT_TYPE == 2
                 ReadContext context(loads[i]);
 
-            Status result = store->Read(context, callback, 1);
-            if (result == Status::Ok && *(uint64_t *) (context.output_bytes) == total_count - loads[i])
-                rhit++;
-            else
-                rfail++;
+                Status result = store->Read(context, callback, 1);
+                if (result == Status::Ok && *(uint64_t *) (context.output_bytes) == total_count - loads[i])
+                    rhit++;
+                else
+                    rfail++;
 #endif
             }
             if (evenRound++ % 2 == 0) ereased = 0;
