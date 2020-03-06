@@ -56,7 +56,7 @@ uint64_t timer_range = default_timer_range;
 
 int thread_number = DEFAULT_THREAD_NUM;
 
-int key_range = DEFAULT_KEYS_RANGE;
+size_t key_range = DEFAULT_KEYS_RANGE;
 
 double skew = 0.0;
 
@@ -153,8 +153,8 @@ void *measureWorker(void *args) {
                                                        string((char *) &loads[i], UNIT_SIZE));
                     if (ret.first->second.compare(string((char *) &loads[i], UNIT_SIZE)) == 0) mhit++;
 #else
-                        auto ret = store->insert_or_assign((char *) &loads[i], (char *) &loads[i]);
-                        if (std::strcmp(ret.first->second, (char *) &loads[i]) == 0) mhit++;
+                    auto ret = store->insert_or_assign((char *) &loads[i], (char *) &loads[i]);
+                    if (std::strcmp(ret.first->second, (char *) &loads[i]) == 0) mhit++;
 #endif
                     else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
@@ -189,8 +189,8 @@ void *measureWorker(void *args) {
                     string value = store->find(string((char *) &loads[i], UNIT_SIZE))->second;
                     if (value.compare(string((char *) &loads[i], UNIT_SIZE)) == 0) rhit++;
 #else
-                        char *value = store->find((char *) &loads[i])->second;
-                        if (std::strcmp(value, (char *) &loads[i]) == 0) rhit++;
+                    char *value = store->find((char *) &loads[i])->second;
+                    if (std::strcmp(value, (char *) &loads[i]) == 0) rhit++;
 #endif
                     else rfail++;
                 }

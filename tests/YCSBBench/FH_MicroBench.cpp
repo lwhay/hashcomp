@@ -50,7 +50,7 @@ int root_capacity = (1 << 16);
 
 int thread_number = DEFAULT_THREAD_NUM;
 
-int key_range = DEFAULT_KEYS_RANGE;
+size_t key_range = DEFAULT_KEYS_RANGE;
 
 stringstream *output;
 
