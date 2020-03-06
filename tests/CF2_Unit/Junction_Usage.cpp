@@ -91,14 +91,20 @@ TEST(JunctionTests, SingleWriterMultiReadersTest) {
     maptype jmap(total_number * 2);
     std::cout << "Initialized: " << tracer.getRunTime() << std::endl;
     tracer.startTime();
-    for (uint64_t i = 0; i < total_number; i++) {
-        jmap.exchange(i, new Foo(i));
-        //std::cout << i << endl;
+    std::vector<std::thread> writers;
+    for (uint64_t t = 0; t < thread_count; t++) {
+        writers.push_back(std::thread([](maptype &map, uint64_t tid) {
+            for (uint64_t i = tid; i < total_number; i += thread_count) {
+                map.exchange(i, new Foo(i));
+            }
+        }, std::ref(jmap), t));
     }
+    for (uint64_t t = 0; t < thread_count; t++) writers[t].join();
     std::cout << "Insertround: " << tracer.getRunTime() << std::endl;
     tracer.startTime();
     std::atomic<bool> stop{false};
     std::vector<std::thread> readers;
+    std::vector<std::thread> erasers;
     for (uint64_t t = 0; t < thread_count; t++) {
         readers.push_back(std::thread([](maptype &map, std::atomic<bool> &signal) {
             double total = .0;
@@ -111,13 +117,23 @@ TEST(JunctionTests, SingleWriterMultiReadersTest) {
             }
         }, std::ref(jmap), std::ref(stop)));
     }
-    double total = .0;
-    for (uint64_t i = 0; i < total_number; i++) {
+    //double total = .0;
+    for (uint64_t t = 0; t < thread_count; t++) {
+        erasers.push_back(std::thread([](maptype &map, uint64_t tid) {
+            for (uint64_t i = tid; i < total_number; i += thread_count) {
+                delete map.erase(i);
+            }
+        }, std::ref(jmap), t));
+    }
+    /*for (uint64_t i = 0; i < total_number; i++) {
         delete jmap.erase(i);
         //total += jmap.get(i)->get();
-    }
+    }*/
     stop.store(true);
-    for (uint64_t t = 0; t < thread_count; t++) readers[t].join();
+    for (uint64_t t = 0; t < thread_count; t++) {
+        readers[t].join();
+        erasers[t].join();
+    }
     std::cout << "Operateround: " << tracer.getRunTime() << std::endl;
 }
 
