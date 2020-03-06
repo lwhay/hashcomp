@@ -219,6 +219,8 @@ private:
     }
 };*/
 
+static thread_local size_t conflict_counter = 0;
+
 class UpsertContext : public IAsyncContext {
 public:
     typedef Key key_t;
@@ -247,6 +249,7 @@ public:
         bool replaced;
         while (!value.gen_lock_.try_lock(replaced) && !replaced) {
             std::this_thread::yield();
+            conflict_counter++;
         }
         if (replaced) {
             // Some other thread replaced this record.
@@ -257,6 +260,8 @@ public:
         value.gen_lock_.unlock(false);
         return true;
     }
+
+    static size_t Conflict() { return conflict_counter; }
 
 protected:
     /// The explicit interface requires a DeepCopy_Internal() implementation.
