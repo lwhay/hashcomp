@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
             break;
         }
         case 7: {
-            deallocator = new faster_epoch<node>();
+            deallocator = new faster_epoch<node>(thrd_number);
             break;
         }
         default: {
