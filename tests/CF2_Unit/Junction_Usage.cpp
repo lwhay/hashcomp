@@ -6,8 +6,10 @@
 #include <string>
 #include <cstring>
 #include <deque>
+#include <vector>
 #include <functional>
 #include <thread>
+#include "tracer.h"
 #include "gtest/gtest.h"
 #include "junction/QSBR.h"
 #include "junction/ConcurrentMap_Leapfrog.h"
@@ -78,6 +80,45 @@ TEST(JunctionTests, LeapfrogAssignAndFind) {
     ASSERT_EQ(jmap.get(1)->get(), 2);
     junction::DefaultQSBR.update(context);
     junction::DefaultQSBR.destroyContext(context);
+}
+
+TEST(JunctionTests, SingleWriterMultiReadersTest) {
+    const size_t total_number = (1llu << 20);
+    const size_t thread_count = 8;
+    typedef junction::ConcurrentMap_Leapfrog<uint64_t, Foo *> maptype;
+    Tracer tracer;
+    tracer.startTime();
+    maptype jmap(total_number * 2);
+    std::cout << "Initialized: " << tracer.getRunTime() << std::endl;
+    tracer.startTime();
+    for (uint64_t i = 0; i < total_number; i++) {
+        jmap.exchange(i, new Foo(i));
+        //std::cout << i << endl;
+    }
+    std::cout << "Insertround: " << tracer.getRunTime() << std::endl;
+    tracer.startTime();
+    std::atomic<bool> stop{false};
+    std::vector<std::thread> readers;
+    for (uint64_t t = 0; t < thread_count; t++) {
+        readers.push_back(std::thread([](maptype &map, std::atomic<bool> &signal) {
+            double total = .0;
+            while (!signal.load()) {
+                for (int i = 0; i < total_number; i++) {
+                    Foo *ret = map.get(i);
+                    if (ret != nullptr) total += ret->get();
+                    //total += map.get(i)->get();
+                }
+            }
+        }, std::ref(jmap), std::ref(stop)));
+    }
+    double total = .0;
+    for (uint64_t i = 0; i < total_number; i++) {
+        delete jmap.erase(i);
+        //total += jmap.get(i)->get();
+    }
+    stop.store(true);
+    for (uint64_t t = 0; t < thread_count; t++) readers[t].join();
+    std::cout << "Operateround: " << tracer.getRunTime() << std::endl;
 }
 
 TEST(JunctionTests, LeapfrogOperations) {
