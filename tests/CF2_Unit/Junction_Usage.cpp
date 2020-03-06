@@ -116,7 +116,7 @@ TEST(JunctionTests, SingleWriterMultiReadersTest) {
                         while (!signal.load()) {
                             for (int i = 0; i < total_number; i++) {
                                 Foo *ret = map.get(i);
-                                if (ret != nullptr) total += ret->get();
+                                if (ret != nullptr) for (int k = 0; k < 100; k++) total += ret->get();
                                 //total += map.get(i)->get();
                             }
                         }
