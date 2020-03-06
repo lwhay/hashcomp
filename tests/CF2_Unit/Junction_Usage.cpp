@@ -150,6 +150,7 @@ TEST(JunctionTests, SingleWriterMultiReadersTest) {
             std::this_thread::sleep_for(100ms);
         }
 
+        std::cout << "\tStoppinground: " << tracer.fetchTime() << std::endl;
         stop.store(true);
 
         oldstatus = (1llu << (thread_count)) - 1;
