@@ -46,27 +46,36 @@ TEST(JunctionTests, LeapfrogPtrOperations) {
 
 TEST(JunctionTests, LeapfrogExchangeAndFind) {
     junction::QSBR::Context context = junction::DefaultQSBR.createContext();
-    junction::ConcurrentMap_Leapfrog<uint64_t, uint64_t> jmap(128);
-    jmap.exchange(1, 1);
+    junction::ConcurrentMap_Leapfrog<uint64_t, Foo *> jmap(128);
+    ASSERT_EQ(sizeof(Foo), sizeof(uint64_t));
+    uint64_t i = 1;
+    jmap.exchange(1, (Foo *) &i);
     auto v = jmap.get(1);
-    ASSERT_EQ(v, 1);
-    jmap.exchange(1, 2);
+    ASSERT_EQ(v->get(), 1);
+    i = 2;
+    jmap.exchange(1, (Foo *) &i);
     jmap.find(1);
-    ASSERT_EQ(jmap.get(1), 2);
+    ASSERT_EQ(jmap.get(1)->get(), 2);
     junction::DefaultQSBR.update(context);
     junction::DefaultQSBR.destroyContext(context);
 }
 
 TEST(JunctionTests, LeapfrogAssignAndFind) {
     junction::QSBR::Context context = junction::DefaultQSBR.createContext();
-    junction::ConcurrentMap_Leapfrog<uint64_t, uint64_t> jmap(128);
-    jmap.assign(1, 1);
+    junction::ConcurrentMap_Leapfrog<uint64_t, Foo *> jmap(128);
+    uint64_t i = 1;
+    jmap.assign(1, (Foo *) &i);
     auto v = jmap.get(1);
-    ASSERT_EQ(v, 1);
-    for (int i = 0; i < 100; i++) jmap.assign(1, 2);
-    jmap.exchange(1, 2);
+    ASSERT_EQ(v->get(), 1);
+    for (int t = 0; t < 100; t++) {
+        i = t;
+        jmap.assign(1, (Foo *) &i);
+        ASSERT_EQ(jmap.get(1)->get(), t);
+    }
+    i = 2;
+    jmap.exchange(1, (Foo *) &i);
     jmap.find(1);
-    ASSERT_EQ(jmap.get(1), 2);
+    ASSERT_EQ(jmap.get(1)->get(), 2);
     junction::DefaultQSBR.update(context);
     junction::DefaultQSBR.destroyContext(context);
 }
