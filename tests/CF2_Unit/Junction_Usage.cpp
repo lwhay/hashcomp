@@ -125,6 +125,9 @@ TEST(JunctionTests, SingleWriterMultiReadersTest) {
             }
         }, std::ref(jmap), t));
     }
+    for (uint64_t t = 0; t < thread_count; t++) {
+        erasers[t].join();
+    }
     /*for (uint64_t i = 0; i < total_number; i++) {
         delete jmap.erase(i);
         //total += jmap.get(i)->get();
@@ -132,7 +135,6 @@ TEST(JunctionTests, SingleWriterMultiReadersTest) {
     stop.store(true);
     for (uint64_t t = 0; t < thread_count; t++) {
         readers[t].join();
-        erasers[t].join();
     }
     std::cout << "Operateround: " << tracer.getRunTime() << std::endl;
 }
