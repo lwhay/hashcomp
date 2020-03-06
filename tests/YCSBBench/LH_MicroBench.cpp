@@ -137,7 +137,7 @@ void *measureWorker(void *args) {
             } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                 int ret;
                 if (evenRound % 2 == 0) {
-                    uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
+                    uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
                     /*std::memcpy(Key, &key, sizeof(uint64_t));
                     std::memcpy(Val, &key, sizeof(uint64_t));*/
                     std::memset(Key, '0', sizeof(uint64_t));
@@ -145,7 +145,7 @@ void *measureWorker(void *args) {
                     std::memcpy(Val, Key, sizeof(uint64_t));
                     ret = level_insert(work->levelHash, (uint8_t *) Key, (uint8_t *) Val);
                 } else {
-                    uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
+                    uint64_t key = thread_number * ereased++ + work->tid + (evenRound / 2 + 1) * key_range;
                     std::memset(Key, '0', sizeof(uint64_t));
                     std::sprintf(Key, "%llu", key);
                     level_delete(work->levelHash, (uint8_t *) Key);

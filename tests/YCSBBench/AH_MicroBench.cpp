@@ -158,7 +158,7 @@ void *measureWorker(void *args) {
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     bool ret;
                     if (evenRound % 2 == 0) {
-                        uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
+                        uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
 #if WITH_STRING == 1
                         ret = store->Insert(Slice(string((char *) &key)), Slice(string((char *) &key)));
 #elif WITH_STRING == 2
@@ -168,7 +168,7 @@ void *measureWorker(void *args) {
                         ret = store->Insert(Slice((char *) &key, 8), Slice((char *) &key, 8));
 #endif
                     } else {
-                        uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
+                        uint64_t key = thread_number * ereased++ + work->tid + (evenRound / 2 + 1) * key_range;
 #if WITH_STRING == 1
                         ret = store->Delete(Slice(string((char *) &key)), &dummyVal);
 #elif WITH_STRING == 2

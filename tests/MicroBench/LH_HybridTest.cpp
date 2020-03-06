@@ -212,13 +212,13 @@ void *measureWorker(void *args) {
             } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                 int ret;
                 if (evenRound % 2 == 0) {
-                    uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
+                    uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
                     std::memset(newkey, '0', DEFAULT_KEY_LENGTH);
                     std::sprintf(newkey, "%llu", key);
                     std::memcpy(newvalue, newkey, DEFAULT_KEY_LENGTH);
                     ret = level_insert(work->levelHash, (uint8_t *) newkey, (uint8_t *) newvalue);
                 } else {
-                    uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
+                    uint64_t key = thread_number * ereased++ + work->tid + (evenRound / 2 + 1) * key_range;
                     std::memset(newkey, '0', DEFAULT_KEY_LENGTH);
                     std::sprintf(newkey, "%llu", key);
                     level_delete(work->levelHash, (uint8_t *) newkey);

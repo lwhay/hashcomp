@@ -115,13 +115,13 @@ void *measureWorker(void *args) {
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     bool ret = false;
                     if (evenRound % 2 == 0) {
-                        uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
+                        uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
                         ret = store->assign((turf::uptr) &key, (turf::uptr) &key);
 #ifdef JUNCTION_DEBUG
                         assert((uint64_t *) store->get((turf::uptr) &key) == &key);
 #endif
                     } else {
-                        uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
+                        uint64_t key = thread_number * ereased++ + work->tid + (evenRound / 2 + 1) * key_range;
                         /*while (!ret) */
                         //Here the address of key is not what we have ingested in line 118.
                         ret = store->erase((turf::uptr) &key);

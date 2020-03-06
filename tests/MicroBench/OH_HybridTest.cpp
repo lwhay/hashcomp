@@ -132,12 +132,12 @@ void *measureWorker(void *args) {
                     else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
                     if (evenRound % 2 == 0) {
-                        uint64_t key = inserts++ + (work->tid + 1) * key_range + evenRound / 2;
+                        uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
                         auto ret = store->insert(key, key);
                         if (ret.second) mhit++;
                         else mfail++;
                     } else {
-                        uint64_t key = ereased++ + (work->tid + 1) * key_range + evenRound / 2;
+                        uint64_t key = thread_number * ereased++ + work->tid + (evenRound / 2 + 1) * key_range;
                         auto ret = store->erase(key);
                         if (ret == sizeof(uint8_t)) mhit++;
                         else mfail++;
