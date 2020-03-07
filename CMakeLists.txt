@@ -12,6 +12,10 @@ else ()
     set(CMAKE_CXX_STANDARD 11)
 endif ()
 
+set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     enable_testing()
     find_package(gtest REQUIRED)
