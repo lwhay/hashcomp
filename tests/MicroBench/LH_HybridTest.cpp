@@ -91,7 +91,7 @@ void restart() {
     cout << "\tdestroy" << endl;
     level_destroy(levelHash);
     cout << "\treinit" << endl;
-    levelHash = level_init(level_calculate(key_range));
+    levelHash = level_init(level_calculate(level_calculate(root_capacity / 16)));
     for (int i = 0; i < thread_number; i++) {
         parms[i].levelHash = levelHash;
     }

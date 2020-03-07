@@ -79,7 +79,7 @@ void simpleInsert() {
         set.insert(loads[i]);
         inserted++;
     }
-    cout << inserted << " " << tracer.getRunTime() << endl;
+    cout << inserted << " " << tracer.getRunTime() << " " << set.size() << endl;
 }
 
 void *insertWorker(void *args) {
