@@ -138,16 +138,55 @@ pthread_t *workers;
 
 struct target *parms;
 
+#define HASH_VERIFY 1
+
+#if HASH_VERIFY == 1
+
+#include <algorithm>
+#include <unordered_map>
+
+#endif
+
 void simpleInsert() {
     Tracer tracer;
     tracer.startTime();
     int inserted = 0;
     unordered_set<uint64_t> set;
+#if HASH_VERIFY == 1
+    unordered_map<uint64_t, uint64_t> spemap;
+    unordered_map<uint64_t, uint64_t> stdmap;
+    std::hash<uint64_t> stdhash;
+    MyHash spehash;
+#endif
     for (int i = 0; i < total_count; i++) {
         store->Insert(loads[i], loads[i]/*new Value(loads[i])*/);
         set.insert(loads[i]);
         inserted++;
+#if HASH_VERIFY == 1
+        uint64_t stdhk = stdhash(loads[i]);
+        uint64_t spehk = spehash(loads[i]);
+        if (spemap.find(spehk) == spemap.end()) spemap.insert(std::make_pair(spehk, 0));
+        if (stdmap.find(stdhk) == stdmap.end()) stdmap.insert(std::make_pair(stdhk, 0));
+        spemap.find(spehk)->second++;
+        stdmap.find(stdhk)->second++;
+#endif
     }
+#if HASH_VERIFY == 1
+    std::vector<std::pair<uint64_t, uint64_t >> stdvector;
+    for (auto &e: stdmap) stdvector.push_back(e);
+    sort(stdvector.begin(), stdvector.end(),
+         [=](pair<uint64_t, uint64_t> &a, pair<uint64_t, uint64_t> &b) { return b.second < a.second; });
+
+    std::vector<std::pair<uint64_t, uint64_t >> spevector;
+    for (auto &e: spemap) spevector.push_back(e);
+    sort(spevector.begin(), spevector.end(),
+         [=](pair<uint64_t, uint64_t> &a, pair<uint64_t, uint64_t> &b) { return b.second < a.second; });
+    cout << "\t" << stdmap.size() << " vs " << spemap.size() << endl;
+    for (int i = 0; i < 100; i++)
+        if (i < stdvector.size() && i < spevector.size())
+            cout << "\t" << stdvector[i].first << ":" << stdvector[i].second << "\t" << spevector[i].first << ":"
+                 << spevector[i].second << endl;
+#endif
     cout << inserted << " " << tracer.getRunTime() << " " << set.size() << endl;
 }
 
