@@ -239,8 +239,9 @@ void *measureWorker(void *args) {
                         uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
 #if HASH_VERIFY == 1
                         set.insert(key);
-                        if (map.find(hasher(key)) == map.end()) map.insert(std::make_pair(hasher(key), 0));
-                        map.find(hasher(key))->second++;
+                        uint64_t hk = hasher(key) % root_capacity;
+                        if (map.find(hk) == map.end()) map.insert(std::make_pair(hk, 0));
+                        map.find(hk)->second++;
 #endif
                         ret = store->Insert(key, key);
                     } else {
