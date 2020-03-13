@@ -210,6 +210,7 @@ void *measureWorker(void *args) {
     uint64_t ereased = 0, inserts = 0;
 #if HASH_VERIFY == 1
     std::unordered_map<uint64_t, uint64_t> map;
+    std::unordered_set<uint64_t> set;
     MyHash hasher;
 #endif
     try {
@@ -237,6 +238,7 @@ void *measureWorker(void *args) {
                     if (evenRound % 2 == 0) {
                         uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
 #if HASH_VERIFY == 1
+                        set.insert(key);
                         if (map.find(hasher(key)) == map.end()) map.insert(std::make_pair(hasher(key), 0));
                         map.find(hasher(key))->second++;
 #endif
@@ -271,10 +273,11 @@ void *measureWorker(void *args) {
     sort(vec.begin(), vec.end(),
          [=](pair<uint64_t, uint64_t> &a, pair<uint64_t, uint64_t> &b) { return b.second < a.second; });
     if (vec.size() > 0)
-        output[work->tid] << work->tid << " " << elipsed << " " << mhit << " " << rhit << " " << vec[0].first << " "
-                          << vec[0].second << endl;
+        output[work->tid] << work->tid << " " << elipsed << " " << mhit << " " << rhit << " " << set.size() << " "
+                          << map.size() << " " << vec[0].first << " " << vec[0].second << endl;
     else
-        output[work->tid] << work->tid << " " << elipsed << " " << mhit << " " << rhit << endl;
+        output[work->tid] << work->tid << " " << elipsed << " " << mhit << " " << rhit << " " << set.size() << " "
+                          << map.size() << endl;
 #else
     output[work->tid] << work->tid << " " << elipsed << " " << mhit << " " << rhit << endl;
 #endif
