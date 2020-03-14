@@ -53,7 +53,22 @@ vector<pair<string, uint64_t>> orderedCounters(YCSB_operator com, char *inpath, 
     return tmp;
 }
 
+void dumpData(char *inpath, size_t limit) {
+    YCSBLoader loader(inpath, limit);
+    std::vector<YCSB_request(*)> requests = loader.load();
+    FILE *fp = fopen(existingFilePath, "wb+");
+    uint64_t *array = new uint64_t[loader.size()];
+    size_t cur = 0;
+    for (auto &e : requests) {
+        array[cur] = std::atol(requests[cur++]->getKey());
+    }
+    fwrite(array, sizeof(uint64_t), loader.size(), fp);
+}
+
 int main(int argc, char **argv) {
-    orderedCounters(static_cast<YCSB_operator>(std::atoi(argv[1])), argv[2], std::atol(argv[3]));
+    if (std::atoi(argv[1]) != 7)
+        orderedCounters(static_cast<YCSB_operator>(std::atoi(argv[1])), argv[2], std::atol(argv[3]));
+    else
+        dumpData(argv[2], std::atol(argv[3]));
     return 0;
 }
