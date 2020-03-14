@@ -11,37 +11,25 @@
 #include <algorithm>
 #include <map>
 #include <iterator>
+#include "tracer.h"
 
 using namespace std;
+using namespace ycsb;
 
-enum COM {
-    READ,
-    INSERT,
-    UPDATE,
-    DELETE
-};
-
-string TYPES[] = {"READ", "INSERT", "UPDATE", "DELETE"};
-
-vector<pair<string, uint64_t>> orderedCounters(COM com, char *inpath, size_t limit = (1 << 32)) {
+vector<pair<string, uint64_t>> orderedCounters(YCSB_operator com, char *inpath, size_t limit = (1 << 32)) {
     unordered_map<string, uint64_t> counters;
-    ifstream fin(inpath);
-    string line;
     string type;
     string content;
-    while (getline(fin, line)) {
-        stringstream ss(line);
-        getline(ss, type, ' ');
-        if (type == TYPES[com]) {
-            getline(ss, content, ' ');
-            if (counters.find(content) != counters.end()) {
-                counters.find(content)->second++;
-            } else {
-                counters.insert(make_pair(content, 1));
-            }
-        }
-    }
+    YCSBLoader loader(inpath, limit);
+    std::vector<YCSB_request *> requests = loader.load();
     vector<std::pair<string, uint64_t>> tmp;
+    size_t cur = 0;
+    for (auto &e: requests) {
+        if (counters.find(requests[cur]->getKey()) == counters.end())
+            counters.insert(std::make_pair(requests[cur]->getKey(), 0));
+        counters.find(requests[cur]->getKey())->second++;
+        cur++;
+    }
     for (auto &e: counters) {
         tmp.push_back(e);
     }
@@ -62,11 +50,10 @@ vector<pair<string, uint64_t>> orderedCounters(COM com, char *inpath, size_t lim
         cout << (*iter).first << " " << (*iter).second << endl;
     }*/
     cout << counters.size() << "<->" << tmp.size() << endl;
-    fin.close();
     return tmp;
 }
 
 int main(int argc, char **argv) {
-    orderedCounters(READ, argv[1], std::atol(argv[2]));
+    orderedCounters(static_cast<YCSB_operator>(std::atoi(argv[1])), argv[2], std::atol(argv[3]));
     return 0;
 }
