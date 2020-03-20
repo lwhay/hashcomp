@@ -120,6 +120,7 @@ else ()
 endif ()
 
 set(MH_LIBS
+        src/mhash/hazard/haz_ptr.cpp
         src/mhash/epoch/faster/lss_allocator.cc
         src/mhash/epoch/faster/thread.cc)
 

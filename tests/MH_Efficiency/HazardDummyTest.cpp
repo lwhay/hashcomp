@@ -14,6 +14,7 @@
 #include "batch_hazard.h"
 #include "brown_hazard.h"
 #include "faster_epoch.h"
+#include "opthazard_pointer.h"
 #include "tracer.h"
 
 #define high_intensive 0
@@ -126,7 +127,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             do {
                 old = bucket[idx].load();
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr));
-            if (hash_freent == 2 || hash_freent == 4 || hash_freent >= 5) { // mshp maintains caches inside each hp.
+            if (hash_freent == 2 || hash_freent == 4 || hash_freent >= 5) { // mshp etc maintains caches inside each hp.
                 deallocator->free(old);
 #if uselocal == 1
                 if (hash_freent == 4) {
@@ -206,6 +207,10 @@ int main(int argc, char **argv) {
         }
         case 7: {
             deallocator = new faster_epoch<node>(thrd_number);
+            break;
+        }
+        case 8: {
+            deallocator = new opt_hazard<node>(thrd_number);
             break;
         }
         default: {
