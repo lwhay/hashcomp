@@ -13,6 +13,7 @@
 #include "wrapper_epoch.h"
 #include "batch_hazard.h"
 #include "brown_hazard.h"
+#include "brown_debra.h"
 #include "faster_epoch.h"
 #include "opthazard_pointer.h"
 #include "tracer.h"
@@ -77,7 +78,8 @@ void init(std::atomic<uint64_t> *bucket) {
             ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
         else
 #endif
-        if (hash_freent == 6) ptr = ((brown_hazard<node> *) deallocator)->allocate(0);
+        if (hash_freent == 6) ptr = ((brown_hazard <node> *) deallocator)->allocate(0);
+        else if (hash_freent == 7) ptr = ((brown_debra <node> *) deallocator)->allocate(0);
         else ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i % (list_volume / align_width) * align_width;
         ptr->key = idx;
@@ -117,8 +119,9 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
                 ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
             else
 #endif
-            if (hash_freent == 6) ptr = ((brown_hazard<node> *) deallocator)->allocate(tid);
-            else if (hash_freent == 7) ptr = ((faster_epoch<node> *) deallocator)->allocate();
+            if (hash_freent == 6) ptr = ((brown_hazard <node> *) deallocator)->allocate(tid);
+            else if (hash_freent == 7) ptr = ((brown_debra <node> *) deallocator)->allocate(tid);
+            else if (hash_freent == 10) ptr = ((faster_epoch <node> *) deallocator)->allocate();
             else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
             ptr->value = 1;
@@ -205,11 +208,17 @@ int main(int argc, char **argv) {
             deallocator = new brown_hazard<node>(thrd_number);
             break;
         }
-        case 7: {
+        case 7:
+        case 8:
+        case 9: {
+            deallocator = new brown_debra<node>(thrd_number);
+            break;
+        }
+        case 10: {
             deallocator = new faster_epoch<node>(thrd_number);
             break;
         }
-        case 8: {
+        case 11: {
             deallocator = new opt_hazard<node>(thrd_number);
             break;
         }
