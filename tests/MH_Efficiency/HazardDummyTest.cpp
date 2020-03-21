@@ -50,6 +50,7 @@ uint64_t *operations;
 uint64_t *conflict;
 
 void reader(std::atomic<uint64_t> *bucket, size_t tid) {
+    if (hash_freent == 6) ((brown_hazard<node> *) deallocator)->initThread();
     uint64_t total = 0;
     Tracer tracer;
     tracer.startTime();
@@ -71,6 +72,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 }
 
 void init(std::atomic<uint64_t> *bucket) {
+    if (hash_freent == 6) ((brown_hazard<node> *) deallocator)->initThread();
     for (size_t i = 0; i < total_count / thrd_number; i++) {
         node *ptr;
 #if uselocal == 0
@@ -78,8 +80,8 @@ void init(std::atomic<uint64_t> *bucket) {
             ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
         else
 #endif
-        if (hash_freent == 6) ptr = ((brown_hazard <node> *) deallocator)->allocate(0);
-        else if (hash_freent == 7) ptr = ((brown_debra <node> *) deallocator)->allocate(0);
+        if (hash_freent == 6) ptr = ((brown_hazard<node> *) deallocator)->allocate(0);
+        else if (hash_freent == 7) ptr = ((brown_debra<node> *) deallocator)->allocate(0);
         else ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i % (list_volume / align_width) * align_width;
         ptr->key = idx;
@@ -102,7 +104,8 @@ void print(std::atomic<uint64_t> *bucket) {
 }
 
 void writer(std::atomic<uint64_t> *bucket, size_t tid) {
-    if (hash_freent == 2) ftid = tid;
+    if (hash_freent == 6) ((brown_hazard<node> *) deallocator)->initThread();
+    else if (hash_freent == 2) ftid = tid;
     uint64_t total = 0, hitting = 0;
     std::queue<uint64_t> oldqueue;
     Tracer tracer;
@@ -119,9 +122,9 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
                 ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
             else
 #endif
-            if (hash_freent == 6) ptr = ((brown_hazard <node> *) deallocator)->allocate(tid);
-            else if (hash_freent == 7) ptr = ((brown_debra <node> *) deallocator)->allocate(tid);
-            else if (hash_freent == 10) ptr = ((faster_epoch <node> *) deallocator)->allocate();
+            if (hash_freent == 6) ptr = ((brown_hazard<node> *) deallocator)->allocate(tid); // useless tid
+            else if (hash_freent == 7) ptr = ((brown_debra<node> *) deallocator)->allocate(tid); // useless tid
+            else if (hash_freent == 13) ptr = ((faster_epoch<node> *) deallocator)->allocate();
             else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
             ptr->value = 1;
@@ -210,15 +213,17 @@ int main(int argc, char **argv) {
         }
         case 7:
         case 8:
-        case 9: {
+        case 9:
+        case 10:
+        case 11: {
             deallocator = new brown_debra<node>(thrd_number);
             break;
         }
-        case 10: {
+        case 13: {
             deallocator = new faster_epoch<node>(thrd_number);
             break;
         }
-        case 11: {
+        case 14: {
             deallocator = new opt_hazard<node>(thrd_number);
             break;
         }
