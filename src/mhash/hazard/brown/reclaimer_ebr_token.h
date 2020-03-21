@@ -17,6 +17,7 @@
 #include "plaf.h"
 #include "allocator_interface.h"
 #include "reclaimer_interface.h"
+#include "configure_gstats.h"
 
 template<typename T = void, class Pool = pool_interface<T> >
 class reclaimer_ebr_token : public reclaimer_interface<T, Pool> {
@@ -161,8 +162,10 @@ public:
         bool result = false;
         if (threadData[tid].token) {
 #if defined USE_GSTATS
-            GSTATS_APPEND(tid, token_received_time_split_ms, GSTATS_TIMER_SPLIT(tid, timersplit_token_received)/1000000);
-            GSTATS_SET_IX(tid, token_received_time_last_ms, GSTATS_TIMER_ELAPSED(tid, timer_bag_rotation_start)/1000000, 0);
+            GSTATS_APPEND(tid, token_received_time_split_ms,
+                          GSTATS_TIMER_SPLIT(tid, timersplit_token_received) / 1000000);
+            GSTATS_SET_IX(tid, token_received_time_last_ms,
+                          GSTATS_TIMER_ELAPSED(tid, timer_bag_rotation_start) / 1000000, 0);
 #endif
 
             ++threadData[tid].tokenCount;
@@ -173,7 +176,7 @@ public:
             __sync_synchronize();
 
 #if defined USE_GSTATS
-            auto startTime = GSTATS_TIMER_ELAPSED(tid, timer_bag_rotation_start)/1000;
+            auto startTime = GSTATS_TIMER_ELAPSED(tid, timer_bag_rotation_start) / 1000;
             GSTATS_APPEND(tid, bag_rotation_start_time_us, startTime);
             GSTATS_APPEND(tid, bag_rotation_reclaim_size, threadData[tid].last->computeSize());
 #endif
@@ -190,9 +193,9 @@ public:
             //}
 
 #if defined USE_GSTATS
-            auto endTime = GSTATS_TIMER_ELAPSED(tid, timer_bag_rotation_start)/1000;
+            auto endTime = GSTATS_TIMER_ELAPSED(tid, timer_bag_rotation_start) / 1000;
             GSTATS_APPEND(tid, bag_rotation_end_time_us, endTime);
-            GSTATS_APPEND(tid, bag_rotation_duration_split_ms, (endTime - startTime)/1000);
+            GSTATS_APPEND(tid, bag_rotation_duration_split_ms, (endTime - startTime) / 1000);
 #endif
         }
 

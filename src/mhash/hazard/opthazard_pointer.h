@@ -23,7 +23,7 @@ public:
     }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
-        return (uint64_t) holders[tid].Pin((std::atomic<T *> &) ptr);
+        return (uint64_t) holders[tid].Repin((std::atomic<T *> &) ptr);
     }
 
     void read(size_t tid) { holders[tid].Reset(); }

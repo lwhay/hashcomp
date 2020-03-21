@@ -1,9 +1,9 @@
 //
-// Created by Michael on 3/21/20.
+// Created by Michael on 3/22/20.
 //
 
-#ifndef HASHCOMP_BROWN_DEBRA_H
-#define HASHCOMP_BROWN_DEBRA_H
+#ifndef HASHCOMP_BROWN_EBR_TOKEN_H
+#define HASHCOMP_BROWN_EBR_TOKEN_H
 
 #include <atomic>
 #include <cassert>
@@ -12,12 +12,12 @@
 #include "allocator_new.h"
 #include "pool_perthread_and_shared.h"
 #include "record_manager.h"
-#include "reclaimer_debra.h"
+#include "reclaimer_ebr_token.h"
 #include "memory_hazard.h"
 
 template<typename T>
-class brown_debra : public ihazard {
-    typedef reclaimer_debra<T, pool_none<T, allocator_new<T>>> Reclaimer;
+class brown_ebr_token : public ihazard {
+    typedef reclaimer_ebr_token<T, pool_none<T, allocator_new<T>>> Reclaimer;
     typedef allocator_new<T> Allocator;
     typedef pool_none<T, allocator_new<T>> Pool;
 private:
@@ -28,7 +28,7 @@ private:
     std::atomic<bool> lock{false};
 
 public:
-    brown_debra(size_t total_thread) : thread_num(total_thread) {
+    brown_ebr_token(size_t total_thread) : thread_num(total_thread) {
         alloc = new Allocator(thread_num, nullptr);
         pool = new Pool(thread_num, alloc, nullptr);
         reclaimer = new Reclaimer(thread_num, pool, nullptr);
@@ -71,8 +71,8 @@ public:
     }
 
     char *info() {
-        return "brown debra";
+        return "brown ebr token";
     }
 };
 
-#endif //HASHCOMP_BROWN_DEBRA_H
+#endif //HASHCOMP_BROWN_EBR_TOKEN_H

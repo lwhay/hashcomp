@@ -67,7 +67,7 @@ public:
         //std::cout << ftid << std::endl;
         reclaimer->retire(ftid, (T *) ptr);
         //std::free((T *) ptr);
-        //alloc->deallocate(ftid, (T *) ptr);
+        alloc->deallocate(ftid, (T *) ptr);
         return true;
     }
 
