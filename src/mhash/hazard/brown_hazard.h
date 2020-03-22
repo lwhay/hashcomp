@@ -19,9 +19,12 @@ thread_local uint64_t holder;
 
 template<typename T>
 class brown_hazard : public ihazard {
-    typedef reclaimer_hazardptr<T, pool_none<T, allocator_new<T>>> Reclaimer;
+    typedef reclaimer_hazardptr<T> Reclaimer;
     typedef allocator_new<T> Allocator;
-    typedef pool_none<T, allocator_new<T>> Pool;
+    typedef pool_perthread_and_shared<T> Pool;
+    /*typedef reclaimer_hazardptr<T, pool_none<T, allocator_new<T>>> Reclaimer;
+    typedef allocator_new<T> Allocator;
+    typedef pool_none<T, allocator_new<T>> Pool;*/
 private:
     size_t thread_num;
     Allocator *alloc;
