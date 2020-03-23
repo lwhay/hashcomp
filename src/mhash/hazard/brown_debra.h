@@ -28,7 +28,7 @@ private:
     std::atomic<bool> lock{false};
 
 public:
-    brown_debra(size_t total_thread) : thread_num(total_thread) {
+    brown_debra(size_t total_thread) : thread_num(total_thread + 1) {
         alloc = new Allocator(thread_num, nullptr);
         pool = new Pool(thread_num, alloc, nullptr);
         reclaimer = new Reclaimer(thread_num, pool, nullptr);
@@ -66,7 +66,7 @@ public:
         std::cout << ftid << std::endl;*/
         reclaimer->retire(ftid, (T *) ptr);
         //std::free((T *) ptr);
-        //alloc->deallocate(ftid, (T *) ptr);
+        alloc->deallocate(ftid, (T *) ptr);
         return true;
     }
 

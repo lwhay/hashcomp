@@ -61,10 +61,12 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 #if high_intensive
         for (size_t i = 0; i < total_count / thrd_number; i++) {
 #else
-        for (size_t i = tid; i < total_count / thrd_number; i += thrd_number) {
+        for (size_t i = tid; i < total_count; i += thrd_number) {
 #endif
-            size_t idx = i % (list_volume / align_width) * align_width;
+            size_t idx = i * align_width % (list_volume);
+            assert(idx >= 0 && idx < list_volume);
             node *ptr = (node *) deallocator->load(tid, std::ref(bucket[idx]));
+            assert(ptr->value == 1);
             total += ptr->value;
             deallocator->read(tid);
             //std::cout << "r" << tid << i << std::endl;
@@ -75,10 +77,12 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 }
 
 void init(std::atomic<uint64_t> *bucket) {
+    Tracer tracer;
+    tracer.startTime();
     if (hash_freent == 6) ((brown_hazard<node> *) deallocator)->initThread();
     else if (hash_freent == 7) ((brown_debra<node> *) deallocator)->initThread();
     else if (hash_freent == 8) ((brown_ebr_token<node> *) deallocator)->initThread();
-    for (size_t i = 0; i < total_count / thrd_number; i++) {
+    for (size_t i = 0; i < list_volume; i++) {
         node *ptr;
 #if uselocal == 0
         if (hash_freent == 4)
@@ -89,7 +93,8 @@ void init(std::atomic<uint64_t> *bucket) {
         else if (hash_freent == 7) ptr = ((brown_debra<node> *) deallocator)->allocate(0);
         else if (hash_freent == 8) ptr = ((brown_ebr_token<node> *) deallocator)->allocate(0);
         else ptr = (node *) std::malloc(sizeof(node));
-        size_t idx = i % (list_volume / align_width) * align_width;
+        size_t idx = i;
+        assert(idx >= 0 && idx < list_volume);
         ptr->key = idx;
         ptr->value = 1;
         bucket[idx].store((uint64_t) ptr);
@@ -99,11 +104,23 @@ void init(std::atomic<uint64_t> *bucket) {
         }
 #endif
     }
+    std::cout << "init complete " << tracer.getRunTime() << std::endl;
+}
+
+void deinit(std::atomic<uint64_t> *bucket) {
+    for (size_t i = 0; i < list_volume; i++) {
+        size_t idx = i;
+        assert(idx >= 0 && idx < list_volume);
+        if (hash_freent == 6) ((brown_hazard<node> *) deallocator)->free(bucket[idx]);
+        else if (hash_freent == 7) ((brown_debra<node> *) deallocator)->free(bucket[idx]);
+        else if (hash_freent == 8) ((brown_ebr_token<node> *) deallocator)->free(bucket[idx]);
+        else std::free((void *) bucket[idx].load());
+    }
 }
 
 void print(std::atomic<uint64_t> *bucket) {
     for (size_t i = 0; i < 64; i++) {
-        size_t idx = i % (list_volume / align_width) * align_width;
+        size_t idx = i * align_width % list_volume;
         node *ptr = (node *) bucket[idx].load();
         std::cout << ptr << " " << ptr->key << " " << ptr->value << std::endl;
     }
@@ -122,7 +139,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
 #if high_intensive
         for (size_t i = 0; i < total_count / thrd_number; i++) {
 #else
-        for (size_t i = tid; i < total_count / thrd_number; i += thrd_number) {
+        for (size_t i = tid; i < total_count; i += thrd_number) {
 #endif
             node *ptr;
 #if uselocal == 0
@@ -138,11 +155,14 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             ptr->key = i;
             ptr->value = 1;
             uint64_t old;
-            size_t idx = i % (list_volume / align_width) * align_width;
+            size_t idx = i * align_width % (list_volume);
+            assert(idx >= 0 && idx < list_volume);
             do {
                 old = bucket[idx].load();
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr));
-            if (hash_freent == 2 || hash_freent == 4 || hash_freent >= 5) { // mshp etc maintains caches inside each hp.
+            node *oldptr = (node *) old;
+            if (hash_freent == 2 || hash_freent == 4 ||
+                hash_freent >= 5 /*&& hash_freent < 14*/) { // mshp etc maintains caches inside each hp.
                 deallocator->free(old);
 #if uselocal == 1
                 if (hash_freent == 4) {
@@ -284,6 +304,7 @@ int main(int argc, char **argv) {
     std::cout << "Total time: " << tracer.getRunTime() << " rthp: " << readthp << " wthp: " << writethp;
     std::cout << " wconflict: " << freeconflict << " weffective: " << writecount << " inform: " << deallocator->info()
               << std::endl;
+    deinit(bucket);
     delete[] bucket;
     delete[] runtime;
     delete[] operations;
