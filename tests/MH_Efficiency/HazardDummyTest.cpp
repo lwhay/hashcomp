@@ -71,6 +71,8 @@ uint64_t *operations;
 
 uint64_t *conflict;
 
+int detail_print = 0;
+
 void reader(std::atomic<uint64_t> *bucket, size_t tid) {
     deallocator->initThread();
     uint64_t total = 0;
@@ -214,6 +216,7 @@ int main(int argc, char **argv) {
     }
     if (argc >= 8) {
         worker_gran = std::atol(argv[7]);
+        detail_print = std::atoi(argv[8]);
     }
     std::cout << align_width << " " << list_volume << " " << thrd_number << "(" << worker_gran << ") " << total_count
               << " " << queue_limit << " " << hash_freent << std::endl;
@@ -313,12 +316,14 @@ int main(int argc, char **argv) {
         if (t < worker_gran) {
             readtime += runtime[t];
             readcount += operations[t];
-            std::cout << "\tReader" << t << ": " << operations[t] << "\t" << runtime[t] << std::endl;
+            if (detail_print == 1)
+                std::cout << "\tReader" << t << ": " << operations[t] << "\t" << runtime[t] << std::endl;
         } else {
             writetime += runtime[t];
             writecount += operations[t];
             freeconflict += conflict[t];
-            std::cout << "\tWriter" << t - worker_gran << ": " << operations[t] << "\t" << runtime[t] << std::endl;
+            if (detail_print == 1)
+                std::cout << "\tWriter" << t - worker_gran << ": " << operations[t] << "\t" << runtime[t] << std::endl;
         }
     }
     double readthp = (double) readcount * worker_gran / readtime;
