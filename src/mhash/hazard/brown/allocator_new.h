@@ -53,7 +53,7 @@ public:
             this->debug->addDeallocated(tid, 1);
 //            currentAllocatedBytes -= sizeof(T);
         }
-#if !defined NO_FREE
+#if !NO_FREE
         delete p;
 #endif
     }

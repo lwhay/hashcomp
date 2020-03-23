@@ -24,8 +24,10 @@
 
 #if brown_new_once == 1
 #define alloc allocator_new
-#else
+#elif brown_new_once == 0
 #define alloc allocator_once
+#else
+#define alloc allocator_bump
 #endif
 
 #if brown_use_pool == 0
