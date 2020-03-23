@@ -30,6 +30,10 @@ public:
 
     void registerThread() {}
 
+    void initThread() {}
+
+    uint64_t allocate(size_t tid) { return -1; }
+
     T *allocate() {
         //return (T *) allocator.Allocate().control();
     }

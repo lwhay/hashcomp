@@ -90,6 +90,10 @@ public:
 
     void registerThread() {}
 
+    void initThread() {}
+
+    uint64_t allocate(size_t tid) { return -1; }
+
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         uint64_t address = ptr.load();
         hashkey = simplehash(address);

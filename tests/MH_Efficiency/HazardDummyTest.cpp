@@ -12,19 +12,42 @@
 #include "mshazrd_pointer.h"
 #include "wrapper_epoch.h"
 #include "batch_hazard.h"
-#include "brown_hazard.h"
-#include "brown_debra.h"
-#include "brown_ebr_token.h"
+#include "brown_reclaim.h"
 #include "faster_epoch.h"
 #include "opthazard_pointer.h"
 #include "tracer.h"
 
 #define high_intensive 0
 
+#define brown_new_once 1
+#define brown_use_pool 1
+
+#if brown_new_once == 1
+#define alloc allocator_new
+#else
+#define alloc allocator_once
+#endif
+
+#if brown_use_pool == 0
+#define pool pool_perthread_and_shared
+#else
+#define pool pool_none
+#endif
+
 struct node {
     uint64_t key;
     uint64_t value;
 };
+
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_hazardptr<>> brown6;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_token<>> brown7;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_tree<>> brown8;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debra<>> brown9;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debraplus<>> brown10;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debracap<>> brown11;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_none<>> brown12;
+
+size_t hash_freent = 6;
 
 size_t align_width = (1 << 6);
 
@@ -35,8 +58,6 @@ size_t thrd_number = (1 << 3);
 size_t total_count = (1 << 20);
 
 size_t queue_limit = (1 << 16);
-
-size_t hash_freent = 6;
 
 atomic<int> stopMeasure(0);
 
@@ -51,9 +72,7 @@ uint64_t *operations;
 uint64_t *conflict;
 
 void reader(std::atomic<uint64_t> *bucket, size_t tid) {
-    if (hash_freent == 6) ((brown_hazard<node> *) deallocator)->initThread();
-    else if (hash_freent == 7) ((brown_debra<node> *) deallocator)->initThread();
-    else if (hash_freent == 8) ((brown_ebr_token<node> *) deallocator)->initThread();
+    deallocator->initThread();
     uint64_t total = 0;
     Tracer tracer;
     tracer.startTime();
@@ -79,9 +98,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 void init(std::atomic<uint64_t> *bucket) {
     Tracer tracer;
     tracer.startTime();
-    if (hash_freent == 6) ((brown_hazard<node> *) deallocator)->initThread();
-    else if (hash_freent == 7) ((brown_debra<node> *) deallocator)->initThread();
-    else if (hash_freent == 8) ((brown_ebr_token<node> *) deallocator)->initThread();
+    deallocator->initThread();
     for (size_t i = 0; i < list_volume; i++) {
         node *ptr;
 #if uselocal == 0
@@ -89,9 +106,7 @@ void init(std::atomic<uint64_t> *bucket) {
             ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
         else
 #endif
-        if (hash_freent == 6) ptr = ((brown_hazard<node> *) deallocator)->allocate(0);
-        else if (hash_freent == 7) ptr = ((brown_debra<node> *) deallocator)->allocate(0);
-        else if (hash_freent == 8) ptr = ((brown_ebr_token<node> *) deallocator)->allocate(0);
+        if (hash_freent >= 6 && hash_freent <= 12) ptr = (node *) deallocator->allocate(0);
         else ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i;
         assert(idx >= 0 && idx < list_volume);
@@ -111,9 +126,7 @@ void deinit(std::atomic<uint64_t> *bucket) {
     for (size_t i = 0; i < list_volume; i++) {
         size_t idx = i;
         assert(idx >= 0 && idx < list_volume);
-        if (hash_freent == 6) ((brown_hazard<node> *) deallocator)->free(bucket[idx]);
-        else if (hash_freent == 7) ((brown_debra<node> *) deallocator)->free(bucket[idx]);
-        else if (hash_freent == 8) ((brown_ebr_token<node> *) deallocator)->free(bucket[idx]);
+        if (hash_freent >= 6 && hash_freent <= 12) deallocator->free(bucket[idx]);
         else std::free((void *) bucket[idx].load());
     }
 }
@@ -127,9 +140,7 @@ void print(std::atomic<uint64_t> *bucket) {
 }
 
 void writer(std::atomic<uint64_t> *bucket, size_t tid) {
-    if (hash_freent == 6) ((brown_hazard<node> *) deallocator)->initThread();
-    else if (hash_freent == 7) ((brown_debra<node> *) deallocator)->initThread();
-    else if (hash_freent == 8) ((brown_ebr_token<node> *) deallocator)->initThread();
+    if (hash_freent >= 6 && hash_freent <= 12) deallocator->initThread();
     else if (hash_freent == 2) ftid = tid;
     uint64_t total = 0, hitting = 0;
     std::queue<uint64_t> oldqueue;
@@ -147,9 +158,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
                 ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
             else
 #endif
-            if (hash_freent == 6) ptr = ((brown_hazard<node> *) deallocator)->allocate(tid); // useless tid
-            else if (hash_freent == 7) ptr = ((brown_debra<node> *) deallocator)->allocate(tid); // useless tid
-            else if (hash_freent == 8) ptr = ((brown_ebr_token<node> *) deallocator)->allocate(tid); // useless tid
+            if (hash_freent >= 6 && hash_freent <= 12) ptr = (node *) deallocator->allocate(tid); // useless tid
             else if (hash_freent == 13) ptr = ((faster_epoch<node> *) deallocator)->allocate();
             else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
@@ -237,18 +246,31 @@ int main(int argc, char **argv) {
             break;
         }
         case 6: {
-            deallocator = new brown_hazard<node>(thrd_number);
+            deallocator = new brown6(thrd_number);
             break;
         }
         case 7: {
-            deallocator = new brown_debra<node>(thrd_number);
+            deallocator = new brown7(thrd_number);
             break;
         }
-        case 8:
-        case 9:
-        case 10:
+        case 8: {
+            deallocator = new brown8(thrd_number);
+            break;
+        }
+        case 9: {
+            deallocator = new brown9(thrd_number);
+            break;
+        }
+        case 10: {
+            deallocator = new brown10(thrd_number);
+            break;
+        }
+        case 11: {
+            deallocator = new brown11(thrd_number);
+            break;
+        }
         case 12: {
-            deallocator = new brown_ebr_token<node>(thrd_number);
+            deallocator = new brown12(thrd_number);
             break;
         }
         case 13: {

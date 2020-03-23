@@ -18,6 +18,10 @@ protected:
 public:
     void registerThread() {}
 
+    void initThread() {}
+
+    uint64_t allocate(size_t tid) { return -1; }
+
     opt_hazard(int thread_num) : thread_cnt(thread_num) {
         DEFAULT_HAZPTR_DOMAIN.Init(thread_cnt);
     }
