@@ -68,7 +68,7 @@ public:
         return true;
     }
 
-    char *info() { return "epoch wrapper"; }
+    const char *info() { return "epoch wrapper"; }
 
     uint64_t get() {
 #if uselocal == 1

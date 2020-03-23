@@ -22,7 +22,7 @@ public:
 
     virtual bool free(uint64_t ptr) = 0;
 
-    virtual char *info() = 0;
+    virtual const char *info() = 0;
 };
 
 #endif //HASHCOMP_IHAZARD_H

@@ -61,7 +61,7 @@ public:
         return true;
     }
 
-    char *info() { return "batch_hazard"; }
+    const char *info() { return "batch_hazard"; }
 };
 
 #endif //HASHCOMP_BATCH_HAZARD_H

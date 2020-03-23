@@ -43,7 +43,7 @@ public:
 
     ~adaptive_hazard() {}
 
-    char *info() {
+    const char *info() {
         ::memset(information, 0, 255);
         uint64_t totalreadintensive = 0, totalwriteintensive = 0;
         for (size_t i = 0; i < thread_number; i++) {

@@ -51,7 +51,7 @@ public:
         //allocator.FreeAtEpoch(ptr, 0);
     }
 
-    char *info() { return "faster_epoch"; }
+    const char *info() { return "faster_epoch"; }
 };
 
 #endif //HASHCOMP_FASTER_EPOCH_H

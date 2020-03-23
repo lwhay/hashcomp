@@ -59,7 +59,7 @@ public:
         }
     }
 
-    char *info() { return "memory_hazard"; }
+    const char *info() { return "memory_hazard"; }
 };
 
 #endif //HASHCOMP_MEMORY_HAZARD_H

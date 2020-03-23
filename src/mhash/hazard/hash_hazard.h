@@ -117,7 +117,7 @@ public:
         }
     }
 
-    char *info() { return "hash_hazard"; }
+    const char *info() { return "hash_hazard"; }
 };
 
 #endif //HASHCOMP_HASH_HAZARD_H

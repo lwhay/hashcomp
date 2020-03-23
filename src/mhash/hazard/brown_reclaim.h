@@ -80,8 +80,8 @@ public:
         return true;
     }
 
-    char *info() {
-        return "brown hazard";
+    const char *info() {
+        return typeid(R).name();
     }
 };
 

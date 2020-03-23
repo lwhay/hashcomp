@@ -41,7 +41,7 @@ public:
         DEFAULT_HAZPTR_DOMAIN.PushRetired((T *) ptr);
     }
 
-    char *info() { return "opthazard_pointer"; }
+    const char *info() { return "opthazard_pointer"; }
 };
 
 #endif //HASHCOMP_OPTHAZARD_POINTER_H
