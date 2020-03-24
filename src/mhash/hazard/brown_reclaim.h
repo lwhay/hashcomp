@@ -79,6 +79,7 @@ public:
         reclaimer->retire(ftid, (T *) ptr);
         //std::free((T *) ptr);
         if (need_free_explicitly) alloc->deallocate(ftid, (T *) ptr);
+        else reclaimer->rotateEpochBags(ftid);
         return true;
     }
 
