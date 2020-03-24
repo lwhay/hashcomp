@@ -22,7 +22,7 @@
 #include "memory_hazard.h"
 
 thread_local uint64_t holder;
-static bool need_free_explicitly = true;
+static int free_type = -1; // 0: hazard; 1: debraplus; 2: others
 
 template<typename T, class N, class P, class R>
 class brown_reclaim : public ihazard {
@@ -44,7 +44,9 @@ public:
         alloc = new Allocator(thread_num, nullptr);
         pool = new Pool(thread_num, alloc, nullptr);
         reclaimer = new Reclaimer(thread_num, pool, nullptr);
-        if (typeid(R) == typeid(reclaimer_hazardptr<>)) need_free_explicitly = false;
+        if (typeid(R) == typeid(reclaimer_hazardptr<>)) free_type = 0;
+        else if (typeid(R) == typeid(reclaimer_debraplus<>)) free_type = 1;
+        else free_type = 2;
     }
 
     void registerThread() {
@@ -78,8 +80,9 @@ public:
         //std::cout << ftid << std::endl;
         reclaimer->retire(ftid, (T *) ptr);
         //std::free((T *) ptr);
-        if (need_free_explicitly) alloc->deallocate(ftid, (T *) ptr);
+        if (free_type == 0) alloc->deallocate(ftid, (T *) ptr);
         else reclaimer->rotateEpochBags(ftid);
+        //else reclaimer->template startOp(ftid, (void *const *const) &reclaimer, 1, false);
         return true;
     }
 
