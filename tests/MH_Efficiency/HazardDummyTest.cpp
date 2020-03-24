@@ -176,6 +176,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             node *oldptr = (node *) old;
             if (hash_freent == 2 || hash_freent == 4 ||
                 hash_freent >= 5 /*&& hash_freent < 14*/) { // mshp etc maintains caches inside each hp.
+                assert(oldptr->value == 1);
                 deallocator->free(old);
 #if uselocal == 1
                 if (hash_freent == 4) {

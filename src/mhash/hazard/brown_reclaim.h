@@ -22,6 +22,7 @@
 #include "memory_hazard.h"
 
 thread_local uint64_t holder;
+static bool need_free_explicitly = true;
 
 template<typename T, class N, class P, class R>
 class brown_reclaim : public ihazard {
@@ -43,6 +44,7 @@ public:
         alloc = new Allocator(thread_num, nullptr);
         pool = new Pool(thread_num, alloc, nullptr);
         reclaimer = new Reclaimer(thread_num, pool, nullptr);
+        if (typeid(R) == typeid(reclaimer_hazardptr<>)) need_free_explicitly = false;
     }
 
     void registerThread() {
@@ -76,7 +78,7 @@ public:
         //std::cout << ftid << std::endl;
         reclaimer->retire(ftid, (T *) ptr);
         //std::free((T *) ptr);
-        alloc->deallocate(ftid, (T *) ptr);
+        if (need_free_explicitly) alloc->deallocate(ftid, (T *) ptr);
         return true;
     }
 
