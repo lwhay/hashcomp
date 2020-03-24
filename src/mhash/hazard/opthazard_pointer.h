@@ -35,7 +35,7 @@ public:
         //return (uint64_t) holders[tid].Pin((std::atomic<T *> &) ptr);
     }
 
-    void read(size_t tid) { holders[tid].~HazPtrHolder(); }
+    void read(size_t tid) { holders[tid].Reset(); }
 
     bool free(uint64_t ptr) {
         DEFAULT_HAZPTR_DOMAIN.PushRetired((T *) ptr);
