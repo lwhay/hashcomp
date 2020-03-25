@@ -269,6 +269,7 @@ public:
     // (and reclaimed any objects retired two epochs ago).
     // otherwise, the call returns false.
     // IMPLIES A FULL MEMORY BARRIER
+    template<typename First, typename... Rest>
     inline bool startOp(const int tid, void *const *const reclaimers, const int numReclaimers) {
         SOFTWARE_BARRIER; // prevent any bookkeeping from being moved after this point by the compiler.
         bool result = false;
