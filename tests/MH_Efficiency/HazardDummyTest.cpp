@@ -68,6 +68,8 @@ size_t queue_limit = (1 << 16);
 
 atomic<int> stopMeasure(0);
 
+uint64_t timer_limit = 30;
+
 size_t worker_gran = thrd_number / 2;
 
 ihazard *deallocator;
@@ -213,21 +215,22 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
 }
 
 int main(int argc, char **argv) {
-    if (argc >= 7) {
+    if (argc >= 8) {
         align_width = std::atol(argv[1]);
         list_volume = std::atol(argv[2]);
         thrd_number = std::atol(argv[3]);
         total_count = std::atol(argv[4]);
         queue_limit = std::atol(argv[5]);
-        hash_freent = std::atol(argv[6]);
+        timer_limit = std::atol(argv[6]);
+        hash_freent = std::atol(argv[7]);
         worker_gran = thrd_number / 2;
     }
-    if (argc >= 8) {
-        worker_gran = std::atol(argv[7]);
-        detail_print = std::atoi(argv[8]);
+    if (argc >= 9) {
+        worker_gran = std::atol(argv[8]);
+        detail_print = std::atoi(argv[9]);
     }
     std::cout << align_width << " " << list_volume << " " << thrd_number << "(" << worker_gran << ") " << total_count
-              << " " << queue_limit << " " << hash_freent << std::endl;
+              << " " << queue_limit << " " << timer_limit << " " << hash_freent << std::endl;
     std::atomic<uint64_t> *bucket = new std::atomic<uint64_t>[list_volume];
     runtime = new long[thrd_number];
     operations = new uint64_t[thrd_number];
