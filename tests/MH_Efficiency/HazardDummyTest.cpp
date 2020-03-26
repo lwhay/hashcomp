@@ -313,7 +313,7 @@ int main(int argc, char **argv) {
         if (hash_freent == 6) deallocator->registerThread();
         workers.push_back(std::thread(writer, bucket, t));
     }
-    while (timer.elapsedSeconds() < 30) {
+    while (timer.elapsedSeconds() < timer_limit) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
