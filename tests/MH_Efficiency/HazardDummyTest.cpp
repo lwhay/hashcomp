@@ -17,7 +17,7 @@
 #include "opthazard_pointer.h"
 #include "tracer.h"
 
-#define high_intensive 0
+#define high_intensive 1
 
 #define brown_new_once 1
 #define brown_use_pool 1
@@ -36,9 +36,14 @@
 #define pool pool_none
 #endif
 
-struct node {
+class node {
+public:
     uint64_t key;
     uint64_t value;
+public:
+    node() : key(-1), value(-1) {}
+
+    ~node() { value = -1; }
 };
 
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_hazardptr<>> brown6;
@@ -82,9 +87,9 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
     tracer.startTime();
     while (stopMeasure.load() == 0) {
 #if high_intensive
-        for (size_t i = 0; i < total_count / thrd_number; i++) {
+        for (size_t i = 0; i < total_count; i++) {
 #else
-        for (size_t i = tid; i < total_count; i += thrd_number) {
+            for (size_t i = tid; i < total_count; i += thrd_number) {
 #endif
             size_t idx = i * align_width % (list_volume);
             assert(idx >= 0 && idx < list_volume);
@@ -152,9 +157,9 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
     tracer.startTime();
     while (stopMeasure.load() == 0) {
 #if high_intensive
-        for (size_t i = 0; i < total_count / thrd_number; i++) {
+        for (size_t i = 0; i < total_count; i++) {
 #else
-        for (size_t i = tid; i < total_count; i += thrd_number) {
+            for (size_t i = tid; i < total_count; i += thrd_number) {
 #endif
             node *ptr;
 #if uselocal == 0
