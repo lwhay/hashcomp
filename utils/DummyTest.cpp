@@ -12,4 +12,23 @@ int main(int argc, char **argv) {
     cout << tick.load() << endl;
     tick.fetch_add(1);
     cout << tick.load() << endl;
+    u_char a = 0x3;
+    u_char b = 0x6;
+    cout << "0x3 and 0x0: " << (a and 0x0) << endl;
+    cout << "0x3 and 0x6: " << (a and b) << endl;
+    cout << "0x3 & 0x6: " << (a & b) << endl;
+    cout << "0x3 or 0x6: " << (a or b) << endl;
+    cout << "0x3 | 0x6: " << (a | b) << endl;
+    cout << "0x3 xor 0x6: " << (a xor b) << endl;
+    cout << "~0x6: " << (0xff & (~b)) << endl;
+    u_char c = a;
+    c &= b;
+    cout << "0x3 &= 0x6: " << (0xff & c) << endl;
+    c = a;
+    c |= b;
+    cout << "0x3 |= 0x6: " << (0xff & c) << endl;
+    c = (a and b);
+    cout << "0x3 and= 0x6: " << (0xff & c) << endl;
+    c = (a or b);
+    cout << "0x3 and= 0x6: " << (0xff & c) << endl;
 }
