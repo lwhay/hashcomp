@@ -36,7 +36,7 @@ public:
     uint64_t allocate(size_t tid) { return -1; }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
-        uint64_t address = ptr.load();
+        uint64_t address = ptr.load(std::memory_order_relaxed);
         holders[tid].store(address);
         return address;
     }
