@@ -60,9 +60,16 @@ uint64_t HashFunc(const void *key, int len, uint64_t seed) {
 
 #define strategy 0 // 0: batch in/out; 1: hash batch in/out; 2: one out; 3: half one out.
 
-constexpr size_t batch_size = (1llu << 6);
+#if strategy == 0
+constexpr size_t batch_size = (1llu << 10);
 
 thread_local uint64_t lrulist[batch_size];
+
+thread_local uint64_t freebit[batch_size / 64];
+
+thread_local size_t idx = 0;
+
+#elif strategy == 1
 
 constexpr size_t holder_size = (1llu << 10);
 
@@ -82,20 +89,23 @@ thread_local uint64_t recent_hash;
 
 thread_local uint64_t circile_queue[holder_size];
 
-thread_local uint64_t freebit = 0;
-
-thread_local size_t idx = 0;
-
 thread_local size_t counter[hash_volume];
+#else
+#endif
 
 class batch_hazard : public memory_hazard {
 private:
+#if strategy == 0
     holder holders[thread_limit];
+#elif strategy == 1
     holder cells[hash_volume][thread_limit];
+#else
+#endif
 
 public:
     void registerThread() {
         holders[thread_number++].init();
+        //std::cout << thread_number << ": " << sizeof(freebit) << std::endl;
     }
 
     void initThread() {}
@@ -130,18 +140,18 @@ public:
         assert(idx >= 0 && idx < batch_size);
         lrulist[idx++] = ptr;
         if (idx == batch_size) {
-            freebit = 0;
+            std::memset(freebit, 0, sizeof(freebit));
             for (size_t t = 0; t < thread_number; t++) {
                 const uint64_t target = holders[t].load();
                 if (target != 0) {
                     for (size_t i = 0; i < batch_size; i++) {
-                        if (lrulist[i] == target) freebit |= (1llu << i);
+                        if (lrulist[i] == target) freebit[i / 64] |= (1llu << (i % 64));
                     }
                 }
             }
             idx = 0;
             for (size_t i = 0; i < batch_size; i++) {
-                if ((freebit & (1llu << i)) == 0) std::free((void *) lrulist[i]);
+                if ((freebit[i / 64] & (1llu << (i % 64))) == 0) std::free((void *) lrulist[i]);
                 else lrulist[idx++] = lrulist[i];
             }
         }
