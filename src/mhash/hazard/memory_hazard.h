@@ -14,11 +14,11 @@ constexpr size_t thread_limit = (1 << 8);
 struct holder {
     alignas(128) std::atomic<uint64_t> address;
 public:
-    void init() { address.store(0); }
+    void init() { address.store(0, std::memory_order_relaxed); }
 
-    void store(uint64_t ptr) { address.store(ptr); }
+    void store(uint64_t ptr) { address.store(ptr, std::memory_order_relaxed); }
 
-    uint64_t load() { return address.load(); }
+    uint64_t load() { return address.load(std::memory_order_relaxed); }
 };
 
 class memory_hazard : public ihazard {

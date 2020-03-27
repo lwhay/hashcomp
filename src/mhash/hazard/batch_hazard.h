@@ -35,9 +35,9 @@ public:
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         uint64_t address;
         do {
-            address = ptr.load();
+            address = ptr.load(std::memory_order_relaxed);
             holders[tid].store(address);
-        } while (address != ptr.load());
+        } while (address != ptr.load(std::memory_order_relaxed));
         return address;
     }
 
