@@ -19,6 +19,8 @@
 
 #define high_intensive 1
 
+#define read_factor (1 << 0)
+
 #define brown_new_once 1
 #define brown_use_pool 1
 
@@ -97,7 +99,9 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
             assert(idx >= 0 && idx < list_volume);
             node *ptr = (node *) deallocator->load(tid, std::ref(bucket[idx]));
             assert(ptr->value == 1);
-            total += ptr->value;
+            unsigned count = 0;
+            for (; count < read_factor; count++) count += ptr->value;
+            total += count / read_factor;
             deallocator->read(tid);
             //std::cout << "r" << tid << i << std::endl;
         }
