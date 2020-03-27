@@ -58,7 +58,7 @@ uint64_t HashFunc(const void *key, int len, uint64_t seed) {
     return h;
 }
 
-#define strategy 1 // 0: batch in/out; 1: hash batch in/out; 2: one out; 3: half one out.
+#define strategy 0 // 0: batch in/out; 1: hash batch in/out; 2: one out; 3: half one out.
 
 constexpr size_t batch_size = (1llu << 6);
 
