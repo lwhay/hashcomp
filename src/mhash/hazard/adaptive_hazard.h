@@ -61,20 +61,20 @@ public:
     uint64_t allocate(size_t tid) { return -1; }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
-        uint64_t address = ptr.load();
+        uint64_t address = ptr.load(std::memory_order_relaxed);
         if (tick++ % switch_period == 0) {
             lrulist[tid].store(address);
             uint64_t other = lrulist[(tid + thread_number / 2) % thread_number].load();
             if (other == address) {
                 if (skew == 0) {
                     uint64_t bit = 1llu << tid;
-                    intensive.fetch_or(bit);
+                    intensive.fetch_or(bit, std::memory_order_relaxed);
                     skew = 1;
                 }
             } else {
                 if (skew != 0) {
                     uint64_t bit = ((1llu << tid) xor (uint64_t) (-1));
-                    intensive.fetch_and(bit);
+                    intensive.fetch_and(bit, std::memory_order_relaxed);
                     skew = 0;
                 }
             }
@@ -96,7 +96,7 @@ public:
     }
 
     bool free(uint64_t ptr) {
-        uint64_t intention = intensive.load();
+        uint64_t intention = intensive.load(std::memory_order_relaxed);
         assert(ptr != 0);
         bool busy;
         uint64_t hk = simplehash(ptr);

@@ -59,17 +59,17 @@ constexpr size_t total_hash_keys = (1 << 20);
 class indicator {
     alignas(128) std::atomic<uint64_t> counter;
 public:
-    indicator() { counter.store(0); }
+    indicator() { counter.store(0, std::memory_order_relaxed); }
 
-    void init() { counter.store(0); }
+    void init() { counter.store(0, std::memory_order_relaxed); }
 
-    void store(uint64_t ptr) { counter.store(ptr); }
+    void store(uint64_t ptr) { counter.store(ptr, std::memory_order_relaxed); }
 
-    uint64_t fetch_add(uint64_t inc = 1) { return counter.fetch_add(inc, std::memory_order_release); }
+    uint64_t fetch_add(uint64_t inc = 1) { return counter.fetch_add(inc, std::memory_order_relaxed); }
 
-    uint64_t fetch_sub(uint64_t dec = 1) { return counter.fetch_sub(dec, std::memory_order_release); }
+    uint64_t fetch_sub(uint64_t dec = 1) { return counter.fetch_sub(dec, std::memory_order_relaxed); }
 
-    uint64_t load() { return counter.load(std::memory_order_acquire); }
+    uint64_t load() { return counter.load(std::memory_order_relaxed); }
 };
 
 thread_local uint64_t hashkey;
@@ -95,7 +95,7 @@ public:
     uint64_t allocate(size_t tid) { return -1; }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
-        uint64_t address = ptr.load();
+        uint64_t address = ptr.load(std::memory_order_relaxed);
         hashkey = simplehash(address);
         indicators[hashkey].fetch_add();
         return address;
