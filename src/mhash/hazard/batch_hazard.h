@@ -108,7 +108,7 @@ private:
 #endif
 
     class circulequeue {
-        constexpr static size_t limit = (1llu << 8);
+        constexpr static size_t limit = (batch_size * 2);
         size_t head = 0, tail = 0;
         uint64_t queue[limit];
     public:

@@ -19,7 +19,7 @@
 
 #define high_intensive 1
 
-#define read_factor (1 << 8)
+#define read_factor (1 << 0)
 
 #define brown_new_once 1
 #define brown_use_pool 1
