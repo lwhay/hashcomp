@@ -63,11 +63,11 @@ uint64_t HashFunc(const void *key, int len, uint64_t seed) {
 #define with_cache 0
 
 #if strategy == 0
-constexpr size_t batch_size = (1llu << 10);
+constexpr size_t batch_size = (1llu << 6);
 
 thread_local uint64_t lrulist[batch_size];
 
-thread_local uint64_t freebit[batch_size / 64];
+thread_local uint64_t freebit[(batch_size < 64) ? 1 : batch_size / 64];
 
 thread_local size_t idx = 0;
 
