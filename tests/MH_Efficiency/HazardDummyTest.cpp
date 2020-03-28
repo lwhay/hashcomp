@@ -19,7 +19,7 @@
 
 #define high_intensive 1
 
-#define read_factor (1 << 0)
+#define read_factor (1 << 8)
 
 #define brown_new_once 1
 #define brown_use_pool 1
@@ -121,7 +121,7 @@ void init(std::atomic<uint64_t> *bucket) {
             ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
         else
 #endif
-        if (hash_freent >= 6 && hash_freent <= 12) ptr = (node *) deallocator->allocate(0);
+        if (hash_freent >= 6 && hash_freent <= 12) ptr = (node *) deallocator->allocate(0); // 5: ignored cache.
         else ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i;
         assert(idx >= 0 && idx < list_volume);
@@ -155,7 +155,7 @@ void print(std::atomic<uint64_t> *bucket) {
 }
 
 void writer(std::atomic<uint64_t> *bucket, size_t tid) {
-    if (hash_freent >= 6 && hash_freent <= 12) deallocator->initThread();
+    if (hash_freent >= 5 && hash_freent <= 12) deallocator->initThread(tid);
     else if (hash_freent == 2) ftid = tid;
     uint64_t total = 0, hitting = 0;
     std::queue<uint64_t> oldqueue;
@@ -173,7 +173,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
                 ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
             else
 #endif
-            if (hash_freent >= 6 && hash_freent <= 12) ptr = (node *) deallocator->allocate(tid); // useless tid
+            if (hash_freent >= 5 && hash_freent <= 12) ptr = (node *) deallocator->allocate(tid); // useless tid in 6-12
             else if (hash_freent == 13) ptr = ((faster_epoch<node> *) deallocator)->allocate();
             else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
@@ -260,7 +260,7 @@ int main(int argc, char **argv) {
             break;
         }
         case 5: {
-            deallocator = new batch_hazard;
+            deallocator = new batch_hazard<node>();
             break;
         }
         case 6: {

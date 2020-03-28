@@ -60,6 +60,8 @@ uint64_t HashFunc(const void *key, int len, uint64_t seed) {
 
 #define strategy 0 // 0: batch in/out; 1: hash batch in/out; 2: one out; 3: half one out.
 
+#define with_cache 0
+
 #if strategy == 0
 constexpr size_t batch_size = (1llu << 10);
 
@@ -68,6 +70,8 @@ thread_local uint64_t lrulist[batch_size];
 thread_local uint64_t freebit[batch_size / 64];
 
 thread_local size_t idx = 0;
+
+thread_local uint64_t thread_id = 0;
 
 #elif strategy == 1
 
@@ -93,6 +97,7 @@ thread_local size_t counter[hash_volume];
 #else
 #endif
 
+template<typename T>
 class batch_hazard : public memory_hazard {
 private:
 #if strategy == 0
@@ -102,15 +107,44 @@ private:
 #else
 #endif
 
+    class circulequeue {
+        constexpr static size_t limit = (1llu << 8);
+        size_t head = 0, tail = 0;
+        uint64_t queue[limit];
+    public:
+        bool push(uint64_t e) {
+            if ((head + limit - tail) % limit == 1) return false;
+            queue[tail] = e;
+            tail = (tail + 1) % limit;
+            return true;
+        }
+
+        uint64_t pop() {
+            if (head == tail) return 0;
+            else {
+                uint64_t now = queue[head];
+                head = (head + 1) % limit;
+                return now;
+            }
+        }
+    } cache[thread_limit];
+
 public:
     void registerThread() {
         holders[thread_number++].init();
         //std::cout << thread_number << ": " << sizeof(freebit) << std::endl;
     }
 
-    void initThread() {}
+    void initThread(size_t tid = 0) { thread_id = tid; }
 
-    uint64_t allocate(size_t tid) { return -1; }
+    uint64_t allocate(size_t tid) {
+#if with_cache == 0
+        return (uint64_t) std::malloc(sizeof(T));
+#else
+        uint64_t e = cache[tid].pop();
+        if (e == 0) return (uint64_t) std::malloc(sizeof(T)); else return e;
+#endif
+    }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         uint64_t address;
@@ -151,8 +185,13 @@ public:
             }
             idx = 0;
             for (size_t i = 0; i < batch_size; i++) {
-                if ((freebit[i / 64] & (1llu << (i % 64))) == 0) std::free((void *) lrulist[i]);
-                else lrulist[idx++] = lrulist[i];
+                if ((freebit[i / 64] & (1llu << (i % 64))) == 0) {
+#if with_cache == 0
+                    std::free((void *) lrulist[i]);
+#else
+                    if (!cache[thread_id].push(lrulist[i])) std::free((void *) lrulist[i]);
+#endif
+                } else lrulist[idx++] = lrulist[i];
             }
         }
 #elif strategy == 1

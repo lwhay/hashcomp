@@ -52,7 +52,7 @@ public:
     void registerThread() {
     }
 
-    void initThread() {
+    void initThread(size_t tid = 0) {
         bool expect = false;
         while (!lock.compare_exchange_strong(expect, true));
         ftid = thread_number++;

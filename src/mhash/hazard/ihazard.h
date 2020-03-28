@@ -10,7 +10,7 @@ protected:
     size_t thread_number = 0;
 
 public:
-    virtual void initThread() = 0;
+    virtual void initThread(size_t tid = 0) = 0;
 
     virtual uint64_t allocate(size_t tid) = 0;
 

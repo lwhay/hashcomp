@@ -181,7 +181,7 @@ public:
 
     void registerThread() { ftid = thread_number++; }
 
-    void initThread() {}
+    void initThread(size_t tid = 0) {}
 
     uint64_t allocate(size_t tid) { return -1; }
 
