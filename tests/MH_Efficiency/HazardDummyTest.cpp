@@ -51,10 +51,11 @@ public:
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_hazardptr<>> brown6;
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_token<>> brown7;
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_tree<>> brown8;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debra<>> brown9;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debraplus<>> brown10;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debracap<>> brown11;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_none<>> brown12;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_tree<>> brown9;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debra<>> brown10;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debraplus<>> brown11;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debracap<>> brown12;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_none<>> brown13;
 
 size_t hash_freent = 6;
 
@@ -121,7 +122,7 @@ void init(std::atomic<uint64_t> *bucket) {
             ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
         else
 #endif
-        if (hash_freent >= 6 && hash_freent <= 12) ptr = (node *) deallocator->allocate(0); // 5: ignored cache.
+        if (hash_freent >= 6 && hash_freent <= 13) ptr = (node *) deallocator->allocate(0); // 5: ignored cache.
         else ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i;
         assert(idx >= 0 && idx < list_volume);
@@ -141,7 +142,7 @@ void deinit(std::atomic<uint64_t> *bucket) {
     for (size_t i = 0; i < list_volume; i++) {
         size_t idx = i;
         assert(idx >= 0 && idx < list_volume);
-        if (hash_freent >= 6 && hash_freent <= 12) deallocator->free(bucket[idx]);
+        if (hash_freent >= 6 && hash_freent <= 13) deallocator->free(bucket[idx]);
         else std::free((void *) bucket[idx].load());
     }
 }
@@ -155,7 +156,7 @@ void print(std::atomic<uint64_t> *bucket) {
 }
 
 void writer(std::atomic<uint64_t> *bucket, size_t tid) {
-    if (hash_freent >= 5 && hash_freent <= 12) deallocator->initThread(tid);
+    if (hash_freent >= 5 && hash_freent <= 13) deallocator->initThread(tid);
     else if (hash_freent == 2) ftid = tid;
     uint64_t total = 0, hitting = 0;
     std::queue<uint64_t> oldqueue;
@@ -173,8 +174,8 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
                 ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
             else
 #endif
-            if (hash_freent >= 5 && hash_freent <= 12) ptr = (node *) deallocator->allocate(tid); // useless tid in 6-12
-            else if (hash_freent == 13) ptr = ((faster_epoch<node> *) deallocator)->allocate();
+            if (hash_freent >= 5 && hash_freent <= 13) ptr = (node *) deallocator->allocate(tid); // useless tid in 6-12
+            else if (hash_freent == 14) ptr = ((faster_epoch<node> *) deallocator)->allocate();
             else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = i;
             ptr->value = 1;
@@ -292,10 +293,14 @@ int main(int argc, char **argv) {
             break;
         }
         case 13: {
-            deallocator = new faster_epoch<node>(thrd_number);
+            deallocator = new brown13(thrd_number);
             break;
         }
         case 14: {
+            deallocator = new faster_epoch<node>(thrd_number);
+            break;
+        }
+        case 15: {
             deallocator = new opt_hazard<node>(thrd_number);
             break;
         }
