@@ -62,6 +62,8 @@ uint64_t HashFunc(const void *key, int len, uint64_t seed) {
 
 #define with_cache 0
 
+#define with_stdbs 0
+
 #if strategy == 0
 constexpr size_t batch_size = (1llu << 6);
 
@@ -132,7 +134,8 @@ private:
 public:
     void registerThread() {
         holders[thread_number++].init();
-        //std::cout << thread_number << ": " << sizeof(freebit) << std::endl;
+        /*std::cout << thread_number << ": " << sizeof(freebit) << ", " << std::bitset<sizeof(freebit) * 8>(0).size()
+                  << std::endl;*/
     }
 
     void initThread(size_t tid = 0) { thread_id = tid; }
@@ -174,18 +177,31 @@ public:
         assert(idx >= 0 && idx < batch_size);
         lrulist[idx++] = ptr;
         if (idx == batch_size) {
+#if with_stdbs
+            std::bitset<sizeof(freebit) * 8> bs(0);
+#else
             std::memset(freebit, 0, sizeof(freebit));
+#endif
             for (size_t t = 0; t < thread_number; t++) {
                 const uint64_t target = holders[t].load();
                 if (target != 0) {
                     for (size_t i = 0; i < batch_size; i++) {
-                        if (lrulist[i] == target) freebit[i / 64] |= (1llu << (i % 64));
+                        if (lrulist[i] == target)
+#if with_stdbs
+                            bs.set(i);
+#else
+                            freebit[i / 64] |= (1llu << (i % 64));
+#endif
                     }
                 }
             }
             idx = 0;
             for (size_t i = 0; i < batch_size; i++) {
+#if with_stdbs
+                if ((bs.test(i)) == 0) {
+#else
                 if ((freebit[i / 64] & (1llu << (i % 64))) == 0) {
+#endif
 #if with_cache == 0
                     std::free((void *) lrulist[i]);
 #else
@@ -194,6 +210,7 @@ public:
                 } else lrulist[idx++] = lrulist[i];
             }
         }
+
 #elif strategy == 1
         uint64_t token = hash_idx((const void *) ptr);
         assert(ptr != 0);
@@ -227,7 +244,10 @@ public:
         return true;
     }
 
-    const char *info() { return "batch_hazard"; }
+    const
+
+    char *info() { return "batch_hazard"; }
+
 };
 
 #endif //HASHCOMP_BATCH_HAZARD_H

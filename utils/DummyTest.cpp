@@ -8,6 +8,11 @@
 using namespace std;
 
 int main(int argc, char **argv) {
+    std::bitset<128> bs(0);
+    for (int i = 0; i < 128; i++) if (i % 2 == 0) bs.set(i);
+    for (int i = 0; i < 128; i++) if (bs.test(i)) cout << "1"; else cout << "0";
+    cout << endl;
+    cout << bs.to_string() << endl;
     atomic<long long> tick(0);
     cout << tick.load() << endl;
     tick.fetch_add(1);
