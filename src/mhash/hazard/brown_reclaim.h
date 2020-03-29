@@ -85,7 +85,7 @@ public:
             reclaimer->unprotect(ftid, (T *) holder);
         } else {
             reclaimer->endOp(ftid);
-            reclaimer->rotateEpochBags(ftid);
+            //reclaimer->rotateEpochBags(ftid);
         }
     }
 
@@ -97,7 +97,7 @@ public:
             //alloc->deallocate(ftid, (T *) ptr);
             /*reclaimer->template startOp<T>(ftid, (void *const *const) &reclaimer, 1);
             reclaimer->endOp(ftid);*/
-            //reclaimer->rotateEpochBags(ftid);
+            reclaimer->rotateEpochBags(ftid);
         }
         return true;
     }
