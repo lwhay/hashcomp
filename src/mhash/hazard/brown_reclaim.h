@@ -66,14 +66,23 @@ public:
     }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
+        //if (free_type == 0) {
         uint64_t address = ptr.load();
         reclaimer->protect(ftid, (T *) address, callbackReturnTrue, nullptr, false);
         holder = address;
         return address;
+        /*} else {
+            reclaimer->template startOp<T>(ftid, (void *const *const) &reclaimer, 1);
+            return ptr.load(std::memory_order_release);
+        }*/
     }
 
     void read(size_t tid) {
+        //if (free_type == 0) {
         reclaimer->unprotect(ftid, (T *) holder);
+        /*} else {
+            reclaimer->endOp(ftid);
+        }*/
     }
 
     bool free(uint64_t ptr) {
