@@ -112,17 +112,17 @@ private:
 
     class circulequeue {
         constexpr static size_t limit = (batch_size * 2);
-        size_t head = 0, tail = 0;
-        uint64_t queue[limit];
+        volatile size_t head = 0, tail = 0;
+        volatile uint64_t queue[limit];
     public:
-        bool push(uint64_t e) {
+        inline bool push(uint64_t e) {
             if ((head + limit - tail) % limit == 1) return false;
             queue[tail] = e;
             tail = (tail + 1) % limit;
             return true;
         }
 
-        uint64_t pop() {
+        inline uint64_t pop() {
             if (head == tail) return 0;
             else {
                 uint64_t now = queue[head];
