@@ -69,14 +69,14 @@ public:
             uint64_t address = 0;
             do {
                 if (address != 0) reclaimer->unprotect(ftid, (T *) address);
-                address = ptr.load();
+                address = ptr.load(std::memory_order_relaxed);
                 reclaimer->protect(ftid, (T *) address, callbackReturnTrue, nullptr, false);
-            } while (address != ptr.load());
+            } while (address != ptr.load(std::memory_order_relaxed));
             holder = address;
             return address;
         } else {
             reclaimer->template startOp<T>(ftid, (void *const *const) &reclaimer, 1);
-            return ptr.load(std::memory_order_release);
+            return ptr.load(std::memory_order_relaxed);
         }
     }
 
@@ -85,6 +85,7 @@ public:
             reclaimer->unprotect(ftid, (T *) holder);
         } else {
             reclaimer->endOp(ftid);
+            reclaimer->rotateEpochBags(ftid);
         }
     }
 
