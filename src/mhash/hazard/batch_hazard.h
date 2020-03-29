@@ -61,7 +61,7 @@ uint64_t HashFunc(const void *key, int len, uint64_t seed) {
 
 #define strategy 0 // 0: batch in/out; 1: hash batch in/out; 2: one out; 3: half one out.
 
-#define with_cache 0
+#define with_cache 1
 
 #define with_stdbs 0
 
@@ -141,7 +141,7 @@ public:
 
     void initThread(size_t tid = 0) { thread_id = tid; }
 
-    uint64_t allocate(size_t tid) {
+    inline uint64_t allocate(size_t tid) {
 #if with_cache == 0
         return (uint64_t) std::malloc(sizeof(T));
 #else
@@ -150,7 +150,7 @@ public:
 #endif
     }
 
-    uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
+    inline uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         uint64_t address;
         do {
             address = ptr.load(std::memory_order_relaxed);
@@ -164,7 +164,7 @@ public:
         return address;
     }
 
-    void read(size_t tid) {
+    inline void read(size_t tid) {
 #if strategy == 1
         cells[recent_hash][tid].store(0);
 #else
@@ -172,7 +172,7 @@ public:
 #endif
     }
 
-    bool free(uint64_t ptr) {
+    inline bool free(uint64_t ptr) {
 #if strategy == 0
         assert(ptr != 0);
         assert(idx >= 0 && idx < batch_size);
@@ -211,7 +211,6 @@ public:
                 } else lrulist[idx++] = lrulist[i];
             }
         }
-
 #elif strategy == 1
         uint64_t token = hash_idx((const void *) ptr);
         assert(ptr != 0);
