@@ -6,6 +6,7 @@
 #define HASHCOMP_BATCH_HAZARD_H
 
 #include <atomic>
+#include <bitset>
 #include <cassert>
 #include "memory_hazard.h"
 
