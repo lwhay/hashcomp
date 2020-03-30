@@ -9,6 +9,7 @@
 #define RECOVERY_MANAGER_H
 
 #include <setjmp.h>
+#include <memory.h>
 
 #ifndef VERBOSE
 #define VERBOSE if(0)
