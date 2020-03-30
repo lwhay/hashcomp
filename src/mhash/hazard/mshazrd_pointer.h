@@ -186,17 +186,12 @@ public:
     uint64_t allocate(size_t tid) { return -1; }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
-        hp->protect(0, (std::atomic<uint64_t *> &) ptr, tid);
-        return ptr.load();
+        return (uint64_t) hp->protect(0, (std::atomic<uint64_t *> &) ptr, tid);
     }
 
-    void read(size_t tid) {
-        hp->clearOne(0, tid);
-    }
+    void read(size_t tid) { hp->clearOne(0, tid); }
 
-    bool free(uint64_t ptr) {
-        hp->retire((uint64_t *) ptr, ftid);
-    }
+    bool free(uint64_t ptr) { hp->retire((uint64_t *) ptr, ftid); }
 
     const char *info() { return "mshazardpoint"; }
 };

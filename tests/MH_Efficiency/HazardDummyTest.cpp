@@ -94,7 +94,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 #if high_intensive
         for (size_t i = 0; i < total_count; i++) {
 #else
-            for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
+        for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
 #endif
             size_t idx = i * align_width % (list_volume);
             assert(idx >= 0 && idx < list_volume);
@@ -166,7 +166,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
 #if high_intensive
         for (size_t i = 0; i < total_count; i++) {
 #else
-            for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
+        for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
 #endif
             node *ptr;
 #if uselocal == 0
@@ -184,7 +184,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             assert(idx >= 0 && idx < list_volume);
             do {
                 old = bucket[idx].load();
-            } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr));
+            } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr, std::memory_order_relaxed));
             node *oldptr = (node *) old;
             if (hash_freent == 2 || hash_freent == 4 ||
                 hash_freent >= 5 /*&& hash_freent < 14*/) { // mshp etc maintains caches inside each hp.
