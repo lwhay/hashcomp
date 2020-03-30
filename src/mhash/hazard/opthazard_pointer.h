@@ -23,7 +23,7 @@ public:
     uint64_t allocate(size_t tid) { return -1; }
 
     opt_hazard(int thread_num) : thread_cnt(thread_num) {
-        DEFAULT_HAZPTR_DOMAIN.Init(thread_cnt);
+        HazPtrInit(thread_cnt);
     }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
@@ -38,7 +38,7 @@ public:
     void read(size_t tid) { holders[tid].Reset(); }
 
     bool free(uint64_t ptr) {
-        DEFAULT_HAZPTR_DOMAIN.PushRetired((T *) ptr);
+        HazPtrRetire((T *) ptr);
     }
 
     const char *info() { return "opthazard_pointer"; }
