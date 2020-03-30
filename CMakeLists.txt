@@ -219,7 +219,8 @@ if (WITH_STRUCT)
             utils/Load_UnitTest.cpp
             utils/CacheSteppingTest.cpp
             utils/CacheSteppingAtomicTest.cpp
-            utils/MallocTest.cpp)
+            utils/MallocTest.cpp
+            tests/NUMA_Unit/BST_UsageTest.cpp)
 endif ()
 
 find_package(Threads)
