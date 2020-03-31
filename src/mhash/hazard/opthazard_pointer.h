@@ -12,8 +12,9 @@ template<typename T>
 class opt_hazard : public ihazard {
 protected:
     static const int OPT_MAX_THREAD = 128;
+    static const int HOLDER_ALIGNAS = 32;
     int thread_cnt;
-    HazPtrHolder *holders[OPT_MAX_THREAD];
+    HazPtrHolder holders[OPT_MAX_THREAD * HOLDER_ALIGNAS];
 
 public:
     void registerThread() {}
@@ -23,11 +24,8 @@ public:
     uint64_t allocate(size_t tid) { return -1; }
 
     opt_hazard(int thread_num) : thread_cnt(thread_num) {
-        for (int i = 0; i < thread_cnt; i++) holders[i] = new HazPtrHolder;
         HazPtrInit(thread_cnt);
     }
-
-    ~opt_hazard() { for (int i = 0; i < thread_cnt; i++) delete holders[i]; }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         /*T *node;
@@ -35,10 +33,10 @@ public:
             node = holders[tid].Repin((std::atomic<T *> &) ptr);
         } while (!node);
         return (uint64_t) node;*/
-        return (uint64_t) holders[tid]->Pin((std::atomic<T *> &) ptr);
+        return (uint64_t) holders[tid * HOLDER_ALIGNAS].Pin((std::atomic<T *> &) ptr);
     }
 
-    void read(size_t tid) { holders[tid]->Reset(); }
+    void read(size_t tid) { holders[tid * HOLDER_ALIGNAS].Reset(); }
 
     bool free(uint64_t ptr) { HazPtrRetire((T *) ptr); }
 
