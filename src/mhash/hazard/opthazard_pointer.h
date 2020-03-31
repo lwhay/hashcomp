@@ -12,9 +12,9 @@ template<typename T>
 class opt_hazard : public ihazard {
 protected:
     static const int OPT_MAX_THREAD = 128;
-    static const int HOLDER_ALIGNAS = 32;
     int thread_cnt;
-    HazPtrHolder holders[OPT_MAX_THREAD * HOLDER_ALIGNAS];
+    HazPtrHolder holders
+    alignas(128)[OPT_MAX_THREAD];
 
 public:
     void registerThread() {}
@@ -33,10 +33,10 @@ public:
             node = holders[tid].Repin((std::atomic<T *> &) ptr);
         } while (!node);
         return (uint64_t) node;*/
-        return (uint64_t) holders[tid * HOLDER_ALIGNAS].Pin((std::atomic<T *> &) ptr);
+        return (uint64_t) holders[tid].Pin((std::atomic<T *> &) ptr);
     }
 
-    void read(size_t tid) { holders[tid * HOLDER_ALIGNAS].Reset(); }
+    void read(size_t tid) { holders[tid].Reset(); }
 
     bool free(uint64_t ptr) { HazPtrRetire((T *) ptr); }
 
