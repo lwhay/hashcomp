@@ -320,14 +320,14 @@ int main(int argc, char **argv) {
     CPU_ZERO(&cpuset);
     for (size_t i = 0; i < num_cpus; i++) {
         CPU_SET(i, &cpuset);
-        std::cout << num_cpus << "\t" << *(cpuset.__bits) << std::endl;
+        //std::cout << num_cpus << "\t" << *(cpuset.__bits) << std::endl;
     }
     for (; t < worker_gran; t++) {
         deallocator->registerThread();
         workers.push_back(std::thread(reader, bucket, t));
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET(t % 12, &cpuset);
+        CPU_SET(t, &cpuset);
         int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
         if (rc != 0) {
             std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
@@ -338,7 +338,7 @@ int main(int argc, char **argv) {
         workers.push_back(std::thread(writer, bucket, t));
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET(t % 12, &cpuset);
+        CPU_SET(t, &cpuset);
         int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
         if (rc != 0) {
             std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
