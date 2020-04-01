@@ -60,7 +60,7 @@ uint64_t HashFunc(const void *key, int len, uint64_t seed) {
     return h;
 }
 
-#define strategy 0 // 0: batch in/out; 1: hash batch in/out; 2: one out; 3: half one out.
+#define strategy 2 // 0: batch in/out; 1: hash batch in/out; 2: half batch in/out; 3: half one out.
 
 #define with_cache 1
 
@@ -98,17 +98,30 @@ thread_local uint64_t recent_hash;
 thread_local uint64_t circile_queue[holder_size];
 
 thread_local size_t counter[hash_volume];
-#else
+
+#elif strategy == 2
+
+constexpr size_t batch_size = (1llu << 6);
+
+constexpr size_t lru_volume = batch_size * 2;
+
+thread_local uint64_t lrulist[lru_volume];
+
+thread_local uint64_t freebit[(lru_volume < 64) ? 1 : (lru_volume / 64)];
+
+thread_local size_t idx = 0;
+
+thread_local uint64_t thread_id = 0;
+
 #endif
 
 template<typename T>
 class batch_hazard : public memory_hazard {
 private:
-#if strategy == 0
-    holder holders[thread_limit];
-#elif strategy == 1
+#if strategy == 1
     holder cells[hash_volume][thread_limit];
 #else
+    holder holders[thread_limit];
 #endif
 
     class circulequeue {
@@ -263,14 +276,50 @@ public:
                 else lrucell[token][lruidx[token]++] = lrucell[token][i];
             }
         }
+#elif strategy == 2
+        assert(ptr != 0);
+        assert(idx >= 0 && idx < batch_size);
+        lrulist[idx++ % lru_volume] = ptr;
+        if (idx % batch_size == 0) {
+#if with_stdbs
+            std::bitset<sizeof(freebit) * 8> bs(0);
+#else
+            std::memset(freebit, 0, sizeof(freebit));
+#endif
+            for (size_t t = 0; t < thread_number; t++) {
+                const uint64_t target = holders[t].load();
+                if (target != 0) {
+                    for (size_t i = idx; i < (idx + batch_size); i++) {
+                        if (lrulist[i] == target)
+#if with_stdbs
+                            bs.set(i);
+#else
+                            freebit[i / 64] |= (1llu << (i % 64));
+#endif
+                    }
+                }
+            }
+            idx = 0;
+            for (size_t i = idx; i < (idx + batch_size); i++) {
+#if with_stdbs
+                if ((bs.test(i)) == 0) {
+#else
+                if ((freebit[i / 64] & (1llu << (i % 64))) == 0) {
+#endif
+#if with_cache == 0
+                    std::free((void *) lrulist[i]);
+#else
+                    if (!cache[thread_id].push(lrulist[i])) std::free((void *) lrulist[i]);
+#endif
+                } else lrulist[idx++] = lrulist[i];
+            }
+        }
 #else
 #endif
         return true;
     }
 
-    const
-
-    char *info() { return "batch_hazard"; }
+    const char *info() { return "batch_hazard"; }
 
 };
 
