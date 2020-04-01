@@ -52,6 +52,10 @@ private:
 //    }
 public:
     template<typename _Tp1>
+    struct rebindAlloc {
+        typedef typename Alloc::template rebind<_Tp1>::other other;
+    };
+    template<typename _Tp1>
     struct rebind {
         typedef pool_perthread_and_shared<_Tp1, Alloc> other;
     };

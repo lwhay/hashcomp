@@ -21,8 +21,8 @@
 
 #define read_factor (1 << 0)
 
-#define brown_new_once 1
-#define brown_use_pool 1
+#define brown_new_once 2
+#define brown_use_pool 0
 
 #if brown_new_once == 1
 #define alloc allocator_new
@@ -94,7 +94,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 #if high_intensive
         for (size_t i = 0; i < total_count; i++) {
 #else
-        for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
+            for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
 #endif
             size_t idx = i * align_width % (list_volume);
             assert(idx >= 0 && idx < list_volume);
@@ -166,7 +166,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
 #if high_intensive
         for (size_t i = 0; i < total_count; i++) {
 #else
-        for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
+            for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
 #endif
             node *ptr;
 #if uselocal == 0
