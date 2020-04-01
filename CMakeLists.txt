@@ -78,7 +78,8 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     option(WITH_NUMA "enforcing numa test" ON)
     if (WITH_NUMA)
         set(NUMA_EXES
-                tests/NUMA_Unit/NUMA_dummy_test.cpp)
+                tests/NUMA_Unit/NUMA_dummy_test.cpp
+                tests/MH_Efficiency/HazardNumaDummyTest.cpp)
     endif ()
 else ()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wincompatible-pointer-types -Wint-conversion")
@@ -344,7 +345,7 @@ if (WITH_NUMA)
                 EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
                 OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
                 )
-        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${NUMA})
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${NUMA} ${MLIBS})
     endforeach (sourcefile ${NUMA_TESTS_EXES})
 endif ()
 
