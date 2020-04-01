@@ -5,15 +5,17 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <atomic>
 #include <cassert>
 #include <iostream>
 #include <memory>
-#include <array>
 #include <unordered_set>
 #include <thread>
+#include <functional>
+#include <mutex>
 
 #include "hazard/batch_hazard.h"
 #include "hash_map/thread.h"
