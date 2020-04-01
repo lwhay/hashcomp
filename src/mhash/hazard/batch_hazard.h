@@ -62,11 +62,12 @@ uint64_t HashFunc(const void *key, int len, uint64_t seed) {
 
 #define strategy 2 // 0: batch in/out; 1: hash batch in/out; 2: half batch in/out; 3: half one out.
 
-#define with_cache 1
+#define with_cache 0
 
 #define with_stdbs 0
 
 #if strategy == 0
+
 constexpr size_t batch_size = (1llu << 6);
 
 thread_local uint64_t lrulist[batch_size];
@@ -278,8 +279,9 @@ public:
         }
 #elif strategy == 2
         assert(ptr != 0);
-        assert(idx >= 0 && idx < batch_size);
-        lrulist[idx++ % lru_volume] = ptr;
+        assert(idx >= 0 && idx < lru_volume);
+        lrulist[idx++] = ptr;
+        idx = idx % lru_volume;
         if (idx % batch_size == 0) {
 #if with_stdbs
             std::bitset<sizeof(freebit) * 8> bs(0);
@@ -299,8 +301,8 @@ public:
                     }
                 }
             }
-            idx = 0;
-            for (size_t i = idx; i < (idx + batch_size); i++) {
+            uint64_t start = idx;
+            for (size_t i = start; i < (start + batch_size); i++) {
 #if with_stdbs
                 if ((bs.test(i)) == 0) {
 #else
