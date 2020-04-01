@@ -22,8 +22,8 @@
 
 #define read_factor (1 << 0)
 
-#define brown_new_once 1
-#define brown_use_pool 1
+#define brown_new_once 2
+#define brown_use_pool 0
 
 #if brown_new_once == 1
 #define alloc allocator_new
