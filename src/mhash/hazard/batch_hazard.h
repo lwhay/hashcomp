@@ -104,7 +104,7 @@ thread_local size_t counter[hash_volume];
 
 constexpr size_t batch_size = (1llu << 6);
 
-constexpr size_t lruTObatch = 4;
+constexpr size_t lruTObatch = 1;
 
 constexpr size_t lru_volume = batch_size * lruTObatch;
 
