@@ -4,11 +4,13 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <atomic>
 #include <cassert>
 #include <iostream>
+#include <memory>
 #include <array>
 #include <unordered_set>
 #include <thread>
