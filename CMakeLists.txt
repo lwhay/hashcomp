@@ -338,14 +338,14 @@ if (WITH_NUMA)
     set(NUMA_TESTS_EXES ${NUMA_EXES})
     foreach (sourcefile ${NUMA_TESTS_EXES})
         get_filename_component(exename ${sourcefile} NAME_WE)
-        add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile})
+        add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile} ${MLIBS} ${MH_LIBS})
         set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
                 PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
                 EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
                 EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
                 OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
                 )
-        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${NUMA} ${MLIBS} ${MH_LIBS})
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${NUMA})
     endforeach (sourcefile ${NUMA_TESTS_EXES})
 endif ()
 
