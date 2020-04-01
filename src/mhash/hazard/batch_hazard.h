@@ -8,7 +8,7 @@
 #include <atomic>
 #include <bitset>
 #include <cassert>
-#include <memory>
+#include <cstring>
 #include "memory_hazard.h"
 
 #define BIG_CONSTANT(x) (x##LLU)
@@ -205,7 +205,7 @@ public:
 #if with_stdbs
             std::bitset<sizeof(freebit) * 8> bs(0);
 #else
-            memset(freebit, 0, sizeof(freebit));
+            std::memset(freebit, 0, sizeof(freebit));
 #endif
             for (size_t t = 0; t < thread_number; t++) {
                 const uint64_t target = holders[t].load();
