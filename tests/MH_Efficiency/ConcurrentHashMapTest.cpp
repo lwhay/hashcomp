@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <thread>
-#include "concurrent_hash_map.h"
+#include "trick_concurrent_hash_map.h"
 
 constexpr uint64_t thread_number = 1;
 constexpr uint64_t total_count = 1llu << 20;

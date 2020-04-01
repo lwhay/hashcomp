@@ -203,7 +203,7 @@ if (WITH_UTILS)
             src/mhash/util/MurmurHash1.cpp
             src/mhash/util/MurmurHash2.cpp
             src/mhash/util/MurmurHash3.cpp
-            src/mhash/concurrent_hash_map.cpp
+            src/mhash/trick_concurrent_hash_map.cpp
             src/mhash/thread.cpp)
     set(UTILS
             utils/DistributionTool.cpp
