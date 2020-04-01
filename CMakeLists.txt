@@ -202,12 +202,15 @@ if (WITH_UTILS)
             src/mhash/util/City.cpp
             src/mhash/util/MurmurHash1.cpp
             src/mhash/util/MurmurHash2.cpp
-            src/mhash/util/MurmurHash3.cpp)
+            src/mhash/util/MurmurHash3.cpp
+            src/mhash/concurrent_hash_map.cpp
+            src/mhash/thread.cpp)
     set(UTILS
             utils/DistributionTool.cpp
             utils/MicroDistTool.cpp
             utils/UH_UnitTest.cpp
-            utils/UH_HashTest.cpp)
+            utils/UH_HashTest.cpp
+            tests/MH_Efficiency/ConcurrentHashMapTest.cpp)
 endif ()
 
 option(WITH_STRUCT "build with structs" ON)

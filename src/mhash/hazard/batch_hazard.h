@@ -150,6 +150,29 @@ public:
 #endif
     }
 
+    template<typename IS_SAFE, typename FILTER>
+    T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
+        uint64_t address;
+        do {
+            address = (uint64_t) res.load(std::memory_order_relaxed);
+#if strategy == 1
+            recent_hash = hash_idx((const void *) address);
+            cells[recent_hash][tid].store(address);
+#else
+            if (!address) {
+                return nullptr;
+            }
+
+            if (is_safe((T *) address)) {
+                return filter((T *) address);
+            }
+
+            holders[tid].store(address);
+#endif
+        } while (address != (uint64_t) res.load(std::memory_order_relaxed));
+        return (T *) address;
+    }
+
     inline uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         uint64_t address;
         do {
