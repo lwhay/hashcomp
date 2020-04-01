@@ -106,7 +106,7 @@ public:
         for (int tid = 0; tid < numProcesses; ++tid) {
             long long newSizeBytes = ALLOC_ONCE_MEMORY / numProcesses; // divide several GB amongst all threads.
             VERBOSE COUTATOMIC("newSizeBytes        = " << newSizeBytes << std::endl);
-            assert((newSizeBytes % (cachelines * BYTES_IN_CACHE_LINE)) == 0);
+            //assert((newSizeBytes % (cachelines * BYTES_IN_CACHE_LINE)) == 0);
 
             mem[tid] = (T *) malloc((size_t) newSizeBytes);
             if (mem[tid] == NULL) {
