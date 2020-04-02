@@ -345,7 +345,7 @@ if (WITH_NUMA)
                 EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
                 OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
                 )
-        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${NUMA})
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${NUMA} ${ATOMIC})
     endforeach (sourcefile ${NUMA_TESTS_EXES})
 endif ()
 
