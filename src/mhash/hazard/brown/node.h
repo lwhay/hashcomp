@@ -1,137 +1,62 @@
 /**
- * C++ implementation of lock-free chromatic tree using LLX/SCX and DEBRA(+).
- * 
- * Copyright (C) 2016 Trevor Brown
- * Contact (tabrown [at] cs [dot] toronto [dot edu]) with any questions or comments.
+ * Preliminary C++ implementation of binary search tree using LLX/SCX.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2014 Trevor Brown
+ * This preliminary implementation is CONFIDENTIAL and may not be distributed.
  */
 
 #ifndef NODE_H
-#define NODE_H
+#define    NODE_H
 
 #include <iostream>
 #include <iomanip>
 #include <atomic>
 #include <set>
 #include "scxrecord.h"
+#include "rq_provider.h"
 
-using namespace std;
+#ifdef USE_RECLAIMER_RCU
+#include <urcu.h>
+#define RECLAIM_RCU_RCUHEAD_DEFN struct rcu_head rcuHeadField
+#else
+#define RECLAIM_RCU_RCUHEAD_DEFN
+#endif
+
+namespace bst_ns {
+
+#define nodeptr Node<K,V> * volatile
 
 template<class K, class V>
 class Node {
 public:
-    int weight;
     V value;
     K key;
-    atomic_uintptr_t scxRecord;
-    atomic_bool marked; // might be able to combine this elegantly with scx record pointer... (maybe we can piggyback on the version number mechanism, using the same bit to indicate ver# OR marked)
-    atomic_uintptr_t left;
-    atomic_uintptr_t right;
+    std::atomic_uintptr_t scxRecord;
+#if !defined(BROWN_EXT_BST_LF_COLOCATE_MARKED_BIT)
+    std::atomic_bool marked; // might be able to combine this elegantly with scx record pointer... (maybe we can piggyback on the version number mechanism, using the same bit to indicate ver# OR marked)
+#endif
+    nodeptr left;
+    nodeptr right;
+#if defined(RQ_LOCKFREE) || defined(RQ_RWLOCK) || defined(HTM_RQ_RWLOCK)
+    volatile long long itime; // for use by range query algorithm
+        volatile long long dtime; // for use by range query algorithm
+#endif
+    RECLAIM_RCU_RCUHEAD_DEFN;
 
-    Node() {
-        // left blank for efficiency with custom allocator
-    }
+    Node() {}
 
-    Node(const Node &node) {
-        // left blank for efficiency with custom allocator
-    }
+    Node(const Node &node) {}
 
-    K getKey() { return key; }
+    friend std::ostream &operator<<(std::ostream &os, const Node<K, V> &obj) {}
 
-    V getValue() { return value; }
+    void printTreeFile(std::ostream &os) {}
 
-    friend ostream &operator<<(ostream &os, const Node<K, V> &obj) {
-        ios::fmtflags f(os.flags());
-        os << "[key=" << obj.key
-           << " weight=" << obj.weight
-           << " marked=" << obj.marked.load(memory_order_relaxed);
-        os << " scxRecord@0x" << hex << (long) (obj.scxRecord.load(memory_order_relaxed));
-//        os.flags(f);
-        os << " left@0x" << hex << (long) (obj.left.load(memory_order_relaxed));
-//        os.flags(f);
-        os << " right@0x" << hex << (long) (obj.right.load(memory_order_relaxed));
-//        os.flags(f);
-        os << "]" << "@0x" << hex << (long) (&obj);
-        os.flags(f);
-        return os;
-    }
+    void printTreeFileWeight(std::ostream &os, std::set<Node<K, V> *> *seen) {}
 
-    // somewhat slow version that detects cycles in the tree
-    void printTreeFile(ostream &os, set<Node<K, V> *> *seen) {
-//        os<<"(["<<key<<","<</*(long)(*this)<<","<<*/marked<<","<<scxRecord->state<<"],"<<weight<<",";
-        os << "([" << key << "," << marked.load(memory_order_relaxed) << "],"
-           << ((SCXRecord <K, V> *) scxRecord.load(memory_order_relaxed))->state.load(memory_order_relaxed) << ",";
-        Node<K, V> *__left = (Node<K, V> *) left.load(memory_order_relaxed);
-        Node<K, V> *__right = (Node<K, V> *) right.load(memory_order_relaxed);
-        if (__left == NULL) {
-            os << "-";
-        } else if (seen->find(__left) != seen->end()) {   // for finding cycles
-            os << "!"; // cycle!                          // for finding cycles
-        } else {
-            seen->insert(__left);
-            __left->printTreeFile(os, seen);
-        }
-        os << ",";
-        if (__right == NULL) {
-            os << "-";
-        } else if (seen->find(__right) != seen->end()) {  // for finding cycles
-            os << "!"; // cycle!                          // for finding cycles
-        } else {
-            seen->insert(__right);
-            __right->printTreeFile(os, seen);
-        }
-        os << ")";
-    }
-
-    void printTreeFile(ostream &os) {
-        set<Node<K, V> *> seen;
-        printTreeFile(os, &seen);
-    }
-
-    // somewhat slow version that detects cycles in the tree
-    void printTreeFileWeight(ostream &os, set<Node<K, V> *> *seen) {
-//        os<<"(["<<key<<","<</*(long)(*this)<<","<<*/marked<<","<<scxRecord->state<<"],"<<weight<<",";
-        os << "([" << key << "]," << weight << ",";
-        Node<K, V> *__left = (Node<K, V> *) left.load(memory_order_relaxed);
-        Node<K, V> *__right = (Node<K, V> *) right.load(memory_order_relaxed);
-        if (__left == NULL) {
-            os << "-";
-        } else if (seen->find(__left) != seen->end()) {   // for finding cycles
-            os << "!"; // cycle!                          // for finding cycles
-        } else {
-            seen->insert(__left);
-            __left->printTreeFileWeight(os, seen);
-        }
-        os << ",";
-        if (__right == NULL) {
-            os << "-";
-        } else if (seen->find(__right) != seen->end()) {  // for finding cycles
-            os << "!"; // cycle!                          // for finding cycles
-        } else {
-            seen->insert(__right);
-            __right->printTreeFileWeight(os, seen);
-        }
-        os << ")";
-    }
-
-    void printTreeFileWeight(ostream &os) {
-        set<Node<K, V> *> seen;
-        printTreeFileWeight(os, &seen);
-    }
+    void printTreeFileWeight(std::ostream &os) {}
 
 };
+}
 
-#endif /* NODE_H */
+#endif    /* NODE_H */
 

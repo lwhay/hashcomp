@@ -1,1200 +1,1074 @@
 /**
- * C++ implementation of unbalanced BST using LLX/SCX and DEBRA(+).
- * 
- * Copyright (C) 2016 Trevor Brown
- * Contact (tabrown [at] cs [dot] toronto [dot edu]) with any questions or comments.
+ * C++ implementation of unbalanced binary search tree using LLX/SCX.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2018 Trevor Brown
  */
 
-#ifndef BST_IMPL_H
-#define BST_IMPL_H
+#ifndef BST_H
+#define BST_H
 
+#include <string>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <set>
+#include <csignal>
 #include <cassert>
 #include <cstdlib>
-#include "bst.h"
-#include "chromatic.h"
+#include <unistd.h>
+#include <sys/types.h>
+#include <pthread.h>
+#include <stdexcept>
+#include <bitset>
+#include "descriptors.h"
+#include "record_manager.h"
+#include "scxrecord.h"
+#include "node.h"
+#include "rq_provider.h"
 
-using namespace std;
+#ifdef NOREBALANCING
+#define IFREBALANCING if (0)
+#else
+#define IFREBALANCING if (1)
+#endif
 
-#define IF_FAIL_TO_PROTECT_SCX(info, tid, _obj, arg2, arg3) \
-    info.obj = _obj; \
-    info.ptrToObj = arg2; \
-    info.nodeContainingPtrToObjIsMarked = arg3; \
-    if (_obj != dummy && !recordmgr->protect(tid, _obj, callbackCheckNotRetired, (void*) &info))
-#define IF_FAIL_TO_PROTECT_NODE(info, tid, _obj, arg2, arg3) \
-    info.obj = _obj; \
-    info.ptrToObj = arg2; \
-    info.nodeContainingPtrToObjIsMarked = arg3; \
-    if (_obj != root && !recordmgr->protect(tid, _obj, callbackCheckNotRetired, (void*) &info))
+namespace bst_ns {
 
-inline CallbackReturn bst_callbackCheckNotRetired(CallbackArg arg) {
-    BST_retired_info *info = (BST_retired_info *) arg;
-    if ((void *) info->ptrToObj->load(memory_order_relaxed) == info->obj) {
-        // we insert a compiler barrier (not a memory barrier!)
-        // to prevent these if statements from being merged or reordered.
-        // we care because we need to see that ptrToObj == obj
-        // and THEN see that ptrToObject is a field of an object
-        // that is not marked. seeing both of these things,
-        // in this order, implies that obj is in the data structure.
-        SOFTWARE_BARRIER;
-        if (!info->nodeContainingPtrToObjIsMarked->load(memory_order_relaxed)) {
-            return true;
+template<class K, class V>
+class ReclamationInfo {
+public:
+    int type;
+    void *llxResults[MAX_NODES];
+    Node<K, V> *nodes[MAX_NODES];
+    int state;
+    int numberOfNodes;
+    int numberOfNodesToFreeze;
+    int numberOfNodesToReclaim;
+    int numberOfNodesAllocated;
+    int path;
+    //bool capacityAborted[NUMBER_OF_PATHS];
+    int lastAbort;
+};
+
+template<class K, class V, class Compare, class RecManager>
+class bst {
+private:
+    PAD;
+    RecManager *const recmgr;
+//        PAD;
+    RQProvider<K, V, Node<K, V>, bst<K, V, Compare, RecManager>, RecManager, false, false> *const rqProvider;
+//        PAD;
+
+    const int N; // number of violations to allow on a search path before we fix everything on it
+//        PAD;
+    Node<K, V> *root;        // actually const
+//        PAD;
+    Compare cmp;
+//        PAD;
+
+    Node<K, V> **allocatedNodes;
+//        PAD;
+#define GET_ALLOCATED_NODE_PTR(tid, i) allocatedNodes[tid*(PREFETCH_SIZE_WORDS+MAX_NODES)+i]
+#define REPLACE_ALLOCATED_NODE(tid, i) { GET_ALLOCATED_NODE_PTR(tid, i) = allocateNode(tid); /*GET_ALLOCATED_NODE_PTR(tid, i)->left.store((uintptr_t) NULL, std::memory_order_relaxed);*/ }
+
+#ifdef USE_DEBUGCOUNTERS
+    // debug info
+        debugCounters * const counters;
+//        PAD;
+#endif
+
+    // descriptor reduction algorithm
+#define DESC1_ARRAY records
+#define DESC1_T SCXRecord<K,V>
+#define MUTABLES_OFFSET_ALLFROZEN 0
+#define MUTABLES_OFFSET_STATE 1
+#define MUTABLES_MASK_ALLFROZEN 0x1
+#define MUTABLES_MASK_STATE 0x6
+#define MUTABLES1_NEW(mutables) \
+            ((((mutables)&MASK1_SEQ)+(1<<OFFSET1_SEQ)) \
+            | (SCXRecord<K comma1 V>::STATE_INPROGRESS<<MUTABLES_OFFSET_STATE))
+#define MUTABLES_INIT_DUMMY SCXRecord<K comma1 V>::STATE_COMMITTED<<MUTABLES_OFFSET_STATE | MUTABLES_MASK_ALLFROZEN<<MUTABLES_OFFSET_ALLFROZEN
+
+#include "descriptors_impl.h"
+
+    PAD;
+    DESC1_T DESC1_ARRAY[LAST_TID1 + 1] __attribute__ ((aligned(64)));
+//        PAD;
+
+    /**
+     * this is what LLX returns when it is performed on a leaf.
+     * the important qualities of this value are:
+     *      - it is not NULL
+     *      - it cannot be equal to any pointer to an scx record
+     */
+#define LLX_RETURN_IS_LEAF ((void*) TAGPTR1_DUMMY_DESC(0))
+#define DUMMY_SCXRECORD ((void*) TAGPTR1_STATIC_DESC(0))
+
+    // private function declarations
+
+    inline Node<K, V> *allocateNode(const int tid);
+
+    inline Node<K, V> *initializeNode(
+            const int,
+            Node<K, V> *const,
+            const K &,
+            const V &,
+            Node<K, V> *const,
+            Node<K, V> *const);
+
+    inline SCXRecord<K, V> *initializeSCXRecord(
+            const int,
+            SCXRecord<K, V> *const,
+            ReclamationInfo<K, V> *const,
+            std::atomic_uintptr_t *const,
+            Node<K, V> *const);
+
+    int rangeQuery_lock(ReclamationInfo<K, V> *const, const int, void **input, void **output);
+
+    int rangeQuery_vlx(ReclamationInfo<K, V> *const, const int, void **input, void **output);
+
+    bool updateInsert_search_llx_scx(ReclamationInfo<K, V> *const, const int, void **input,
+                                     void **output); // input consists of: const K& key, const V& val, const bool onlyIfAbsent
+    bool updateErase_search_llx_scx(ReclamationInfo<K, V> *const, const int, void **input,
+                                    void **output); // input consists of: const K& key, const V& val, const bool onlyIfAbsent
+    void reclaimMemoryAfterSCX(
+            const int tid,
+            ReclamationInfo<K, V> *info);
+
+    void helpOther(const int tid, tagptr_t tagptr);
+
+    int help(const int tid, tagptr_t tagptr, SCXRecord<K, V> *ptr, bool helpingOther);
+
+    inline void *llx(
+            const int tid,
+            Node<K, V> *node,
+            Node<K, V> **retLeft,
+            Node<K, V> **retRight);
+
+    inline bool scx(
+            const int tid,
+            ReclamationInfo<K, V> *const,
+            Node<K, V> *volatile *field,         // pointer to a "field pointer" that will be changed
+            Node<K, V> *newNode,
+            Node<K, V> *const *const insertedNodes,
+            Node<K, V> *const *const deletedNodes);
+
+    inline int computeSize(Node<K, V> *node);
+
+    long long debugKeySum(Node<K, V> *node);
+
+    bool validate(Node<K, V> *const node, const int currdepth, const int leafdepth);
+
+    const V doInsert(const int tid, const K &key, const V &val, bool onlyIfAbsent);
+
+    int init[MAX_THREADS_POW2] = {0,};
+//        PAD;
+
+public:
+    const K NO_KEY;
+    const V NO_VALUE;
+    PAD;
+
+    /**
+     * This function must be called once by each thread that will
+     * invoke any functions on this class.
+     *
+     * It must be okay that we do this with the main thread and later with another thread!!!
+     */
+    void initThread(const int tid) {
+        if (init[tid]) return; else init[tid] = !init[tid];
+
+        recmgr->initThread(tid);
+        rqProvider->initThread(tid);
+
+        for (int i = 0; i < MAX_NODES; ++i) {
+            REPLACE_ALLOCATED_NODE(tid, i);
         }
     }
-    return false;
-}
 
-#define bst_allocateSCXRecord(tid) recordmgr->template allocate<SCXRecord<K,V> >((tid))
-#define bst_allocateNode(tid) recordmgr->template allocate<Node<K,V> >((tid))
-#define bst_initializeSCXRecord(_tid, _newop, _type, _nodes, _llxResults, _field, _newNode) { \
-    (_newop)->type = (_type); \
-    (_newop)->newNode = (_newNode); \
-    for (int i=0;i<NUM_OF_NODES[(_type)];++i) { \
-        (_newop)->nodes[i] = (_nodes)[i]; \
-    } \
-    for (int i=0;i<NUM_TO_FREEZE[(_type)];++i) { \
-        (_newop)->scxRecordsSeen[i] = (SCXRecord<K,V>*) (_llxResults)[i]; \
-    } \
-    /* note: synchronization is not necessary for the following accesses, \
-       since a memory barrier will occur before this object becomes reachable \
-       from an entry point to the data structure. */ \
-    (_newop)->state.store(SCXRecord<K,V>::STATE_INPROGRESS, memory_order_relaxed); \
-    (_newop)->allFrozen.store(false, memory_order_relaxed); \
-    (_newop)->field = (_field); \
-}
-#define bst_initializeNode(_tid, _newnode, _key, _value, _left, _right) \
-(_newnode); \
-{ \
-    (_newnode)->key = (_key); \
-    (_newnode)->value = (_value); \
-    /* note: synchronization is not necessary for the following accesses, \
-       since a memory barrier will occur before this object becomes reachable \
-       from an entry point to the data structure. */ \
-    (_newnode)->left.store((uintptr_t) (_left), memory_order_relaxed); \
-    (_newnode)->right.store((uintptr_t) (_right), memory_order_relaxed); \
-    (_newnode)->scxRecord.store((uintptr_t) dummy, memory_order_relaxed); \
-    (_newnode)->marked.store(false, memory_order_relaxed); \
-}
+    void deinitThread(const int tid) {
+        if (!init[tid]) return; else init[tid] = !init[tid];
 
-template<class K, class V, class Compare, class MasterRecordMgr>
-BST<K, V, Compare, MasterRecordMgr>::BST(const K &_NO_KEY,
-                                         const V &_NO_VALUE,
-                                         const V &_RETRY,
-                                         const int numProcesses,
-                                         int neutralizeSignal)
-        : NO_KEY(_NO_KEY),
-          NO_VALUE(_NO_VALUE),
-          RETRY(_RETRY),
-          recordmgr(new MasterRecordMgr(numProcesses, neutralizeSignal)),
-          counters(new debugCounters(numProcesses)) {
-
-    VERBOSE DEBUG COUTATOMIC("constructor BST" << endl);
-    const int tid = 0;
-    recordmgr->enterQuiescentState(
-            tid); // block crash recovery signal for this thread, and enter an initial quiescent state.
-    dummy = bst_allocateSCXRecord(tid);
-    dummy->type = SCXRecord<K, V>::TYPE_NOOP;
-    dummy->state.store(SCXRecord<K, V>::STATE_ABORTED,
-                       memory_order_relaxed); // this is a NO-OP, so it shouldn't start as InProgress; aborted is just more efficient than committed, since we won't try to help marked leaves, which always have the dummy scx record...
-    Node<K, V> *rootleft = bst_allocateNode(tid);
-    bst_initializeNode(tid, rootleft, NO_KEY, NO_VALUE, NULL, NULL);
-    root = bst_allocateNode(tid);
-    bst_initializeNode(tid, root, NO_KEY, NO_VALUE, rootleft, NULL);
-    cmp = Compare();
-    allocatedSCXRecord = new SCXRecord<K, V> *[numProcesses * PREFETCH_SIZE_WORDS];
-    allocatedNodes = new Node<K, V> *[numProcesses * (PREFETCH_SIZE_WORDS + MAX_NODES - 1)];
-    for (int tid = 0; tid < numProcesses; ++tid) {
-        BST_GET_ALLOCATED_SCXRECORD_PTR(tid) = NULL;
+        rqProvider->deinitThread(tid);
+        recmgr->deinitThread(tid);
     }
-}
 
-/**
- * This function must be called once by each thread that will
- * invoke any functions on this class.
- * 
- * It must be okay that we do this with the main thread and later with another thread!!!
- */
-template<class K, class V, class Compare, class MasterRecordMgr>
-void BST<K, V, Compare, MasterRecordMgr>::initThread(const int tid) {
-    recordmgr->initThread(tid);
-    if (GET_ALLOCATED_SCXRECORD_PTR(tid) == NULL) {
-        BST_REPLACE_ALLOCATED_SCXRECORD(tid);
-        for (int i = 0; i < MAX_NODES - 1; ++i) {
-            BST_REPLACE_ALLOCATED_NODE(tid, i);
+    bst(const K _NO_KEY,
+        const V _NO_VALUE,
+        const int numProcesses,
+        int suspectedCrashSignal = SIGQUIT,
+        int allowedViolationsPerPath = 6)
+            : N(allowedViolationsPerPath), NO_KEY(_NO_KEY), NO_VALUE(_NO_VALUE),
+              recmgr(new RecManager(numProcesses, suspectedCrashSignal)), rqProvider(
+                    new RQProvider<K, V, Node<K, V>, bst<K, V, Compare, RecManager>, RecManager, false, false>(
+                            numProcesses, this, recmgr))
+#ifdef USE_DEBUGCOUNTERS
+    , counters(new debugCounters(numProcesses))
+#endif
+    {
+
+        VERBOSE DEBUG COUTATOMIC("constructor bst" << std::endl);
+        allocatedNodes = new Node<K, V> *[numProcesses * (PREFETCH_SIZE_WORDS + MAX_NODES)];
+        cmp = Compare();
+
+        const int tid = 0;
+        initThread(tid);
+
+        DESC1_INIT_ALL(numProcesses);
+        SCXRecord<K, V> *dummy = TAGPTR1_UNPACK_PTR(DUMMY_SCXRECORD);
+        dummy->c.mutables = MUTABLES_INIT_DUMMY;
+
+        recmgr->endOp(tid); // block crash recovery signal for this thread, and enter an initial quiescent state.
+        Node<K, V> *rootleft = initializeNode(tid, allocateNode(tid), NO_KEY, NO_VALUE, NULL, NULL);
+        Node<K, V> *_root = initializeNode(tid, allocateNode(tid), NO_KEY, NO_VALUE, rootleft, NULL);
+
+        // need to simulate real insertion of root and the root's child,
+        // since range queries will actually try to add these nodes,
+        // and we don't want blocking rq providers to spin forever
+        // waiting for their itimes to be set to a positive number.
+        Node<K, V> *insertedNodes[] = {_root, rootleft, NULL};
+        Node<K, V> *deletedNodes[] = {NULL};
+        rqProvider->linearize_update_at_write(tid, &root, _root, insertedNodes, deletedNodes);
+    }
+
+    Node<K, V> *debug_getEntryPoint() { return root; }
+
+    long long getSizeInNodes(Node<K, V> *const u) {
+        if (u == NULL) return 0;
+        return 1 + getSizeInNodes(u->left)
+               + getSizeInNodes(u->right);
+    }
+
+    long long getSizeInNodes() {
+        return getSizeInNodes(root);
+    }
+
+    std::string getSizeString() {
+        std::stringstream ss;
+        int preallocated = MAX_NODES * recmgr->NUM_PROCESSES;
+        ss << getSizeInNodes() << " nodes in tree and " << preallocated << " preallocated but unused";
+        return ss.str();
+    }
+
+    long long getSize(Node<K, V> *const u) {
+        if (u == NULL) return 0;
+        if (u->left == NULL) return 1; // is leaf
+        return getSize(u->left)
+               + getSize(u->right);
+    }
+
+    long long getSize() {
+        return getSize(root);
+    }
+
+    void dfsDeallocateBottomUp(Node<K, V> *const u, int *numNodes) {
+        if (u == NULL) return;
+        if (u->left != NULL) {
+            dfsDeallocateBottomUp(u->left, numNodes);
+            dfsDeallocateBottomUp(u->right, numNodes);
         }
+        MEMORY_STATS ++(*numNodes);
+        recmgr->deallocate(0 /* tid */, u);
+    }
+
+    ~bst() {
+        VERBOSE DEBUG COUTATOMIC("destructor bst");
+        // free every node and scx record currently in the data structure.
+        // an easy DFS, freeing from the leaves up, handles all nodes.
+        // cleaning up scx records is a little bit harder if they are in progress or aborted.
+        // they have to be collected and freed only once, since they can be pointed to by many nodes.
+        // so, we keep them in a set, then free each set element at the end.
+        int numNodes = 0;
+        dfsDeallocateBottomUp(root, &numNodes);
+        VERBOSE DEBUG COUTATOMIC(" deallocated nodes " << numNodes << std::endl);
+        for (int tid = 0; tid < recmgr->NUM_PROCESSES; ++tid) {
+            for (int i = 0; i < MAX_NODES; ++i) {
+                recmgr->deallocate(tid, GET_ALLOCATED_NODE_PTR(tid, i));
+            }
+        }
+        delete[] allocatedNodes;
+        delete rqProvider;
+//            recmgr->printStatus();
+        delete recmgr;
+#ifdef USE_DEBUGCOUNTERS
+        delete counters;
+#endif
+    }
+
+    Node<K, V> *getRoot(void) { return root; }
+
+    const V insert(const int tid, const K &key, const V &val);
+
+    const V insertIfAbsent(const int tid, const K &key, const V &val);
+
+    const std::pair<V, bool> erase(const int tid, const K &key);
+
+    const std::pair<V, bool> find(const int tid, const K &key);
+
+    int rangeQuery(const int tid, const K &lo, const K &hi, K *const resultKeys, V *const resultValues);
+
+    bool contains(const int tid, const K &key);
+
+    int
+    size(void); /** warning: size is a LINEAR time operation, and does not return consistent results with concurrency **/
+
+    /**
+     * BEGIN FUNCTIONS FOR RANGE QUERY SUPPORT
+     */
+
+    inline bool isLogicallyDeleted(const int tid, Node<K, V> *node) {
+        return false;
+    }
+
+    inline int getKeys(const int tid, Node<K, V> *node, K *const outputKeys, V *const outputValues) {
+        if (rqProvider->read_addr(tid, &node->left) == NULL) {
+            // leaf ==> its key is in the set.
+            outputKeys[0] = node->key;
+            outputValues[0] = node->value;
+            return 1;
+        }
+        // note: internal ==> its key is NOT in the set
+        return 0;
+    }
+
+    bool isInRange(const K &key, const K &lo, const K &hi) {
+        return (key != NO_KEY && !cmp(key, lo) && !cmp(hi, key));
+    }
+
+    /**
+     * END FUNCTIONS FOR RANGE QUERY SUPPORT
+     */
+
+    void debugPrintAllocatorStatus() {
+        recmgr->printStatus();
+    }
+
+    void debugPrintToFile(std::string prefix, long id1, std::string infix, long id2, std::string suffix) {
+        std::stringstream ss;
+        ss << prefix << id1 << infix << id2 << suffix;
+        COUTATOMIC("print to filename \"" << ss.str() << "\"" << std::endl);
+        std::fstream fs(ss.str().c_str(), std::fstream::out);
+        root->printTreeFile(fs);
+        fs.close();
+    }
+
+    std::string tagptrToString(uintptr_t tagptr) {
+        std::stringstream ss;
+        if (tagptr) {
+            if ((void *) tagptr == DUMMY_SCXRECORD) {
+                ss << "dummy";
+            } else {
+                SCXRecord<K, V> *ptr;
+                //                if (TAGPTR_TEST(tagptr)) {
+                ss << "<seq=" << UNPACK1_SEQ(tagptr) << ",tid=" << TAGPTR1_UNPACK_TID(tagptr) << ">";
+                ptr = TAGPTR1_UNPACK_PTR(tagptr);
+                //                }
+
+                // print contents of actual scx record
+                intptr_t mutables = ptr->c.mutables;
+                ss << "[";
+                ss << "state=" << MUTABLES1_UNPACK_FIELD(mutables, MUTABLES_MASK_STATE, MUTABLES_OFFSET_STATE);
+                ss << " ";
+                ss << "allFrozen="
+                   << MUTABLES1_UNPACK_FIELD(mutables, MUTABLES_MASK_ALLFROZEN, MUTABLES_OFFSET_ALLFROZEN);
+                ss << " ";
+                ss << "seq=" << UNPACK1_SEQ(mutables);
+                ss << "]";
+            }
+        } else {
+            ss << "null";
+        }
+        return ss.str();
+    }
+
+    //    friend ostream& operator<<(ostream& os, const SCXRecord<K,V>& obj) {
+    //        ios::fmtflags f( os.flags() );
+    ////        std::cout<<"obj.type = "<<obj.type<<std::endl;
+    //        intptr_t mutables = obj.mutables;
+    //        os<<"["//<<"type="<<NAME_OF_TYPE[obj.type]
+    //          <<" state="<<SCX_READ_STATE(mutables)//obj.state
+    //          <<" allFrozen="<<SCX_READ_ALLFROZEN(mutables)//obj.allFrozen
+    ////          <<"]";
+    ////          <<" nodes="<<obj.nodes
+    ////          <<" ops="<<obj.ops
+    //          <<"]" //" subtree="+subtree+"]";
+    //          <<"@0x"<<hex<<(long)(&obj);
+    //        os.flags(f);
+    //        return os;
+    //    }
+
+#ifdef USE_DEBUGCOUNTERS
+    void clearCounters() {
+            counters->clear();
+    //        recmgr->clearCounters();
+        }
+        debugCounters * const debugGetCounters() {
+            return counters;
+        }
+#endif
+
+    RecManager *const debugGetRecMgr() {
+        return recmgr;
+    }
+
+    bool validate(const long long keysum, const bool checkkeysum);
+
+    long long debugKeySum() {
+        return debugKeySum((root->left)->left);
+    }
+};
+
+}
+
+template<class K, class V, class Compare, class RecManager>
+bst_ns::Node<K, V> *bst_ns::bst<K, V, Compare, RecManager>::allocateNode(const int tid) {
+    //this->recmgr->getDebugInfo(NULL)->addToPool(tid, 1);
+    Node<K, V> *newnode = recmgr->template allocate<Node<K, V> >(tid);
+    if (newnode == NULL) {
+        COUTATOMICTID("ERROR: could not allocate node" << std::endl);
+        exit(-1);
+    }
+#ifdef GSTATS_HANDLE_STATS
+    GSTATS_APPEND(tid, node_allocated_addresses, (long long) newnode);
+#endif
+    return newnode;
+}
+
+template<class K, class V, class Compare, class RecManager>
+long long bst_ns::bst<K, V, Compare, RecManager>::debugKeySum(Node<K, V> *node) {
+    if (node == NULL) return 0;
+    if ((void *) node->left == NULL) return (long long) node->key;
+    return debugKeySum(node->left)
+           + debugKeySum(node->right);
+}
+
+template<class K, class V, class Compare, class RecManager>
+bool
+bst_ns::bst<K, V, Compare, RecManager>::validate(Node<K, V> *const node, const int currdepth, const int leafdepth) {
+    return true;
+}
+
+template<class K, class V, class Compare, class RecManager>
+bool bst_ns::bst<K, V, Compare, RecManager>::validate(const long long keysum, const bool checkkeysum) {
+    return true;
+}
+
+template<class K, class V, class Compare, class RecManager>
+inline int bst_ns::bst<K, V, Compare, RecManager>::size() {
+    return computeSize((root->left)->left);
+}
+
+template<class K, class V, class Compare, class RecManager>
+inline int bst_ns::bst<K, V, Compare, RecManager>::computeSize(Node<K, V> *const root) {
+    if (root == NULL) return 0;
+    if (root->left != NULL) { // if internal node
+        return computeSize(root->left)
+               + computeSize(root->right);
+    } else { // if leaf
+        return 1;
+//        printf(" %d", root->key);
     }
 }
 
-template<class K, class V, class Compare, class MasterRecordMgr>
-bool BST<K, V, Compare, MasterRecordMgr>::contains(const int tid, const K &key) {
-    pair<V, bool> result = find(tid, key);
+template<class K, class V, class Compare, class RecManager>
+bool bst_ns::bst<K, V, Compare, RecManager>::contains(const int tid, const K &key) {
+    std::pair<V, bool> result = find(tid, key);
     return result.second;
 }
 
-template<class K, class V, class Compare, class MasterRecordMgr>
-const pair<V, bool> BST<K, V, Compare, MasterRecordMgr>::find(const int tid, const K &key) {
-    pair<V, bool> result;
-    BST_retired_info info;
+template<class K, class V, class Compare, class RecManager>
+int bst_ns::bst<K, V, Compare, RecManager>::rangeQuery(const int tid, const K &lo, const K &hi, K *const resultKeys,
+                                                       V *const resultValues) {
+    block<Node<K, V> > stack(NULL);
+    auto guard = recmgr->getGuard(tid, true);
+    rqProvider->traversal_start(tid);
+
+    // depth first traversal (of interesting subtrees)
+    int size = 0;
+    stack.push(root);
+    while (!stack.isEmpty()) {
+        Node<K, V> *node = stack.pop();
+        assert(node);
+        Node<K, V> *left = rqProvider->read_addr(tid, &node->left);
+
+        // if internal node, explore its children
+        if (left != NULL) {
+            if (node->key != this->NO_KEY && !cmp(hi, node->key)) {
+                Node<K, V> *right = rqProvider->read_addr(tid, &node->right);
+                assert(right);
+                stack.push(right);
+            }
+            if (node->key == this->NO_KEY || cmp(lo, node->key)) {
+                assert(left);
+                stack.push(left);
+            }
+
+            // else if leaf node, check if we should add its key to the traversal
+        } else {
+            rqProvider->traversal_try_add(tid, node, resultKeys, resultValues, &size, lo, hi);
+        }
+    }
+    rqProvider->traversal_end(tid, resultKeys, resultValues, &size, lo, hi);
+    return size;
+}
+
+template<class K, class V, class Compare, class RecManager>
+const std::pair<V, bool> bst_ns::bst<K, V, Compare, RecManager>::find(const int tid, const K &key) {
+    std::pair<V, bool> result;
     Node<K, V> *p;
     Node<K, V> *l;
     for (;;) {
-        TRACE COUTATOMICTID("find(tid=" << tid << " key=" << key << ")" << endl);
-        CHECKPOINT_AND_RUN_QUERY(tid) {
-            recordmgr->leaveQuiescentState(tid);
-            // root is never retired, so we don't need to call
-            // protectPointer before accessing its child pointers
-            p = (Node<K, V> *) root->left.load(memory_order_relaxed);
-            IF_FAIL_TO_PROTECT_NODE(info, tid, p, &root->left, &root->marked) {
-                recordmgr->enterQuiescentState(tid);
-                counters->findFail->inc(tid);
-                continue; /* retry */
-            }
-            assert(p != root);
-            assert(recordmgr->isProtected(tid, p));
-            l = (Node<K, V> *) p->left.load(memory_order_relaxed);
-            if (l == NULL) {
-                result = pair<V, bool>(NO_VALUE, false); // no keys in data structure
-                recordmgr->enterQuiescentState(tid);
-                counters->findSuccess->inc(tid);
-                return result; // success
-            }
-            IF_FAIL_TO_PROTECT_NODE(info, tid, l, &p->left, &p->marked) {
-                recordmgr->enterQuiescentState(tid);
-                counters->findFail->inc(tid);
-                continue; /* retry */
-            }
-
-            assert(recordmgr->isProtected(tid, l));
-            while ((Node<K, V> *) l->left.load(memory_order_relaxed) != NULL) {
-                TRACE COUTATOMICTID("traversing tree; l=" << *l << endl);
-                assert(recordmgr->isProtected(tid, p));
-                recordmgr->unprotect(tid, p);
-                p = l; // note: the new p is currently protected
-                assert(recordmgr->isProtected(tid, p));
-                assert(p->key != NO_KEY);
-                if (cmp(key, p->key)) {
-                    assert(recordmgr->isProtected(tid, p));
-                    l = (Node<K, V> *) p->left.load(memory_order_relaxed);
-                    IF_FAIL_TO_PROTECT_NODE(info, tid, l, &p->left, &p->marked) {
-                        recordmgr->enterQuiescentState(tid);
-                        counters->findFail->inc(tid);
-                        continue; /* retry */
-                    }
-                } else {
-                    assert(recordmgr->isProtected(tid, p));
-                    l = (Node<K, V> *) p->right.load(memory_order_relaxed);
-                    IF_FAIL_TO_PROTECT_NODE(info, tid, l, &p->right, &p->marked) {
-                        recordmgr->enterQuiescentState(tid);
-                        counters->findFail->inc(tid);
-                        continue; /* retry */
-                    }
-                }
-                assert(recordmgr->isProtected(tid, l));
-            }
-            assert(recordmgr->isProtected(tid, l));
-            if (key == l->key) {
-                assert(recordmgr->isProtected(tid, l));
-                result = pair<V, bool>(l->value, true);
-            } else {
-                result = pair<V, bool>(NO_VALUE, false);
-            }
-            recordmgr->enterQuiescentState(tid);
-            counters->findSuccess->inc(tid);
+        TRACE COUTATOMICTID("find(tid=" << tid << " key=" << key << ")" << std::endl);
+        auto guard = recmgr->getGuard(tid, true);
+        p = rqProvider->read_addr(tid, &root->left);
+        l = rqProvider->read_addr(tid, &p->left);
+        if (l == NULL) {
+            result = std::pair<V, bool>(NO_VALUE, false); // no keys in data structure
             return result; // success
         }
+
+        while (rqProvider->read_addr(tid, &l->left) != NULL) {
+            TRACE COUTATOMICTID("traversing tree; l=" << *l << std::endl);
+            p = l; // note: the new p is currently protected
+            assert(p->key != NO_KEY);
+            if (cmp(key, p->key)) {
+                l = rqProvider->read_addr(tid, &p->left);
+            } else {
+                l = rqProvider->read_addr(tid, &p->right);
+            }
+        }
+        if (key == l->key) {
+            result = std::pair<V, bool>(l->value, true);
+        } else {
+            result = std::pair<V, bool>(NO_VALUE, false);
+        }
+        return result; // success
     }
-    return pair<V, bool>(NO_VALUE, false);
+    assert(0);
+    return std::pair<V, bool>(NO_VALUE, false);
 }
 
-template<class K, class V, class Compare, class MasterRecordMgr>
-const V BST<K, V, Compare, MasterRecordMgr>::insert(const int tid, const K &key, const V &val) {
-    bool onlyIfAbsent = false;
+//template<class K, class V, class Compare, class RecManager>
+//const V bst_ns::bst<K,V,Compare,RecManager>::insert(const int tid, const K& key, const V& val) {
+//    bool onlyIfAbsent = false;
+//    V result = NO_VALUE;
+//    void *input[] = {(void*) &key, (void*) &val, (void*) &onlyIfAbsent};
+//    void *output[] = {(void*) &result};
+//
+//    ReclamationInfo<K,V> info;
+//    bool finished = 0;
+//    for (;;) {
+//        auto guard = recmgr->getGuard(tid);
+//        finished = updateInsert_search_llx_scx(&info, tid, input, output);
+//        if (finished) {
+//            break;
+//        }
+//    }
+//    return result;
+//}
+
+template<class K, class V, class Compare, class RecManager>
+const V bst_ns::bst<K, V, Compare, RecManager>::doInsert(const int tid, const K &key, const V &val, bool onlyIfAbsent) {
     V result = NO_VALUE;
-    bool finished = false;
-    while (!finished) {
-        CHECKPOINT_AND_RUN_UPDATE(tid, finished) {
-            recordmgr->leaveQuiescentState(tid);
-            finished = updateInsert(tid, key, val, onlyIfAbsent, &result);
-            recordmgr->enterQuiescentState(tid);
-            if (!finished) counters->insertFail->inc(tid);
-            else counters->insertSuccess->inc(tid);
+    void *input[] = {(void *) &key, (void *) &val, (void *) &onlyIfAbsent};
+    void *output[] = {(void *) &result};
+
+    ReclamationInfo<K, V> info;
+    bool finished = 0;
+    for (;;) {
+        auto guard = recmgr->getGuard(tid);
+        finished = updateInsert_search_llx_scx(&info, tid, input, output);
+        if (finished) {
+            break;
         }
     }
     return result;
 }
 
-template<class K, class V, class Compare, class MasterRecordMgr>
-const bool BST<K, V, Compare, MasterRecordMgr>::insertIfAbsent(const int tid, const K &key, const V &val) {
-    bool onlyIfAbsent = true;
-    V result = NO_VALUE;
-    bool finished = false;
-    while (!finished) {
-        CHECKPOINT_AND_RUN_UPDATE(tid, finished) {
-            recordmgr->leaveQuiescentState(tid);
-            finished = updateInsert(tid, key, val, onlyIfAbsent, &result);
-            recordmgr->enterQuiescentState(tid);
-            if (!finished) counters->insertFail->inc(tid);
-            else counters->insertSuccess->inc(tid);
-        }
-    }
-    return (result == NO_VALUE);
+template<class K, class V, class Compare, class RecManager>
+const V bst_ns::bst<K, V, Compare, RecManager>::insertIfAbsent(const int tid, const K &key, const V &val) {
+    return doInsert(tid, key, val, true);
 }
 
-template<class K, class V, class Compare, class MasterRecordMgr>
-const pair<V, bool> BST<K, V, Compare, MasterRecordMgr>::erase(const int tid, const K &key) {
-    V result = NO_VALUE;
-    bool finished = false;
-    while (!finished) {
-        CHECKPOINT_AND_RUN_UPDATE(tid, finished) {
-            recordmgr->leaveQuiescentState(tid);
-            finished = updateErase(tid, key, &result);
-            recordmgr->enterQuiescentState(tid);
-            if (!finished) counters->eraseFail->inc(tid);
-            else counters->eraseSuccess->inc(tid);
-        }
-    }
-    return pair<V, bool>(result, (result != NO_VALUE));
+template<class K, class V, class Compare, class RecManager>
+const V bst_ns::bst<K, V, Compare, RecManager>::insert(const int tid, const K &key, const V &val) {
+    return doInsert(tid, key, val, false);
 }
 
-// RULE: ANY OUTPUT OF updateXXXXX MUST BE FULLY WRITTEN BEFORE SCX IS INVOKED!
-template<class K, class V, class Compare, class MasterRecordMgr>
-bool BST<K, V, Compare, MasterRecordMgr>::updateInsert(
-        const int tid,
-        const K &key,
-        const V &val,
-        const bool onlyIfAbsent,
-        V *const result) {
-    TRACE COUTATOMICTID("insert(tid=" << tid << ", key=" << key << ")" << endl);
+template<class K, class V, class Compare, class RecManager>
+const std::pair<V, bool> bst_ns::bst<K, V, Compare, RecManager>::erase(const int tid, const K &key) {
+    V result = NO_VALUE;
+    void *input[] = {(void *) &key};
+    void *output[] = {(void *) &result};
 
-    int debugLoopCount = 0;
+    ReclamationInfo<K, V> info;
+    bool finished = 0;
+    for (;;) {
+        auto guard = recmgr->getGuard(tid);
+        finished = updateErase_search_llx_scx(&info, tid, input, output);
+        if (finished) {
+            break;
+        }
+    }
+    return std::pair<V, bool>(result, (result != NO_VALUE));
+}
+
+template<class K, class V, class Compare, class RecManager>
+inline bool bst_ns::bst<K, V, Compare, RecManager>::updateInsert_search_llx_scx(
+        ReclamationInfo<K, V> *const info, const int tid, void **input, void **output) {
+    const K &key = *((const K *) input[0]);
+    const V &val = *((const V *) input[1]);
+    const bool onlyIfAbsent = *((const bool *) input[2]);
+    V *result = (V *) output[0];
+
+    TRACE COUTATOMICTID("updateInsert_search_llx_scx(tid=" << tid << ", key=" << key << ")" << std::endl);
+
     Node<K, V> *p = root, *l;
-
-    // root is never retired, so we don't need to call
-    // protect before accessing its child pointers
-    l = (Node<K, V> *) root->left.load(memory_order_relaxed);
-
-    BST_retired_info info;
-    IF_FAIL_TO_PROTECT_NODE(info, tid, l, &root->left, &root->marked) {
-        TRACE COUTATOMICTID("return false1\n");
-        return false;
-    } // return and retry
-    assert(recordmgr->isProtected(tid, l));
-    if ((Node<K, V> *) l->left.load(memory_order_relaxed) !=
-        NULL) { // the tree contains some node besides sentinels...
-        p = l;          // note: p is protected by the above call to protect(..., l, ...)
-        assert(recordmgr->isProtected(tid, l));
-        l = (Node<K, V> *) l->left.load(
-                memory_order_relaxed);    // note: l must have key infinity, and l->left must not.
-
-        // loop invariant: p and l are protected by calls to protect(tid, ...)
-        IF_FAIL_TO_PROTECT_NODE(info, tid, l, &p->left, &p->marked) {
-            TRACE COUTATOMICTID("return false2\n");
-            return false;
-        } // return and retry
-        assert(recordmgr->isProtected(tid, l));
-        while ((Node<K, V> *) l->left.load(memory_order_relaxed) != NULL) {
-            TRACE COUTATOMICTID("traversing tree; l=" << *l << endl);
-            DEBUG if (++debugLoopCount > 10000) {
-                    COUTATOMICTID("tree extremely likely to contain a cycle." << endl);
-                    raise(SIGTERM);
-                }
-            assert(recordmgr->isProtected(tid, l));
-            assert(recordmgr->isProtected(tid, p));
-            recordmgr->unprotect(tid, p);
-//            assert(!recordmgr->isProtected(tid, p));
-            p = l;  // note: p is protected by the call to protect made in the last iteration of this loop (or above the loop)
-
-            assert(p->key != NO_KEY);
+    l = rqProvider->read_addr(tid, &root->left);
+    if (rqProvider->read_addr(tid, &l->left) != NULL) { // the tree contains some node besides sentinels...
+        p = l;
+        l = rqProvider->read_addr(tid, &l->left);    // note: l must have key infinity, and l->left must not.
+        while (rqProvider->read_addr(tid, &l->left) != NULL) {
+            p = l;
             if (cmp(key, p->key)) {
-                assert(recordmgr->isProtected(tid, p));
-                l = (Node<K, V> *) p->left.load(memory_order_relaxed);
-                IF_FAIL_TO_PROTECT_NODE(info, tid, l, &p->left, &p->marked) {
-                    TRACE COUTATOMICTID("return false3\n");
-                    return false;
-                } // return and retry
+                l = rqProvider->read_addr(tid, &p->left);
             } else {
-                assert(recordmgr->isProtected(tid, p));
-                l = (Node<K, V> *) p->right.load(memory_order_relaxed);
-                IF_FAIL_TO_PROTECT_NODE(info, tid, l, &p->right, &p->marked) {
-                    TRACE COUTATOMICTID("return false4\n");
-                    return false;
-                } // return and retry
+                l = rqProvider->read_addr(tid, &p->right);
             }
-            assert(recordmgr->isProtected(tid, l));
         }
     }
-
     // if we find the key in the tree already
-    assert(recordmgr->isProtected(tid, l));
     if (key == l->key) {
         if (onlyIfAbsent) {
-            assert(recordmgr->isProtected(tid, l));
-            *result = l->value;
             TRACE COUTATOMICTID("return true5\n");
+            *result = val; // for insertIfAbsent, we don't care about the particular value, just whether we inserted or not. so, we use val to signify not having inserted (and NO_VALUE to signify having inserted).
             return true; // success
         }
-
-        void *llxResults[NUM_TO_FREEZE[SCXRecord<K, V>::TYPE_REPLACE]];
-        Node<K, V> *nodes[] = {p, l};
         Node<K, V> *pleft, *pright;
-        // note: p is already protected by a call to protect in the search phase, above
-        assert(recordmgr->isProtected(tid, p) || p == root);
-        if ((llxResults[0] = LLX(tid, p, &pleft, &pright)) == NULL) {
-            TRACE COUTATOMICTID("return false6\n");
+        if ((info->llxResults[0] = llx(tid, p, &pleft, &pright)) == NULL) {
             return false;
         } //RETRY;
         if (l != pleft && l != pright) {
-            TRACE COUTATOMICTID("return false7\n");
             return false;
         } //RETRY;
-        assert(recordmgr->isProtected(tid, l));
         *result = l->value;
+        initializeNode(tid, GET_ALLOCATED_NODE_PTR(tid, 0), key, val, NULL, NULL);
+        info->numberOfNodes = 2;
+        info->numberOfNodesToFreeze = 1;
+        info->numberOfNodesToReclaim = 1; // only reclaim l (reclamation starts at nodes[1])
+        info->numberOfNodesAllocated = 1;
+        info->type = SCXRecord<K, V>::TYPE_REPLACE;
+        info->nodes[0] = p;
+        info->nodes[1] = l;
+        assert(l);
 
-        assert(recordmgr->isProtected(tid, l));
-        assert((Node<K, V> *) l->left.load(memory_order_relaxed) == NULL);
-        bst_initializeNode(tid, BST_GET_ALLOCATED_NODE_PTR(tid, 0), key, val, NULL, NULL);
+        bool isInsertingKey = false;
+        K insertedKey = NO_KEY;
+        Node<K, V> *insertedNodes[] = {GET_ALLOCATED_NODE_PTR(tid, 0), NULL};
+        bool isDeletingKey = false;
+        K deletedKey = NO_KEY;
+        Node<K, V> *deletedNodes[] = {l, NULL};
 
-        assert(recordmgr->isProtected(tid, p) || p == root);
-        assert(recordmgr->isProtected(tid, l));
-        if (SCXAndEnterQuiescentState(tid, SCXRecord<K, V>::TYPE_REPLACE, nodes, llxResults,
-                                      (l == pleft ? &p->left : &p->right), BST_GET_ALLOCATED_NODE_PTR(tid, 0))) {
-            TRACE COUTATOMICTID("return true8\n");
-            return true;
-        } else {
-            TRACE COUTATOMICTID("return false9\n");
-            return false; //RETRY;
+        bool retval = scx(tid, info, (l == pleft ? &p->left : &p->right), GET_ALLOCATED_NODE_PTR(tid, 0), insertedNodes,
+                          deletedNodes);
+        if (retval) {
         }
+        return retval;
     } else {
-        void *llxResults[NUM_TO_FREEZE[SCXRecord<K, V>::TYPE_INS]];
-        Node<K, V> *nodes[] = {p, l};
         Node<K, V> *pleft, *pright;
-        // note: p is already protected by a call to protect in the search phase, above
-        assert(recordmgr->isProtected(tid, p) || p == root);
-        if ((llxResults[0] = LLX(tid, p, &pleft, &pright)) == NULL) {
-            TRACE COUTATOMICTID("return false10\n");
+        if ((info->llxResults[0] = llx(tid, p, &pleft, &pright)) == NULL) {
             return false;
         } //RETRY;
         if (l != pleft && l != pright) {
-            TRACE COUTATOMICTID("return false11\n");
             return false;
         } //RETRY;
-
-        // Compute the weight for the new parent node.
-        // If l is a sentinel then we must set its weight to one.
-        assert(recordmgr->isProtected(tid, l));
-        assert(recordmgr->isProtected(tid, p) || p == root);
-
-        /*Node<K,V> *newLeaf =*/
-        bst_initializeNode(tid, BST_GET_ALLOCATED_NODE_PTR(tid, 0), key, val, NULL, NULL);
-        assert(recordmgr->isProtected(tid, l));
-        /*Node<K,V> *newCopyOfL =*/
-        bst_initializeNode(tid, BST_GET_ALLOCATED_NODE_PTR(tid, 1), l->key, l->value, NULL, NULL);
-        /*Node<K,V> *newInternal;*/
-        assert(recordmgr->isProtected(tid, l));
+        initializeNode(tid, GET_ALLOCATED_NODE_PTR(tid, 0), key, val, NULL, NULL);
+//        initializeNode(tid, GET_ALLOCATED_NODE_PTR(tid, 1), l->key, l->value, /*1,*/ NULL, NULL);
+        // TODO: change all equality comparisons with NO_KEY to use cmp()
         if (l->key == NO_KEY || cmp(key, l->key)) {
-            assert(recordmgr->isProtected(tid, l));
-            /*newInternal = */
-            bst_initializeNode(tid, BST_GET_ALLOCATED_NODE_PTR(tid, 2), l->key, l->value,
-                               BST_GET_ALLOCATED_NODE_PTR(tid, 0), BST_GET_ALLOCATED_NODE_PTR(tid, 1));
+            initializeNode(tid, GET_ALLOCATED_NODE_PTR(tid, 1), l->key, l->value, GET_ALLOCATED_NODE_PTR(tid, 0), l);
         } else {
-            /*newInternal = */
-            bst_initializeNode(tid, BST_GET_ALLOCATED_NODE_PTR(tid, 2), key, val, BST_GET_ALLOCATED_NODE_PTR(tid, 1),
-                               BST_GET_ALLOCATED_NODE_PTR(tid, 0));
+            initializeNode(tid, GET_ALLOCATED_NODE_PTR(tid, 1), key, val, l, GET_ALLOCATED_NODE_PTR(tid, 0));
         }
         *result = NO_VALUE;
+        info->numberOfNodes = 2;
+        info->numberOfNodesToReclaim = 0;
+        info->numberOfNodesToFreeze = 1; // only freeze nodes[0]
+        info->numberOfNodesAllocated = 2;
+        info->type = SCXRecord<K, V>::TYPE_INS;
+        info->nodes[0] = p;
+        info->nodes[1] = l; // note: used as OLD value for CAS that changes p's child pointer (but is not frozen or marked)
 
-        if (SCXAndEnterQuiescentState(tid, SCXRecord<K, V>::TYPE_INS, nodes, llxResults,
-                                      (l == pleft ? &p->left : &p->right), BST_GET_ALLOCATED_NODE_PTR(tid, 2))) {
-            TRACE COUTATOMICTID("return true12\n");
-            return true; // success
-        } else {
-            TRACE COUTATOMICTID("return false13\n");
-            return false; //RETRY;
-        }
+        Node<K, V> *insertedNodes[] = {GET_ALLOCATED_NODE_PTR(tid, 0), GET_ALLOCATED_NODE_PTR(tid, 1), NULL};
+        Node<K, V> *deletedNodes[] = {NULL};
+
+        bool retval = scx(tid, info, (l == pleft ? &p->left : &p->right), GET_ALLOCATED_NODE_PTR(tid, 1), insertedNodes,
+                          deletedNodes);
+        return retval;
     }
 }
 
-// RULE: ANY OUTPUT OF updateXXXXX MUST BE FULLY WRITTEN BEFORE SCX IS INVOKED!
-template<class K, class V, class Compare, class MasterRecordMgr>
-bool BST<K, V, Compare, MasterRecordMgr>::updateErase(
-        const int tid,
-        const K &key,
-        V *const result) {
-    TRACE COUTATOMICTID("erase(tid=" << tid << ", key=" << key << ")" << endl);
+template<class K, class V, class Compare, class RecManager>
+inline bool bst_ns::bst<K, V, Compare, RecManager>::updateErase_search_llx_scx(
+        ReclamationInfo<K, V> *const info, const int tid, void **input,
+        void **output) { // input consists of: const K& key
+    const K &key = *((const K *) input[0]);
+    V *result = (V *) output[0];
 
-    int debugLoopCount = 0;
+    TRACE COUTATOMICTID("updateErase_search_llx_scx(tid=" << tid << ", key=" << key << ")" << std::endl);
+
     Node<K, V> *gp, *p, *l;
-
-
-    // root is never retired, so we don't need to call
-    // protect before accessing its child pointers
-    l = (Node<K, V> *) root->left.load(memory_order_relaxed);
-
-    BST_retired_info info;
-    IF_FAIL_TO_PROTECT_NODE(info, tid, l, &root->left, &root->marked) {
-        TRACE COUTATOMICTID("return false1\n");
-        return false;
-    } // return and retry
-    assert(recordmgr->isProtected(tid, l));
-    if ((Node<K, V> *) l->left.load(memory_order_relaxed) == NULL) {
-        TRACE COUTATOMICTID("return true2\n");
+    l = rqProvider->read_addr(tid, &root->left);
+    if (rqProvider->read_addr(tid, &l->left) == NULL) {
+        *result = NO_VALUE;
         return true;
     } // only sentinels in tree...
-
-    gp = root;      // note: gp is protected because it is the root
-    p = l;          // note: p is protected by the above call to protect(..., l, ...)
-    assert(recordmgr->isProtected(tid, p));
-    l = (Node<K, V> *) p->left.load(memory_order_relaxed);    // note: l must have key infinity, and l->left must not.
-
-    // loop invariant: gp, p, l are all protected by calls to protect(tid, ...) (and no other nodes are)
-    IF_FAIL_TO_PROTECT_NODE(info, tid, l, &p->left, &p->marked) {
-        TRACE COUTATOMICTID("return false3\n");
-        return false;
-    } // return and retry
-    assert(recordmgr->isProtected(tid, l));
-    while ((Node<K, V> *) l->left.load(memory_order_relaxed) != NULL) {
-        TRACE COUTATOMICTID("traversing tree; l=" << *l << endl);
-        DEBUG if (++debugLoopCount > 10000) {
-                COUTATOMICTID("tree extremely likely to contain a cycle." << endl);
-                raise(SIGTERM);
-            }
-        assert(recordmgr->isProtected(tid, l));
-        assert(recordmgr->isProtected(tid, p));
-        if (gp != root) recordmgr->unprotect(tid, gp);
-        gp = p; // note: gp is protected by the call to protect made in the second last iteration of this loop (or above the loop)
-        p = l;  // note: p is protected by the call to protect made in the last iteration of this loop (or above the loop)
-        assert(recordmgr->isProtected(tid, gp));
-        assert(recordmgr->isProtected(tid, p));
-
-        assert(p->key != NO_KEY);
+    gp = root;
+    p = l;
+    l = rqProvider->read_addr(tid, &p->left);    // note: l must have key infinity, and l->left must not.
+    while (rqProvider->read_addr(tid, &l->left) != NULL) {
+        gp = p;
+        p = l;
         if (cmp(key, p->key)) {
-            assert(recordmgr->isProtected(tid, p));
-            l = (Node<K, V> *) p->left.load(memory_order_relaxed);
-            IF_FAIL_TO_PROTECT_NODE(info, tid, l, &p->left, &p->marked) {
-                TRACE COUTATOMICTID("return false4\n");
-                return false;
-            } // return and retry
+            l = rqProvider->read_addr(tid, &p->left);
         } else {
-            assert(recordmgr->isProtected(tid, p));
-            l = (Node<K, V> *) p->right.load(memory_order_relaxed);
-            IF_FAIL_TO_PROTECT_NODE(info, tid, l, &p->right, &p->marked) {
-                TRACE COUTATOMICTID("return false5\n");
-                return false;
-            } // return and retry
+            l = rqProvider->read_addr(tid, &p->right);
         }
-        assert(recordmgr->isProtected(tid, l));
     }
-
     // if we fail to find the key in the tree
-    assert(recordmgr->isProtected(tid, l));
     if (key != l->key) {
         *result = NO_VALUE;
-//        recordmgr->enterQuiescentState(tid);
         return true; // success
     } else {
-        assert(key != NO_KEY);
-        void *llxResults[NUM_TO_FREEZE[SCXRecord<K, V>::TYPE_DEL]];
-        Node<K, V> *nodes[] = {gp, p, NULL, l};
         Node<K, V> *gpleft, *gpright;
         Node<K, V> *pleft, *pright;
         Node<K, V> *sleft, *sright;
-        // note: gp is already protected
-        assert(recordmgr->isProtected(tid, gp) || gp == root);
-        if ((llxResults[0] = LLX(tid, gp, &gpleft, &gpright)) == NULL) {
-            TRACE COUTATOMICTID("return false6\n");
-            return false;
-        }
-        if (p != gpleft && p != gpright) {
-            TRACE COUTATOMICTID("return false7\n");
-            return false;
-        }
-        // note: p is already protected
-        assert(recordmgr->isProtected(tid, p));
-        if ((llxResults[1] = LLX(tid, p, &pleft, &pright)) == NULL) {
-            TRACE COUTATOMICTID("return false8\n");
-            return false;
-        }
-        if (l != pleft && l != pright) {
-            TRACE COUTATOMICTID("return false9\n");
-            return false;
-        }
-        assert(recordmgr->isProtected(tid, l));
+        if ((info->llxResults[0] = llx(tid, gp, &gpleft, &gpright)) == NULL) return false;
+        if (p != gpleft && p != gpright) return false;
+        if ((info->llxResults[1] = llx(tid, p, &pleft, &pright)) == NULL) return false;
+        if (l != pleft && l != pright) return false;
         *result = l->value;
-
         // Read fields for the sibling s of l
-        // note: we must call protect(..., s, ...) because LLX will read its fields.
         Node<K, V> *s = (l == pleft ? pright : pleft);
-        IF_FAIL_TO_PROTECT_NODE(info, tid, s, (l == pleft ? &p->right : &p->left), &p->marked) {
-            TRACE COUTATOMICTID("return false10\n");
-            return false;
-        } // return and retry
-        assert(recordmgr->isProtected(tid, s));
-        if ((llxResults[2] = LLX(tid, s, &sleft, &sright)) == NULL) {
-            TRACE COUTATOMICTID("return false11\n");
-            return false;
-        }
-        nodes[2] = s;
-
+        if ((info->llxResults[2] = llx(tid, s, &sleft, &sright)) == NULL) return false;
         // Now, if the op. succeeds, all structure is guaranteed to be just as we verified
+        initializeNode(tid, GET_ALLOCATED_NODE_PTR(tid, 0), s->key, s->value, /*newWeight,*/ sleft, sright);
+        info->numberOfNodes = 4;
+        info->numberOfNodesToReclaim = 3; // reclaim p, s, l (reclamation starts at nodes[1])
+        info->numberOfNodesToFreeze = 3;
+        info->numberOfNodesAllocated = 1;
+        info->type = SCXRecord<K, V>::TYPE_DEL;
+        info->nodes[0] = gp;
+        info->nodes[1] = p;
+        info->nodes[2] = s;
+        info->nodes[3] = l;
+        assert(gp);
+        assert(p);
+        assert(s);
+        assert(l);
 
-        // Compute weight for the new node that replaces p (and l)
-        // If p is a sentinel then we must set the new node's weight to one.
-        assert(recordmgr->isProtected(tid, p));
-        assert(recordmgr->isProtected(tid, s));
-
-        assert(recordmgr->isProtected(tid, s));
-        bst_initializeNode(tid, BST_GET_ALLOCATED_NODE_PTR(tid, 0), s->key, s->value, sleft, sright);
-        assert(recordmgr->isProtected(tid, gp) || gp == root);
-        assert(recordmgr->isProtected(tid, p));
-        assert(recordmgr->isProtected(tid, l));
-        assert(recordmgr->isProtected(tid, s));
-
-        if (SCXAndEnterQuiescentState(tid, SCXRecord<K, V>::TYPE_DEL, nodes, llxResults,
-                                      (p == gpleft ? &gp->left : &gp->right), BST_GET_ALLOCATED_NODE_PTR(tid, 0))) {
-            TRACE COUTATOMICTID("return true12\n");
-            return true; // success
-        } else {
-            TRACE COUTATOMICTID("return false13\n");
-            return false; // retry
-        }
+        Node<K, V> *insertedNodes[] = {GET_ALLOCATED_NODE_PTR(tid, 0), NULL};
+        Node<K, V> *deletedNodes[] = {p, s, l, NULL};
+        bool retval = scx(tid, info, (p == gpleft ? &gp->left : &gp->right), GET_ALLOCATED_NODE_PTR(tid, 0),
+                          insertedNodes, deletedNodes);
+        return retval;
     }
 }
 
-// THIS CAN ONLY BE INVOKED IN A QUIESCENT STATE.
-// continues any scx that was started by this thread, and returns the result of that scx.
-// if there was no scx started by this thread, this returns false.
-// thus, a false return value could either represent an aborted scx, or no scx for this thread.
-template<class K, class V, class Compare, class MasterRecordMgr>
-bool BST<K, V, Compare, MasterRecordMgr>::recoverAnyAttemptedSCX(const int tid, const int location) {
-    assert(recordmgr->supportsCrashRecovery());
-    SCXRecord<K, V> *const myscx = allocatedSCXRecord[tid * PREFETCH_SIZE_WORDS];
-    if (recordmgr->isQProtected(tid, myscx)) {
-        assert(recordmgr->isQuiescent(tid));
-        const int operationType = myscx->type;
-        Node<K, V> **nodes = myscx->nodes;
-        SCXRecord<K, V> **scxRecordsSeen = myscx->scxRecordsSeen;
-        const int n = NUM_OF_NODES[operationType];
-        const int nFreeze = NUM_TO_FREEZE[operationType];
-        for (int i = 0; i < n; ++i) {
-            if (!recordmgr->isQProtected(tid, nodes[i])) {
-                COUTATOMICTID("ERROR: nodes[" << i << "] WAS NOT Q PROTECTED!!!!!!!" << endl);
-                assert(false);
-                exit(-1);
-            }
-        }
-        for (int i = 0; i < nFreeze; ++i) {
-            if (!recordmgr->isQProtected(tid, scxRecordsSeen[i])) {
-                COUTATOMICTID("ERROR: scxRecordsSeen[" << i << "] WAS NOT Q PROTECTED!!!!!!!" << endl);
-                assert(false);
-                exit(-1);
-            }
-        }
-        // we started an scx using the scx record that was allocated for this operation,
-        // so we must determine whether we have to complete it.
-
-        // the remarkable thing here is that we don't need to
-        // leave a Q state to complete our SCX!
-        TRACE COUTATOMICTID("    finishing attempted scx." << endl);
-        const int state = help(tid, myscx, false);
-        assert(recordmgr->isQuiescent(tid));
-        bool result = reclaimMemoryAfterSCX(tid, operationType, nodes, scxRecordsSeen, state);
-        recordmgr->qUnprotectAll(tid);
-        return result;
-    } else {
-        recordmgr->qUnprotectAll(tid);
-    }
-    return false;
-}
-
-/* 2-bit state | 5-bit highest index reached | 24-bit frozen flags for each element of nodes[] on which a freezing CAS was performed = total 31 bits (highest bit unused) */
-#define ABORT_STATE_INIT(i, flags) (SCXRecord<K,V>::STATE_ABORTED | ((i)<<2) | ((flags)<<7))
-#define STATE_GET_FLAGS(state) ((state) & 0x7FFFFF80)
-#define STATE_GET_HIGHEST_INDEX_REACHED(state) (((state) & 0x7C)>>2)
-#define STATE_GET_WITH_FLAG_OFF(state, i) ((state) & ~(1<<(i+7)))
-//#define STATE_GET_FLAG(state, i) ((state>>(i+7)) & 1)
-
-// this internal function is called only by scx(), and only when otherSCX is protected by a call to recordmgr->protect
-template<class K, class V, class Compare, class MasterRecordMgr>
-bool BST<K, V, Compare, MasterRecordMgr>::tryRetireSCXRecord(const int tid, SCXRecord<K, V> *const otherSCX,
-                                                             Node<K, V> *const node) {
-    if (otherSCX == dummy) return false; // never retire the dummy scx record!
-    if (otherSCX->state.load(memory_order_relaxed) == SCXRecord<K, V>::STATE_COMMITTED) {
-        // in this tree, committed scx records are only pointed to by one node.
-        // so, when this function is called, the scx record is already retired.
-        recordmgr->retire(tid, otherSCX);
-        return true;
-    } else { // assert: scx->state >= STATE_ABORTED
-        assert(otherSCX->state.load(memory_order_relaxed) >= 2); /* state >= aborted */
-        // node->scxRecord no longer points to scx, so we set
-        // the corresponding bit in scx->state to 0.
-        // when state == ABORT_STATE_NO_FLAGS(state), scx is retired.
-        const int n = NUM_TO_FREEZE[otherSCX->type];
-        Node<K, V> **const otherNodes = otherSCX->nodes;
-        bool casSucceeded = false;
-        int stateNew = -1;
-        for (int i = 0; i < n; ++i) {
-            if (otherNodes[i] == node) {
-                while (!casSucceeded) {
-                    TRACE COUTATOMICTID("attemping state CAS..." << endl);
-                    int stateOld = otherSCX->state.load(memory_order_relaxed);
-                    stateNew = STATE_GET_WITH_FLAG_OFF(stateOld, i);
-                    DEBUG assert(stateOld >= 2);
-                    DEBUG assert(stateNew >= 2);
-                    assert(stateNew < stateOld);
-                    casSucceeded = otherSCX->state.compare_exchange_weak(stateOld, stateNew);       // MEMBAR ON X86/64
-                }
-                break;
-            }
-        }
-        // many scxs can all be CASing state and trying to retire this node.
-        // the one who gets to invoke retire() is the one whose CAS sets
-        // the flag subfield of scx->state to 0.
-        if (casSucceeded && STATE_GET_FLAGS(stateNew) == 0) {
-            recordmgr->retire(tid, otherSCX);
-            return true;
-        }
-    }
-    return false;
+template<class K, class V, class Compare, class RecManager>
+bst_ns::Node<K, V> *bst_ns::bst<K, V, Compare, RecManager>::initializeNode(
+        const int tid,
+        Node<K, V> *const newnode,
+        const K &key,
+        const V &value,
+        Node<K, V> *const left,
+        Node<K, V> *const right) {
+    newnode->key = key;
+    newnode->value = value;
+    rqProvider->init_node(tid, newnode);
+    // note: synchronization is not necessary for the following accesses,
+    // since a memory barrier will occur before this object becomes reachable
+    // from an entry point to the data structure.
+    rqProvider->write_addr(tid, &newnode->left, left);
+    rqProvider->write_addr(tid, &newnode->right, right);
+    newnode->scxRecord.store((uintptr_t) DUMMY_SCXRECORD, std::memory_order_relaxed);
+#if !defined(BROWN_EXT_BST_LF_COLOCATE_MARKED_BIT)
+    newnode->marked.store(false, std::memory_order_relaxed);
+#else
+    // taken care of by scxRecord store above
+#endif
+    return newnode;
 }
 
 // you may call this only in a quiescent state.
 // the scx records in scxRecordsSeen must be protected (or we must know no one can have freed them--this is the case in this implementation).
 // if this is being called from crash recovery, all nodes in nodes[] and the scx record must be Qprotected.
-template<class K, class V, class Compare, class MasterRecordMgr>
-bool BST<K, V, Compare, MasterRecordMgr>::reclaimMemoryAfterSCX(
+template<class K, class V, class Compare, class RecManager>
+void bst_ns::bst<K, V, Compare, RecManager>::reclaimMemoryAfterSCX(
         const int tid,
-        const int operationType,
-        Node<K, V> **nodes,
-        SCXRecord<K, V> *const *const scxRecordsSeen,
-        const int state) {
+        ReclamationInfo<K, V> *info) {
 
-    // NOW, WE ATTEMPT TO RECLAIM ANY RETIRED NODES AND SCX RECORDS
-    // first, we determine how far we got in the loop in help()
+    Node<K, V> **const nodes = info->nodes;
+    SCXRecord<K, V> *const *const scxRecordsSeen = (SCXRecord<K, V> *const *const) info->llxResults;
+    const int state = info->state;
+    const int operationType = info->type;
+
+    // NOW, WE ATTEMPT TO RECLAIM ANY RETIRED NODES
     int highestIndexReached = (state == SCXRecord<K, V>::STATE_COMMITTED
-                               ? NUM_TO_FREEZE[operationType]
-                               : STATE_GET_HIGHEST_INDEX_REACHED(state));
+                               ? info->numberOfNodesToFreeze
+                               : 0);
+    const int maxNodes = MAX_NODES;
     assert(highestIndexReached >= 0);
-    assert(highestIndexReached <= MAX_NODES);
+    assert(highestIndexReached <= maxNodes);
 
-    SCXRecord<K, V> *debugSCXRecord = allocatedSCXRecord[tid * PREFETCH_SIZE_WORDS];
-
+    const int state_aborted = SCXRecord<K, V>::STATE_ABORTED;
+    const int state_inprogress = SCXRecord<K, V>::STATE_INPROGRESS;
+    const int state_committed = SCXRecord<K, V>::STATE_COMMITTED;
     if (highestIndexReached == 0) {
-        assert(state == 2); /* aborted but only got to help() loop iteration 0 */
-        // scx was never inserted into the data structure,
-        // so we can reuse it for our next operation.
-        return false; // aborted = failed, so return false
+        assert(state == state_aborted || state == state_inprogress);
+        return;
     } else {
-        assert(highestIndexReached > 0);
-        // now that we're in a quiescent state,
-        // it's safe to perform non-restartable operations on bookkeeping data structures
-        // (since no other thread will force us to restart in a quiescent state).
-
-        // we wrote a pointer to newscxrecord into the data structure,
-        // so we cannot reuse it immediately for our next operation.
-        // instead, we allocate a new scx record for our next operation.
-        assert(recordmgr->isQuiescent(tid));
-        allocatedSCXRecord[tid * PREFETCH_SIZE_WORDS] = bst_allocateSCXRecord(tid);
-
+        assert(!recmgr->supportsCrashRecovery() || recmgr->isQuiescent(tid));
         // if the state was COMMITTED, then we cannot reuse the nodes the we
         // took from allocatedNodes[], either, so we must replace these nodes.
-        // for the chromatic tree, the number of nodes can be found in
-        // NUM_INSERTS[opreationType].
-        // in general, we have to add a parameter, specified when you call SCX,
-        // that says how large the replacement subtree of new nodes is.
-        // alternatively, we could just move this out into the data structure code,
-        // to be performed AFTER an scx completes.
         if (state == SCXRecord<K, V>::STATE_COMMITTED) {
-            for (int i = 0; i < NUM_INSERTED[operationType]; ++i) {
-                BST_REPLACE_ALLOCATED_NODE(tid, i);
+            //cout<<"replacing allocated nodes"<<std::endl;
+            for (int i = 0; i < info->numberOfNodesAllocated; ++i) {
+                REPLACE_ALLOCATED_NODE(tid, i);
             }
-        }
-
-        // consider the set of scx records for which we will invoke tryRetireSCXRecords,
-        // in the following code block.
-        // we don't need to call protect object for any of these scx records,
-        // because none of them can be retired until we've invoked tryRetireSCXRecord!
-        // this is because we changed pointers that pointed to each of these
-        // scx records when we performed help(), above.
-        // thus, we know they are not retired.
-
-        // the scx records in scxRecordsSeen[] may now be retired
-        // (since this scx changed each nodes[i]->scxRecord so that it does not
-        //  point to any scx record in scxRecordsSeen[].)
-        // we start at j=1 because nodes[0] may have been retired and freed
-        // since we entered a quiescent state.
-        // furthermore, we don't need to check if nodes[0]->left == NULL, since
-        // we know nodes[0] is never a leaf.
-        for (int j = 0; j < highestIndexReached; ++j) {
-            DEBUG { // some debug invariant checking
-                if (j > 0) { // nodes[0] could be reclaimed already, so nodes[0]->left.load(...) is not safe
-                    if (state == SCXRecord<K, V>::STATE_COMMITTED) {
-                        // NOTE: THE FOLLOWING ACCESSES TO NODES[J]'S FIELDS ARE
-                        //       ONLY SAFE BECAUSE STATE IS NOT ABORTED!
-                        //       (also, we are the only one who can invoke retire[j],
-                        //        and we have not done so yet.)
-                        //       IF STATE == ABORTED, THE NODE MAY BE RECLAIMED ALREADY!
-                        if ((Node<K, V> *) nodes[j]->left.load(memory_order_relaxed) == NULL) {
-                            if (!((SCXRecord<K, V> *) nodes[j]->scxRecord.load(memory_order_relaxed) == dummy)) {
-                                COUTATOMICTID("(SCXRecord<K,V>*) nodes[" << j << "]->scxRecord.load(...)="
-                                                                         << ((SCXRecord<K, V> *) nodes[j]->scxRecord.load(
-                                                                                 memory_order_relaxed)) << endl);
-                                COUTATOMICTID("dummy=" << dummy << endl);
-                                assert(false);
-                            }
-                            if (scxRecordsSeen[j] != LLX_RETURN_IS_LEAF) {
-                                if (nodes[j]) {COUTATOMICTID("nodes[" << j << "]=" << *nodes[j] << endl); }
-                                else {COUTATOMICTID("nodes[" << j << "]=NULL" << endl); }
-                                //if (newNode) { COUTATOMICTID("newNode="<<*newNode<<endl); }
-                                //else { COUTATOMICTID("newNode=NULL"<<endl); }
-                                COUTATOMICTID("scxRecordsSeen[" << j << "]=" << scxRecordsSeen[j] << endl);
-                                COUTATOMICTID("dummy=" << dummy << endl);
-                                assert(false);
-                            }
-                        }
-                    }
-                } else {
-                    assert(scxRecordsSeen[j] != LLX_RETURN_IS_LEAF);
-                }
-            }
-            // if nodes[j] is not a leaf, then we froze it, changing the scx record
-            // that nodes[j] points to. so, we try to retire the scx record is
-            // no longer pointed to by nodes[j].
-            // note: we know scxRecordsSeen[j] is not retired, since we have not
-            //       zeroed out its flag representing an incoming pointer
-            //       from nodes[j] until we execute tryRetireSCXRecord() below.
-            //       (it follows that we don't need to invoke protect().)
-            if (scxRecordsSeen[j] != LLX_RETURN_IS_LEAF) {
-                bool success = tryRetireSCXRecord(tid, scxRecordsSeen[j], nodes[j]);
-                DEBUG2 {
-                    // note: tryRetireSCXRecord returns whether it retired an scx record.
-                    //       this code checks that we don't retire the same scx record twice!
-                    if (success && scxRecordsSeen[j] != dummy) {
-                        for (int k = j + 1; k < highestIndexReached; ++k) {
-                            assert(scxRecordsSeen[j] != scxRecordsSeen[k]);
-                        }
-                    }
-                }
-            }
-        }
-        SOFTWARE_BARRIER; // prevent compiler from moving retire() calls before tryRetireSCXRecord() calls above
-        if (state == SCXRecord<K, V>::STATE_COMMITTED) {
-            const int nNodes = NUM_OF_NODES[operationType];
-            // nodes[1], nodes[2], ..., nodes[nNodes-1] are now retired
-            for (int j = 1; j < nNodes; ++j) {
-                DEBUG if (j < highestIndexReached) {
-                        if ((void *) scxRecordsSeen[j] != LLX_RETURN_IS_LEAF) {
-                            assert(nodes[j]->scxRecord.load(memory_order_relaxed) == (uintptr_t) debugSCXRecord);
-                            assert(nodes[j]->marked.load(memory_order_relaxed));
-                        }
-                    }
-                recordmgr->retire(tid, nodes[j]);
-            }
-            return true; // committed = successful, so return true
+//            // nodes[1], nodes[2], ..., nodes[nNodes-1] are now retired
+//            for (int j=0;j<info->numberOfNodesToReclaim;++j) {
+//                recmgr->retire(tid, nodes[1+j]);
+//            }
         } else {
-            assert(state >= 2); /* is >= SCXRecord<K,V>::STATE_ABORTED */
-            return false;
+            assert(state >= state_aborted); /* is ABORTED */
         }
     }
 }
 
-// you may call this only if each node in nodes is protected by a call to recordmgr->protect
-template<class K, class V, class Compare, class MasterRecordMgr>
-bool BST<K, V, Compare, MasterRecordMgr>::scx(
+// you may call this only if each node in nodes is protected by a call to recmgr->protect
+template<class K, class V, class Compare, class RecManager>
+bool bst_ns::bst<K, V, Compare, RecManager>::scx(
         const int tid,
-        const int operationType,
-        Node<K, V> **nodes,
-        void **llxResults,
-        atomic_uintptr_t *field,        // pointer to a "field pointer" that will be changed
-        Node<K, V> *newNode) {
-    TRACE COUTATOMICTID("scx(tid=" << tid << " operationType=" << operationType << ")" << endl);
+        ReclamationInfo<K, V> *const info,
+        Node<K, V> *volatile *field,        // pointer to a "field pointer" that will be changed
+        Node<K, V> *newNode,
+        Node<K, V> *const *const insertedNodes,
+        Node<K, V> *const *const deletedNodes) {
+    TRACE COUTATOMICTID("scx(tid=" << tid << " type=" << info->type << ")" << std::endl);
 
-    SCXRecord<K, V> *newscxrecord = allocatedSCXRecord[tid * PREFETCH_SIZE_WORDS];
-    bst_initializeSCXRecord(tid, newscxrecord, operationType, nodes, llxResults, field, newNode);
-
-    // if this memory reclamation scheme supports crash recovery, it's important
-    // that we protect the scx record and its nodes so we can help the scx complete
-    // once we've recovered from the crash.
-    if (recordmgr->supportsCrashRecovery()) {
-        // it is important that initializeSCXRecord is performed before qProtect
-        // because if we are neutralized, we use the fact that isQProtected = true
-        // to decide that we should finish our scx, and the results will be bogus
-        // if our scx record is not initialized properly.
-        SOFTWARE_BARRIER;
-        for (int i = 0; i < NUM_OF_NODES[operationType]; ++i) {
-            if (!recordmgr->qProtect(tid, nodes[i], callbackReturnTrue, NULL, false)) {
-                assert(false);
-                COUTATOMICTID("ERROR: failed to qProtect node" << endl);
-                exit(-1);
-            }
-        }
-        for (int i = 0; i < NUM_TO_FREEZE[operationType]; ++i) {
-            if (!recordmgr->qProtect(tid, (SCXRecord<K, V> *) llxResults[i], callbackReturnTrue, NULL, false)) {
-                assert(false);
-                COUTATOMICTID("ERROR: failed to qProtect scx record in scxRecordsSeen / llxResults" << endl);
-                exit(-1);
-            }
-        }
-
-        // it is important that we qprotect everything else before qprotecting our new
-        // scx record, because the scx record is used to determine whether we should
-        // help this scx once we've been neutralized and have restarted,
-        // and helping requires the nodes to be protected.
-        // (we know the scx record is qprotected before the first freezing cas,
-        //  so we know that no pointer to the scx record has been written to the 
-        //  data structure if it is not qprotected when we execute the crash handler.)
-        SOFTWARE_BARRIER;
-        if (!recordmgr->qProtect(tid, newscxrecord, callbackReturnTrue, NULL, false)) {
-            COUTATOMICTID("ERROR: failed to qProtect scx record" << endl);
-            assert(false);
-            exit(-1);
-        }
-        // memory barriers are not needed for these qProtect() calls on x86/64
-        // because there's no write-write reordering, and nothing can be
-        // reordered over the first freezing CAS in help().
-
-        // if we don't have crash recovery, then we only need to protect our scx
-        // record, so that it's not retired and freed out from under us by someone
-        // who helps us.
-    } else {
-        SOFTWARE_BARRIER;
-        if (!recordmgr->protect(tid, newscxrecord, callbackReturnTrue, NULL, false)) {
-            COUTATOMICTID("ERROR: failed to protect scx record" << endl);
-            assert(false);
-            exit(-1);
-        }
-        // no membar is needed for this protect call,
-        // because newscxrecord is not inserted into the data structure
-        // (and, hence, cannot be retired),
-        // until the first freezing CAS in help().
-        // since this freezing CAS implies a membar on x86/64, we don't need
-        // one here to make sure newscxrecord is protected before it is retired.
+    SCXRecord<K, V> *newdesc = DESC1_NEW(tid);
+    newdesc->c.newNode = newNode;
+    for (int i = 0; i < info->numberOfNodes; ++i) {
+        newdesc->c.nodes[i] = info->nodes[i];
     }
+    for (int i = 0; i < info->numberOfNodesToFreeze; ++i) {
+        newdesc->c.scxRecordsSeen[i] = (SCXRecord<K, V> *) info->llxResults[i];
+    }
+
+    int i;
+    for (i = 0; insertedNodes[i]; ++i) newdesc->c.insertedNodes[i] = insertedNodes[i];
+    newdesc->c.insertedNodes[i] = NULL;
+    for (i = 0; deletedNodes[i]; ++i) newdesc->c.deletedNodes[i] = deletedNodes[i];
+    newdesc->c.deletedNodes[i] = NULL;
+
+    newdesc->c.field = field;
+    newdesc->c.numberOfNodes = (char) info->numberOfNodes;
+    newdesc->c.numberOfNodesToFreeze = (char) info->numberOfNodesToFreeze;
+
+    // note: writes equivalent to the following two are already done by DESC1_NEW()
+    //rec->state.store(SCXRecord<K,V>::STATE_INPROGRESS, std::memory_order_relaxed);
+    //rec->allFrozen.store(false, std::memory_order_relaxed);
+    DESC1_INITIALIZED(tid); // mark descriptor as being in a consistent state
+
     SOFTWARE_BARRIER;
-    int state = help(tid, newscxrecord, false);
-    recordmgr->enterQuiescentState(tid);
-    bool result = reclaimMemoryAfterSCX(tid, operationType, nodes, (SCXRecord<K, V> *const *const) llxResults, state);
-    recordmgr->qUnprotectAll(tid);
-    return result;
+    int state = help(tid, TAGPTR1_NEW(tid, newdesc->c.mutables), newdesc, false);
+    info->state = state; // rec->state.load(std::memory_order_relaxed);
+    reclaimMemoryAfterSCX(tid, info);
+    return state & SCXRecord<K, V>::STATE_COMMITTED;
 }
 
-// you may call this only if scx is protected by a call to recordmgr->protect.
-// each node in scx->nodes must be protected by a call to recordmgr->protect.
+template<class K, class V, class Compare, class RecManager>
+void bst_ns::bst<K, V, Compare, RecManager>::helpOther(const int tid, tagptr_t tagptr) {
+    if ((void *) tagptr == DUMMY_SCXRECORD) {
+        TRACE COUTATOMICTID("helpOther dummy descriptor" << std::endl);
+        return; // deal with the dummy descriptor
+    }
+    SCXRecord<K, V> newdesc;
+    //cout<<"sizeof(newrec)="<<sizeof(newrec)<<" computed size="<<SCXRecord<K,V>::size<<std::endl;
+    if (DESC1_SNAPSHOT(&newdesc, tagptr, SCXRecord<K comma1 V>::size /* sizeof(newrec) /*- sizeof(newrec.padding)*/)) {
+        help(tid, tagptr, &newdesc, true);
+    } else {
+        TRACE COUTATOMICTID("helpOther unable to get snapshot of " << tagptrToString(tagptr) << std::endl);
+    }
+}
+
 // returns the state field of the scx record "scx."
-template<class K, class V, class Compare, class MasterRecordMgr>
-int BST<K, V, Compare, MasterRecordMgr>::help(const int tid, SCXRecord<K, V> *scx, bool helpingOther) {
-    assert(recordmgr->isProtected(tid, scx));
-    assert(scx != dummy);
-//    bool updateCAS = false;
-    const int type = scx->type;
-    const int nFreeze = NUM_TO_FREEZE[type];
-    Node<K, V> **const nodes = scx->nodes;
-    SCXRecord<K, V> **const scxRecordsSeen = scx->scxRecordsSeen;
-    Node<K, V> *const newNode = scx->newNode;
-    TRACE COUTATOMICTID(
-            "help(tid=" << tid << " scx=" << *scx << " helpingOther=" << helpingOther << "), nFreeze=" << nFreeze
-                        << endl);
-    //SOFTWARE_BARRIER; // prevent compiler from reordering read(state) before read(nodes), read(scxRecordsSeen), read(newNode). an x86/64 cpu will not reorder these reads.
-    int __state = scx->state.load(memory_order_relaxed);
-    if (__state != SCXRecord<K, V>::STATE_INPROGRESS) {
-        TRACE COUTATOMICTID("help return 0 after state != in progress" << endl);
-        return __state;
-    }
-    // note: the above cannot cause us to leak the memory allocated for scx,
-    // since, if !helpingOther, then we created the SCX record,
-    // and did not write it into the data structure.
-    // so, no one could have helped us, and state must be INPROGRESS.
+template<class K, class V, class Compare, class RecManager>
+int
+bst_ns::bst<K, V, Compare, RecManager>::help(const int tid, tagptr_t tagptr, SCXRecord<K, V> *snap, bool helpingOther) {
+    TRACE COUTATOMICTID("help " << tagptrToString(tagptr) << std::endl);
+    SCXRecord<K, V> *ptr = TAGPTR1_UNPACK_PTR(tagptr);
 
-    DEBUG {
-        for (int i = 0; i < NUM_OF_NODES[type]; ++i) {
-            assert(nodes[i] == root || recordmgr->isProtected(tid, nodes[i]));
-        }
-    }
-
-    // a note about reclaiming SCX records:
-    // IN THEORY, there are exactly three cases in which an SCX record passed
-    // to help() is not in the data structure and can be retired.
-    //    1. help was invoked directly by SCX, and it failed its first
-    //       CAS. in this case the SCX record can be immediately freed.
-    //    2. a pointer to an SCX record U with state == COMMITTED is
-    //       changed by a CAS to point to a different SCX record.
-    //       in this case, the SCX record is retired, but cannot
-    //       immediately be freed.
-    //     - intuitively, we can retire it because,
-    //       after the SCX that created U commits, only the node whose
-    //       pointer was changed still points to U. so, when a pointer
-    //       that points to U is changed, U is no longer pointed to by
-    //       any node in the tree.
-    //     - however, a helper or searching process might still have
-    //       a local pointer to U, or a local pointer to a
-    //       retired node that still points to U.
-    //     - so, U can only be freed safely after no process has a
-    //       pointer to a retired node that points to U.
-    //     - in other words, U can be freed only when all retired nodes
-    //       that point to it can be freed.
-    //     - if U is retired when case 2 occurs, then it will be retired
-    //       AFTER all nodes that point to it are retired. thus, it will
-    //       be freed at the same time as, or after, those nodes.
-    //    3. a pointer to an SCX record U with state == ABORTED is
-    //       changed by a CAS to point to a different SCX record.
-    //       this is the hard case, because several nodes in the tree may
-    //       point to U.
-    //     - in this case, we store the number of pointers from nodes in the
-    //       tree to this SCX record in the state field of this SCX record.
-    // [NOTE: THE FOLLOWING THREE BULLET POINTS ARE FOR AN OLD IDEA;
-    //  THE CURRENT IDEA IS SLIGHTLY DIFFERENT.]    
-    //     - when the state of an SCX record becomes STATE_ABORTED, we store
-    //       STATE_ABORTED + i in the state field, where i is the number of
-    //       incoming pointers from nodes in the tree. (STATE_INPROGRESS and
-    //       STATE_COMMITTED are both less than STATE_ABORTED.)
-    //     - every time we change a pointer from an SCX record U to another
-    //       SCX record U', and U.state > STATE_ABORTED, we decrement U.state.
-    //     - if U.state == STATE_ABORTED, then we know there are no incoming
-    //       pointers to U from nodes in the tree, so we can retire U.
-    //
-    // HOWEVER, in practice, we don't freeze leaves for insert and delete,
-    // so we have to be careful to deal with a possible memory leak.
-    // if some operations (e.g., rebalancing steps) DO freeze leaves, then
-    // we can wind up in a situation where a rebalancing step freezes a leaf
-    // and is aborted, then a successful insertion or deletion retires
-    // that leaf without freezing it. in this scenario, the scx record
-    // for the rebalancing step will never be retired, since no further
-    // freezing CAS will modify it's scx record pointer (which means it will
-    // never trigger case 3, above).
-    // there are three (easy) possible fixes for this problem.
-    //   1. make sure all operations freeze leaves
-    //   2. make sure no operation freezes leaves
-    //   3. when retiring a node, if it points to an scx record with
-    //      state aborted, then respond as if we were in case 3, above.
-    //      (note: since the dummy scx record has state ABORTED,
-    //       we have to be a little bit careful; we ignore the dummy.)
-    // in this implementation, we choose option 2. this is viable because
-    // leaves are immutable, and, hence, do not need to be frozen.
-
-    // freeze sub-tree
-    int flags = 1; // bit i is 1 if nodes[i] is not a leaf, and 0 otherwise.
-    // note that flags bit 0 is always set, since nodes[0] is never a leaf.
-    // (technically, if we abort in the first iteration,
-    //  flags=1 makes no sense (since it suggests there is one pointer to scx
-    //  from a node in the tree), but in this case we ignore the flags variable.)
-    for (int i = helpingOther; i < nFreeze; ++i) {
-        if (scxRecordsSeen[i] == LLX_RETURN_IS_LEAF) {
+    // TODO: make SCX_WRITE_STATE into regular write for the owner of this descriptor
+    // (might not work in general, but here we can prove that allfrozen happens
+    //  before state changes, and the sequence number does not change until the
+    //  owner is finished with his operation; in general, seems like the last
+    //  write done by helpers/owner can be a write, not a CAS when done
+    //  by the owner)
+    for (int i = helpingOther; i < snap->c.numberOfNodesToFreeze; ++i) { // freeze sub-tree
+        if (snap->c.scxRecordsSeen[i] == LLX_RETURN_IS_LEAF) {
             TRACE COUTATOMICTID("nodes[" << i << "] is a leaf");
             assert(i > 0); // nodes[0] cannot be a leaf...
             continue; // do not freeze leaves
         }
 
-        uintptr_t exp = (uintptr_t) scxRecordsSeen[i];
-        bool successfulCAS = nodes[i]->scxRecord.compare_exchange_strong(exp, (uintptr_t) scx);     // MEMBAR ON X86/64
+        uintptr_t exp = (uintptr_t) snap->c.scxRecordsSeen[i];
+        bool successfulCAS = snap->c.nodes[i]->scxRecord.compare_exchange_strong(exp, tagptr); // MEMBAR ON X86/64
+        if (successfulCAS || exp == tagptr) continue; // if node is already frozen for our operation
 
-        if (!successfulCAS && (SCXRecord<K, V> *) exp != scx) { // if work was not done
-            if (scx->allFrozen.load(memory_order_relaxed)) {
-                assert(scx->state.load(memory_order_relaxed) == 1); /*STATE_COMMITTED*/
-                TRACE COUTATOMICTID("help return COMMITTED after failed freezing cas on nodes[" << i << "]" << endl);
-                return SCXRecord<K, V>::STATE_COMMITTED; // success
-            } else {
-                if (i == 0) {
-                    // if i == 0, then our scx record was never in the tree, and,
-                    // consequently, no one else can have a pointer to it.
-                    // so, there is no need to change scx->state.
-                    // (recall that helpers start with helpingOther == true,
-                    //  so i>0 for every helper. thus, if and only if i==0,
-                    //  we created this scx record and failed our first CAS.)
-                    assert(!helpingOther);
-                    TRACE COUTATOMICTID("help return ABORTED after failed freezing cas on nodes[" << i << "]" << endl);
-                    return ABORT_STATE_INIT(0, 0); // scx is aborted (but no one else will ever know)
-                } else {
-                    // if this is the first failed freezing CAS to occur for this SCX,
-                    // then flags encodes the pointers to this scx record from nodes IN the tree.
-                    // (the following CAS will succeed only the first time it is performed
-                    //  by any thread running help() for this scx.)
-                    int expectedState = SCXRecord<K, V>::STATE_INPROGRESS;
-                    int newState = ABORT_STATE_INIT(i, flags);
-                    bool success = scx->state.compare_exchange_strong(expectedState, newState);     // MEMBAR ON X86/64
-                    assert(expectedState != 1); /* not committed */
-                    // note2: a regular write will not do, here, since two people can start helping, one can abort at i>0, then after a long time, the other can fail to CAS i=0, so they can get different i values.
-                    assert(scx->state >= 2); /* SCXRecord<K,V>::STATE_ABORTED */
-                    // ABORTED THE SCX AFTER PERFORMING ONE OR MORE SUCCESSFUL FREEZING CASs
-                    if (success) {
-                        TRACE COUTATOMICTID(
-                                "help return ABORTED(changed to " << newState << ") after failed freezing cas on nodes["
-                                                                  << i << "]" << endl);
-                        return newState;
-                    } else {
-                        TRACE COUTATOMICTID(
-                                "help return ABORTED(failed to change to " << newState << " because encountered "
-                                                                           << expectedState
-                                                                           << " instead of in progress) after failed freezing cas on nodes["
-                                                                           << i << "]" << endl);
-                        return expectedState; // this has been overwritten by compare_exchange_strong with the value that caused the CAS to fail.
-                    }
-                }
-            }
-        } else {
-            flags |= (1 << i); // nodes[i] was frozen for scx
-            assert((SCXRecord<K, V> *) exp == scx || ((SCXRecord<K, V> *) exp)->state != 0); // not in progress
-        }
+        // read mutable allFrozen field of descriptor
+        bool succ;
+        bool allFrozen = DESC1_READ_FIELD(succ, ptr->c.mutables, tagptr, MUTABLES_MASK_ALLFROZEN,
+                                          MUTABLES_OFFSET_ALLFROZEN);
+        if (!succ) return SCXRecord<K, V>::STATE_ABORTED;
+
+        int newState = (allFrozen) ? SCXRecord<K, V>::STATE_COMMITTED : SCXRecord<K, V>::STATE_ABORTED;
+        TRACE COUTATOMICTID(
+                "help return state " << newState << " after failed freezing cas on nodes[" << i << "]" << std::endl);
+        MUTABLES1_WRITE_FIELD(ptr->c.mutables, snap->c.mutables, newState, MUTABLES_MASK_STATE, MUTABLES_OFFSET_STATE);
+        return newState;
     }
-    scx->allFrozen.store(true, memory_order_relaxed);
-    // note: i think the sequential consistency memory model is not actually needed here...
-    // why? in an execution where no reads are moved before allFrozen by the
-    // compiler/cpu (because we added a barrier here), any process that sees
-    // allFrozen = true has also just seen that nodes[i]->op != &op,
-    // which means that the operation it is helping has already completed!
-    // in particular, the child CAS will already have been done, which implies
-    // that allFrozen will have been set to true, since the compiler/cpu cannot
-    // move the (first) child CAS before the (first) write to allFrozen.
-    SOFTWARE_BARRIER;
-    for (int i = 1; i < nFreeze; ++i) {
-        if (scxRecordsSeen[i] == LLX_RETURN_IS_LEAF) continue; // do not mark leaves
-        assert(recordmgr->isProtected(tid, scx));
-        assert(nodes[i] == root || recordmgr->isProtected(tid, nodes[i]));
-        nodes[i]->marked.store(true, memory_order_relaxed); // finalize all but first node
+
+    MUTABLES1_WRITE_BIT(ptr->c.mutables, snap->c.mutables, MUTABLES_MASK_ALLFROZEN);
+    for (int i = 1; i < snap->c.numberOfNodesToFreeze; ++i) {
+        if (snap->c.scxRecordsSeen[i] == LLX_RETURN_IS_LEAF) continue; // do not mark leaves
+#if !defined(BROWN_EXT_BST_LF_COLOCATE_MARKED_BIT)
+        snap->c.nodes[i]->marked.store(true, std::memory_order_relaxed); // finalize all but first node
+#else
+        snap->c.nodes[i]->scxRecord.fetch_or(0x1, std::memory_order_relaxed);
+        // could this be done more efficiently with bit-test-and-set?
+#endif
     }
 
     // CAS in the new sub-tree (update CAS)
-    uintptr_t expected = (uintptr_t) nodes[1];
-    assert(nodes[1] == root || recordmgr->isProtected(tid, nodes[1]));
-    scx->field->compare_exchange_strong(expected, (uintptr_t) newNode);                             // MEMBAR ON X86/64
-    assert(scx->state.load(memory_order_relaxed) < 2); // not aborted
-    scx->state.store(SCXRecord<K, V>::STATE_COMMITTED, memory_order_relaxed);
+//    uintptr_t expected = (uintptr_t) snap->nodes[1];
+    rqProvider->linearize_update_at_cas(tid, snap->c.field, snap->c.nodes[1], snap->c.newNode, snap->c.insertedNodes,
+                                        snap->c.deletedNodes);
 
-    TRACE COUTATOMICTID("help return COMMITTED after performing update cas" << endl);
+    // todo: add #ifdef CASing scx record pointers to set an "invalid" bit,
+    // and add to llx a test that determines whether a pointer is invalid.
+    // if so, the record no longer exists and no longer needs help.
+    //
+    // the goal of this is to prevent a possible ABA problem that can occur
+    // if there is VERY long lived data in the tree.
+    // specifically, if a node whose scx record pointer is CAS'd by this scx
+    // was last modified by the owner of this scx, and the owner performed this
+    // modification exactly 2^SEQ_WIDTH (of its own) operations ago,
+    // then an operation running now may confuse a pointer to an old version of
+    // this scx record with the current version (since the sequence #'s match).
+    //
+    // actually, there may be another solution. a problem arises only if a
+    // helper can take an effective action not described by an active operation.
+    // even if a thread erroneously believes an old pointer reflects an active
+    // operation, if it simply helps the active operation, there is no issue.
+    // the issue arises when the helper believes it sees an active operation,
+    // and begins helping by looking at the scx record, but the owner of that
+    // operation is currently in the process of initializing the scx record,
+    // so the helper sees an inconsistent scx record and takes invalid steps.
+    // (recall that a helper can take a snapshot of an scx record whenever
+    //  the sequence # it sees in a tagged pointer matches the sequence #
+    //  it sees in the scx record.)
+    // the solution here seems to be to ensure scx records can be helped only
+    // when they are consistent.
+
+    MUTABLES1_WRITE_FIELD(ptr->c.mutables, snap->c.mutables, SCXRecord<K comma1 V>::STATE_COMMITTED,
+                          MUTABLES_MASK_STATE, MUTABLES_OFFSET_STATE);
+
+    TRACE COUTATOMICTID("help return COMMITTED after performing update cas" << std::endl);
     return SCXRecord<K, V>::STATE_COMMITTED; // success
 }
 
-// you may call this only if node is protected by a call to recordmgr->protect
-template<class K, class V, class Compare, class MasterRecordMgr>
-void *BST<K, V, Compare, MasterRecordMgr>::llx(
+// you may call this only if node is protected by a call to recmgr->protect
+template<class K, class V, class Compare, class RecManager>
+void *bst_ns::bst<K, V, Compare, RecManager>::llx(
         const int tid,
         Node<K, V> *node,
         Node<K, V> **retLeft,
         Node<K, V> **retRight) {
-    TRACE COUTATOMICTID("llx(tid=" << tid << ", node=" << *node << ")" << endl);
-    assert(node == root || recordmgr->isProtected(tid, node));
-    BST_retired_info info;
-    SCXRecord<K, V> *scx1 = (SCXRecord<K, V> *) node->scxRecord.load(memory_order_relaxed);
-    IF_FAIL_TO_PROTECT_SCX(info, tid, scx1, &node->scxRecord, &node->marked) {
-        TRACE COUTATOMICTID("llx return1 (tid=" << tid << " key=" << node->key << ")\n");
-        DEBUG counters->llxFail->inc(tid);
-        return NULL;
-    } // return and retry
-    assert(scx1 == dummy || recordmgr->isProtected(tid, scx1));
-    int state = scx1->state.load(memory_order_relaxed);
+    TRACE COUTATOMICTID("llx(tid=" << tid << ", node=" << *node << ")" << std::endl);
+
+#if !defined(BROWN_EXT_BST_LF_COLOCATE_MARKED_BIT)
+    tagptr_t tagptr1 = node->scxRecord.load(std::memory_order_relaxed);
+#else
+    tagptr_t tagptr1 = node->scxRecord.load(std::memory_order_relaxed) & ~0x1;
+#endif
+
+    // read mutable state field of descriptor
+    bool succ;
+    int state = DESC1_READ_FIELD(succ, TAGPTR1_UNPACK_PTR(tagptr1)->c.mutables, tagptr1, MUTABLES_MASK_STATE,
+                                 MUTABLES_OFFSET_STATE);
+    if (!succ) state = SCXRecord<K, V>::STATE_COMMITTED;
+    // note: special treatment for alg in the case where the descriptor has already been reallocated (impossible before the transformation, assuming safe memory reclamation)
+
     SOFTWARE_BARRIER;       // prevent compiler from moving the read of marked before the read of state (no hw barrier needed on x86/64, since there is no read-read reordering)
-    bool marked = node->marked.load(memory_order_relaxed);
-    SOFTWARE_BARRIER;       // prevent compiler from moving the reads scx2=node->scxRecord or scx3=node->scxRecord before the read of marked. (no h/w barrier needed on x86/64 since there is no read-read reordering)
-    if ((state == SCXRecord<K, V>::STATE_COMMITTED && !marked) || state >= SCXRecord<K, V>::STATE_ABORTED) {
-        SOFTWARE_BARRIER;       // prevent compiler from moving the reads scx2=node->scxRecord or scx3=node->scxRecord before the read of marked. (no h/w barrier needed on x86/64 since there is no read-read reordering)
-        *retLeft = (Node<K, V> *) node->left.load(memory_order_relaxed);
-        *retRight = (Node<K, V> *) node->right.load(memory_order_relaxed);
+#if !defined(BROWN_EXT_BST_LF_COLOCATE_MARKED_BIT)
+    bool marked = node->marked.load(std::memory_order_relaxed);
+#else
+    bool marked = node->scxRecord.load(std::memory_order_relaxed) & 0x1;
+#endif
+    SOFTWARE_BARRIER;       // prevent compiler from moving the reads tagptr2=node->scxRecord or tagptr3=node->scxRecord before the read of marked. (no h/w barrier needed on x86/64 since there is no read-read reordering)
+    if ((state & SCXRecord<K, V>::STATE_COMMITTED && !marked) || state & SCXRecord<K, V>::STATE_ABORTED) {
+        SOFTWARE_BARRIER;       // prevent compiler from moving the reads tagptr2=node->scxRecord or tagptr3=node->scxRecord before the read of marked. (no h/w barrier needed on x86/64 since there is no read-read reordering)
+        *retLeft = rqProvider->read_addr(tid, &node->left);
+        *retRight = rqProvider->read_addr(tid, &node->right);
         if (*retLeft == NULL) {
             TRACE COUTATOMICTID(
                     "llx return2.a (tid=" << tid << " state=" << state << " marked=" << marked << " key=" << node->key
                                           << ")\n");
-            return (void *) LLX_RETURN_IS_LEAF;
+            return LLX_RETURN_IS_LEAF;
         }
         SOFTWARE_BARRIER; // prevent compiler from moving the read of node->scxRecord before the read of left or right
-        SCXRecord<K, V> *scx2 = (SCXRecord<K, V> *) node->scxRecord.load(memory_order_relaxed);
-        if (scx1 == scx2) {
-            DEBUG {
-                if (marked && state >= SCXRecord<K, V>::STATE_ABORTED) {
-                    // since scx1 == scx2, the two claims in the antecedent hold simultaneously.
-                    assert(scx1 == dummy || recordmgr->isProtected(tid, scx1));
-                    assert(node == root || recordmgr->isProtected(tid, node));
-                    assert(node->marked.load(memory_order_relaxed));
-                    assert(scx1->state.load(memory_order_relaxed) >= 2 /* aborted */);
-                    assert(false);
-                }
-            }
+#if !defined(BROWN_EXT_BST_LF_COLOCATE_MARKED_BIT)
+        tagptr_t tagptr2 = node->scxRecord.load(std::memory_order_relaxed);
+#else
+        tagptr_t tagptr2 = node->scxRecord.load(std::memory_order_relaxed) & ~0x1;
+#endif
+        if (tagptr1 == tagptr2) {
             TRACE COUTATOMICTID(
                     "llx return2 (tid=" << tid << " state=" << state << " marked=" << marked << " key=" << node->key
-                                        << " scx1=" << scx1 << ")\n");
-            DEBUG counters->llxSuccess->inc(tid);
-            // on x86/64, we do not need any memory barrier here to prevent mutable fields of node from being moved before our read of scx1, because the hardware does not perform read-read reordering. on another platform, we would need to ensure no read from after this point is reordered before this point (technically, before the read that becomes scx1)...
-            return scx1;    // success
+                                        << " desc1=" << tagptr1 << ")\n");
+            // on x86/64, we do not need any memory barrier here to prevent mutable fields of node from being moved before our read of desc1, because the hardware does not perform read-read reordering. on another platform, we would need to ensure no read from after this point is reordered before this point (technically, before the read that becomes desc1)...
+            return (void *) tagptr1;    // success
         } else {
-            DEBUG {
-                IF_FAIL_TO_PROTECT_SCX(info, tid, scx2, &node->scxRecord, &node->marked) {
-                    TRACE COUTATOMICTID("llx return1.b (tid=" << tid << " key=" << node->key << ")\n");
-                    DEBUG counters->llxFail->inc(tid);
-                    return NULL;
-                } else {
-                    assert(scx1 == dummy || recordmgr->isProtected(tid, scx1));
-                    assert(recordmgr->isProtected(tid, scx2));
-                    assert(node == root || recordmgr->isProtected(tid, node));
-                    int __state = scx2->state.load(memory_order_relaxed);
-                    SCXRecord<K, V> *__scx = (SCXRecord<K, V> *) node->scxRecord.load(memory_order_relaxed);
-                    if ((marked && __state >= 2 && __scx == scx2)) {
-                        COUTATOMICTID("ERROR: marked && state aborted! raising signal SIGTERM..." << endl);
-                        COUTATOMICTID("node      = " << *node << endl);
-                        COUTATOMICTID("scx2      = " << *scx2 << endl);
-                        COUTATOMICTID("state     = " << state << " bits=" << bitset<32>(state) << endl);
-                        COUTATOMICTID("marked    = " << marked << endl);
-                        COUTATOMICTID("__state   = " << __state << " bits=" << bitset<32>(__state) << endl);
-                        assert(node->marked.load(memory_order_relaxed));
-                        assert(scx2->state.load(memory_order_relaxed) >= 2 /* aborted */);
-                        raise(SIGTERM);
-                    }
-                }
-            }
-            if (recordmgr->shouldHelp()) {
-                IF_FAIL_TO_PROTECT_SCX(info, tid, scx2, &node->scxRecord, &node->marked) {
-                    TRACE COUTATOMICTID(
-                            "llx return3 (tid=" << tid << " state=" << state << " marked=" << marked << " key="
-                                                << node->key << ")\n");
-                    DEBUG counters->llxFail->inc(tid);
-                    return NULL;
-                } // return and retry
-                assert(scx2 != dummy);
-                assert(recordmgr->isProtected(tid, scx2));
-                TRACE COUTATOMICTID("llx help 1 tid=" << tid << endl);
-                help(tid, scx2, true);
+            if (recmgr->shouldHelp()) {
+                TRACE COUTATOMICTID("llx help 1 tid=" << tid << std::endl);
+                helpOther(tid, tagptr2);
             }
         }
     } else if (state == SCXRecord<K, V>::STATE_INPROGRESS) {
-        if (recordmgr->shouldHelp()) {
-            assert(scx1 != dummy);
-            assert(recordmgr->isProtected(tid, scx1));
-            TRACE COUTATOMICTID("llx help 2 tid=" << tid << endl);
-            help(tid, scx1, true);
+        if (recmgr->shouldHelp()) {
+            TRACE COUTATOMICTID("llx help 2 tid=" << tid << std::endl);
+            helpOther(tid, tagptr1);
         }
     } else {
         // state committed and marked
         assert(state == 1); /* SCXRecord<K,V>::STATE_COMMITTED */
         assert(marked);
-        if (recordmgr->shouldHelp()) {
-            SCXRecord<K, V> *scx3 = (SCXRecord<K, V> *) node->scxRecord.load(memory_order_relaxed);
-            IF_FAIL_TO_PROTECT_SCX(info, tid, scx3, &node->scxRecord, &node->marked) {
-                TRACE COUTATOMICTID(
-                        "llx return4 (tid=" << tid << " state=" << state << " marked=" << marked << " key=" << node->key
-                                            << ")\n");
-                DEBUG counters->llxFail->inc(tid);
-                return NULL;
-            } // return and retry
-            assert(scx3 != dummy);
-            assert(recordmgr->isProtected(tid, scx3));
-            TRACE COUTATOMICTID("llx help 3 tid=" << tid << endl);
-            help(tid, scx3, true);
-        } else {
+        if (recmgr->shouldHelp()) {
+#if !defined(BROWN_EXT_BST_LF_COLOCATE_MARKED_BIT)
+            tagptr_t tagptr3 = node->scxRecord.load(std::memory_order_relaxed);
+#else
+            tagptr_t tagptr3 = node->scxRecord.load(std::memory_order_relaxed) & ~0x1;
+#endif
+            TRACE COUTATOMICTID("llx help 3 tid=" << tid << " tagptr3=" << tagptrToString(tagptr3) << std::endl);
+            helpOther(tid, tagptr3);
         }
     }
     TRACE COUTATOMICTID(
             "llx return5 (tid=" << tid << " state=" << state << " marked=" << marked << " key=" << node->key << ")\n");
-    DEBUG counters->llxFail->inc(tid);
     return NULL;            // fail
 }
 
-#endif /* BST_IMPL_H */
-
+#endif

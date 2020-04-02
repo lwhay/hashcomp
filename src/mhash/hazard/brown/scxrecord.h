@@ -1,21 +1,8 @@
 /**
- * C++ implementation of lock-free chromatic tree using LLX/SCX and DEBRA(+).
- * 
- * Copyright (C) 2016 Trevor Brown
- * Contact (tabrown [at] cs [dot] toronto [dot edu]) with any questions or comments.
+ * Preliminary C++ implementation of binary search tree using LLX/SCX.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2014 Trevor Brown
+ * This preliminary implementation is CONFIDENTIAL and may not be distributed.
  */
 
 #ifndef SCXRECORD_H
@@ -27,81 +14,82 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
-#include "reclaimer_interface.h"
 
-using namespace std;
+#include "descriptors.h"
+
+namespace bst_ns {
 
 template<class K, class V>
 class Node;
 
-string const NAME_OF_TYPE[33] = {
-        string("INS"),
-        string("DEL"),
-        string("BLK"),
-        string("RB1"),
-        string("RB2"),
-        string("PUSH"),
-        string("W1"),
-        string("W2"),
-        string("W3"),
-        string("W4"),
-        string("W5"),
-        string("W6"),
-        string("W7"),
-        string("DBL1"),
-        string("DBL2"),
-        string("DBL3"),
-        string("DBL4"),
-        string("RB1SYM"),
-        string("RB2SYM"),
-        string("PUSHSYM"),
-        string("W1SYM"),
-        string("W2SYM"),
-        string("W3SYM"),
-        string("W4SYM"),
-        string("W5SYM"),
-        string("W6SYM"),
-        string("W7SYM"),
-        string("DBL1SYM"),
-        string("DBL2SYM"),
-        string("DBL3SYM"),
-        string("DBL4SYM"),
-        string("REPLACE"),
-        string("NOOP")
+std::string const NAME_OF_TYPE[33] = {
+        std::string("INS"),
+        std::string("DEL"),
+        std::string("BLK"),
+        std::string("RB1"),
+        std::string("RB2"),
+        std::string("PUSH"),
+        std::string("W1"),
+        std::string("W2"),
+        std::string("W3"),
+        std::string("W4"),
+        std::string("W5"),
+        std::string("W6"),
+        std::string("W7"),
+        std::string("DBL1"),
+        std::string("DBL2"),
+        std::string("DBL3"),
+        std::string("DBL4"),
+        std::string("RB1SYM"),
+        std::string("RB2SYM"),
+        std::string("PUSHSYM"),
+        std::string("W1SYM"),
+        std::string("W2SYM"),
+        std::string("W3SYM"),
+        std::string("W4SYM"),
+        std::string("W5SYM"),
+        std::string("W6SYM"),
+        std::string("W7SYM"),
+        std::string("DBL1SYM"),
+        std::string("DBL2SYM"),
+        std::string("DBL3SYM"),
+        std::string("DBL4SYM"),
+        std::string("REPLACE"),
+        std::string("NOOP")
 };
 
-int const NUM_INSERTED[33] = {
-        3, 1, 3, 2, 3, 3,                               // ins, del, blk, rb1-2, push
-        4, 4, 5, 5, 4, 4, 3,                            // w1-7
-        5, 3, 5, 3,                                     // dbl1-4
-        2, 3, 3,                                        // rb1-2sym, pushsym
-        4, 4, 5, 5, 4, 4, 3,                            // w1-7sym
-        5, 3, 5, 3,                                     // dbl1-4sym
-        1,                                              // replace
-        0                                               // no-op (dummy)
-};
-
-int const NUM_TO_FREEZE[33] = {
-        1, 3, 4, 3, 4, 4,                               // ins, del, blk, rb1-2, push
-        5, 5, 6, 6, 5, 5, 4,                            // w1-7
-        6, 4, 6, 4,                                     // dbl1-4
-        3, 4, 4,                                        // rb1-2sym, pushsym
-        5, 5, 6, 6, 5, 5, 4,                            // w1-7sym
-        6, 4, 6, 4,                                     // dbl1-4sym
-        1,                                              // replace
-        0                                               // no-op (dummy)
-};
-
-int const NUM_OF_NODES[33] = {
-        2, 4, 4, 3, 4, 4,                               // ins, del, blk, rb1-2, push
-        5, 5, 6, 6, 5, 5, 4,                            // w1-7
-        6, 4, 6, 4,                                     // dbl1-4
-        3, 4, 4,                                        // rb1-2sym, pushsym
-        5, 5, 6, 6, 5, 5, 4,                            // w1-7sym
-        6, 4, 6, 4,                                     // dbl1-4sym
-        2,                                              // replace
-        0                                               // no-op (dummy)
-};
+//int const NUM_INSERTED[33] = {
+//        3, 1, 3, 2, 3, 3,                               // ins, del, blk, rb1-2, push
+//        4, 4, 5, 5, 4, 4, 3,                            // w1-7
+//        5, 3, 5, 3,                                     // dbl1-4
+//        2, 3, 3,                                        // rb1-2sym, pushsym
+//        4, 4, 5, 5, 4, 4, 3,                            // w1-7sym
+//        5, 3, 5, 3,                                     // dbl1-4sym
+//        1,                                              // replace
+//        0                                               // no-op (dummy)
+//};
+//
+//int const NUM_TO_FREEZE[33] = {
+//        1, 3, 4, 3, 4, 4,                               // ins, del, blk, rb1-2, push
+//        5, 5, 6, 6, 5, 5, 4,                            // w1-7
+//        6, 4, 6, 4,                                     // dbl1-4
+//        3, 4, 4,                                        // rb1-2sym, pushsym
+//        5, 5, 6, 6, 5, 5, 4,                            // w1-7sym
+//        6, 4, 6, 4,                                     // dbl1-4sym
+//        1,                                              // replace
+//        0                                               // no-op (dummy)
+//};
+//
+//int const NUM_OF_NODES[33] = {
+//        2, 4, 4, 3, 4, 4,                               // ins, del, blk, rb1-2, push
+//        5, 5, 6, 6, 5, 5, 4,                            // w1-7
+//        6, 4, 6, 4,                                     // dbl1-4
+//        3, 4, 4,                                        // rb1-2sym, pushsym
+//        5, 5, 6, 6, 5, 5, 4,                            // w1-7sym
+//        6, 4, 6, 4,                                     // dbl1-4sym
+//        2,                                              // replace
+//        0                                               // no-op (dummy)
+//};
 
 template<class K, class V>
 class SCXRecord {
@@ -146,47 +134,33 @@ public:
     const static int STATE_COMMITTED = 1;
     const static int STATE_ABORTED = 2;
 
-    atomic_bool allFrozen;
-    int type;
-    atomic_int state; // state of the scx
-    Node<K, V> *nodes[MAX_NODES];                // array of pointers to nodes ; these are CASd to NULL as pointers nodes[i]->scxPtr are changed so that they no longer point to this scx record.
-    SCXRecord<K, V> *scxRecordsSeen[MAX_NODES];  // array of pointers to scx records
-    Node<K, V> *newNode;
-    atomic_uintptr_t *field;
+    // bitfield (least significant first):
+    // 1 bit allFrozen
+    // 2 bits state
+    // remaining bits sequence #
+    struct {
+        volatile mutables_t mutables;                                       // reserved by weak descriptor transformation
+        Node<K, V> *newNode;
+        Node<K, V> *volatile *field;
+        int numberOfNodes;
+        int numberOfNodesToFreeze;
+        Node<K, V> *nodes[MAX_NODES];                // array of pointers to nodes ; these are CASd to NULL as pointers nodes[i]->scxPtr are changed so that they no longer point to this scx record.
+        SCXRecord<K, V> *scxRecordsSeen[MAX_NODES];  // array of pointers to scx records
 
-    SCXRecord() {              // create an inactive operation (a no-op) [[ we do this to avoid the overhead of inheritance ]]
-        // left blank for efficiency with custom allocators
-    }
+        // for rqProvider
+        Node<K, V> *insertedNodes[MAX_NODES + 1];
+        Node<K, V> *deletedNodes[MAX_NODES + 1];
+    } __attribute__((packed)) c; // WARNING: be careful with atomicity because of packed attribute!!! (this means no atomic vars smaller than word size, and all atomic vars must start on a word boundary when fields are packed tightly)
+    PAD; // prevent false sharing
 
-    SCXRecord(const SCXRecord<K, V> &op) {
-        // left blank for efficiency with custom allocators for efficiency with custom allocators
-    }
+    const static int size = sizeof(c); //sizeof(mutables)+sizeof(newNode)+sizeof(field)+sizeof(numberOfNodes)+sizeof(numberOfNodesToFreeze)+sizeof(nodes)+sizeof(scxRecordsSeen)+sizeof(insertedNodes)+sizeof(deletedNodes);
 
-    int getType() { return type; }
+    SCXRecord() { /* left blank for efficiency with custom allocators */ }
 
-    K getSubtreeKey() { return nodes[1].key; }
-
-    friend ostream &operator<<(ostream &os, const SCXRecord<K, V> *obj) {
-        if (obj) os << (*obj);
-        else os << "null";
-        return os;
-    }
-
-    friend ostream &operator<<(ostream &os, const SCXRecord<K, V> &obj) {
-        ios::fmtflags f(os.flags());
-//        cout<<"obj.type = "<<obj.type<<endl;
-        os << "[type=" << NAME_OF_TYPE[obj.type]
-           << " state=" << obj.state.load(memory_order_relaxed)
-           << " allFrozen=" << obj.allFrozen
-           //          <<"]";
-           //          <<" nodes="<<obj.nodes
-           //          <<" ops="<<obj.ops
-           << "]" //" subtree="+subtree+"]";
-           << "@0x" << hex << (long) (&obj);
-        os.flags(f);
-        return os;
-    }
+    SCXRecord(const SCXRecord<K, V> &op) { /* left blank for efficiency with custom allocators */ }
 };
 
-#endif /* OPERATION_H */
+}
+
+#endif    /* OPERATION_H */
 
