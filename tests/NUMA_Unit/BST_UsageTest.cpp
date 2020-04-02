@@ -21,7 +21,10 @@
 uint64_t thread_number = 4;
 uint64_t total_count = (1llu << 20);
 uint64_t timer_limit = 30;
+bool high_intensive = false;
 constexpr uint64_t NEUTRLIZE_SIGNAL = SIGQUIT;
+
+#define UPDATING  1
 
 typedef bst_ns::Node<uint64_t, uint64_t> NodeType;
 typedef reclaimer_debra<NodeType, pool_perthread_and_shared<NodeType, allocator_new<NodeType>>> Reclaimer;
@@ -88,7 +91,16 @@ void MultiTest() {
             Tracer tracer;
             tracer.startTime();
             uint64_t r = 0;
+            uint64_t start = (high_intensive ? 0 : tid);
+            uint64_t step = (high_intensive ? 1 : thread_number);
             while (indicator.load() == 0) {
+#if UPDATING
+                for (uint64_t i = start; i < total_count; i += step) {
+                    tree->insert(tid, r * total_count + i, r * total_count + i);
+                    //if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
+                }
+                if (tid == 0) std::cout << "Update" << r << ": " << tracer.getRunTime() << std::endl;
+#else
                 for (uint64_t i = tid; i < total_count; i += thread_number) {
                     tree->insert(tid, r * total_count + i, r * total_count + i);
                     //if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
@@ -100,6 +112,7 @@ void MultiTest() {
                     //if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
                 }
                 if (tid == 0) std::cout << "Erase" << r++ << ": " << tracer.getRunTime() << std::endl;
+#endif
             }
         }, tree, t, std::ref(indicator)));
     }
@@ -119,10 +132,11 @@ void MultiTest() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 3) {
+    if (argc > 4) {
         thread_number = std::atol(argv[1]);
         total_count = std::atol(argv[2]);
         timer_limit = std::atol(argv[3]);
+        high_intensive = (std::atoi(argv[4]) == 1);
     }
     //DummyTest();
     //SimpleTest();
