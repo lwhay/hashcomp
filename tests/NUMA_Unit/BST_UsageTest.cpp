@@ -22,7 +22,10 @@ uint64_t thread_number = 4;
 uint64_t total_count = (1llu << 20);
 uint64_t timer_limit = 30;
 bool high_intensive = false;
+double dist_factor = .0f;
 constexpr uint64_t NEUTRLIZE_SIGNAL = SIGQUIT;
+
+uint64_t *loads;
 
 #define UPDATING  1
 
@@ -96,7 +99,7 @@ void MultiTest() {
             while (indicator.load() == 0) {
 #if UPDATING
                 for (uint64_t i = start; i < total_count; i += step) {
-                    tree->insert(tid, r * total_count + i, r * total_count + i);
+                    tree->insert(tid, r * total_count + loads[i], r * total_count + loads[i]);
                     //if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
                 }
                 if (tid == 0) std::cout << "Update" << r << ": " << tracer.getRunTime() << std::endl;
@@ -132,14 +135,18 @@ void MultiTest() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 4) {
+    if (argc > 5) {
         thread_number = std::atol(argv[1]);
         total_count = std::atol(argv[2]);
         timer_limit = std::atol(argv[3]);
         high_intensive = (std::atoi(argv[4]) == 1);
+        dist_factor = std::atof(argv[5]);
     }
     //DummyTest();
     //SimpleTest();
+    loads = new uint64_t[total_count];
+    RandomGenerator<uint64_t>::generate(loads, 1000000000, total_count, .0f);
     MultiTest();
+    delete[] loads;
     return 0;
 }
