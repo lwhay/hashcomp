@@ -97,12 +97,14 @@ void MultiTest() {
             uint64_t start = (high_intensive ? 0 : tid);
             uint64_t step = (high_intensive ? 1 : thread_number);
             while (indicator.load() == 0) {
+                uint64_t counter = 0;
 #if UPDATING
-                for (uint64_t i = start; i < total_count; i += step) {
+                for (uint64_t i = start; i < total_count; i += step, counter++) {
                     tree->insert(tid, r * total_count + loads[i], r * total_count + loads[i]);
                     //if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
                 }
-                if (tid == 0) std::cout << "Update" << r << ": " << tracer.getRunTime() << std::endl;
+                if (tid == 0)
+                    std::cout << "Update" << r++ << "\t" << tracer.getRunTime() << "\t" << counter << std::endl;
 #else
                 for (uint64_t i = tid; i < total_count; i += thread_number) {
                     tree->insert(tid, r * total_count + i, r * total_count + i);
