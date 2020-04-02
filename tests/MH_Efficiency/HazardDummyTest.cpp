@@ -86,7 +86,7 @@ uint64_t *conflict;
 int detail_print = 0;
 
 void reader(std::atomic<uint64_t> *bucket, size_t tid) {
-    deallocator->initThread();
+    deallocator->initThread(tid);
     uint64_t total = 0;
     Tracer tracer;
     tracer.startTime();
@@ -114,7 +114,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 void init(std::atomic<uint64_t> *bucket) {
     Tracer tracer;
     tracer.startTime();
-    deallocator->initThread();
+    deallocator->initThread(thrd_number);
     for (size_t i = 0; i < list_volume; i++) {
         node *ptr;
 #if uselocal == 0
