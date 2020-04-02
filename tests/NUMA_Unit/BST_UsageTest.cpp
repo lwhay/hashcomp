@@ -90,13 +90,13 @@ void MultiTest() {
             uint64_t r = 0;
             while (indicator.load() == 0) {
                 for (uint64_t i = tid; i < total_count; i += thread_number) {
-                    tree->insert(tid, i, i);
+                    tree->insert(tid, r * total_count + i, r * total_count + i);
                     //if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
                 }
                 if (tid == 0) std::cout << "Insert" << r << ": " << tracer.getRunTime() << std::endl;
 
                 for (uint64_t i = tid; i < total_count; i += thread_number) {
-                    tree->erase(tid, i);
+                    tree->erase(tid, r * total_count + i);
                     //if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
                 }
                 if (tid == 0) std::cout << "Erase" << r++ << ": " << tracer.getRunTime() << std::endl;
