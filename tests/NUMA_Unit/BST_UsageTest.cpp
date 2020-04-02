@@ -26,6 +26,7 @@ double dist_factor = .0f;
 constexpr uint64_t NEUTRLIZE_SIGNAL = SIGQUIT;
 
 uint64_t *loads;
+std::atomic<uint64_t> total_ops{0};
 
 #define UPDATING  1
 
@@ -104,7 +105,8 @@ void MultiTest() {
                     //if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
                 }
                 if (tid == 0)
-                    std::cout << "Update" << r++ << "\t" << tracer.getRunTime() << "\t" << counter << std::endl;
+                    std::cout << "r" << r++ << "\t" << tracer.getRunTime() << "\t" << counter << std::endl;
+                total_ops.fetch_add(counter);
 #else
                 for (uint64_t i = tid; i < total_count; i += thread_number) {
                     tree->insert(tid, r * total_count + i, r * total_count + i);
@@ -131,7 +133,8 @@ void MultiTest() {
     for (size_t t = 0; t < thread_number; t++) {
         threads[t].join();
     }
-    std::cout << "Operations: " << tracer.getRunTime() << std::endl;
+    std::cout << "Operations: " << tracer.fetchTime() << " opers: " << total_ops.load() << " ops: "
+              << ((double) total_ops.load() / tracer.getRunTime()) << std::endl;
 
     delete tree;
 }
