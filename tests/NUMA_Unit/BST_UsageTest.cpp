@@ -85,18 +85,21 @@ void MultiTest() {
     for (size_t t = 0; t < thread_number; t++) {
         threads.push_back(std::thread([](BinaryTree *tree, size_t tid, std::atomic<uint64_t> &indicator) {
             tree->initThread(tid);
+            Tracer tracer;
+            tracer.startTime();
+            uint64_t r = 0;
             while (indicator.load() == 0) {
                 for (uint64_t i = tid; i < total_count; i += thread_number) {
                     tree->insert(tid, i, i);
-                    if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
+                    //if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
                 }
-                //std::cout << "Insert" << r << ": " << tracer.getRunTime() << std::endl;
+                if (tid == 0) std::cout << "Insert" << r << ": " << tracer.getRunTime() << std::endl;
 
                 for (uint64_t i = tid; i < total_count; i += thread_number) {
                     tree->erase(tid, i);
-                    if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
+                    //if ((i + 1) % (1llu << 20) == 0) std::cout << "\t" << i << ": " << tree->size() << std::endl;
                 }
-                //std::cout << "Erase" << r << ": " << tracer.getRunTime() << std::endl;
+                if (tid == 0) std::cout << "Erase" << r++ << ": " << tracer.getRunTime() << std::endl;
             }
         }, tree, t, std::ref(indicator)));
     }
