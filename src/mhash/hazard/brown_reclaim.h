@@ -93,14 +93,18 @@ public:
 
     bool free(uint64_t ptr) {
         //std::cout << ftid << std::endl;
-        reclaimer->retire(ftid, (T *) ptr);
-        //std::free((T *) ptr);
         if (free_type != 0) {
             //alloc->deallocate(ftid, (T *) ptr);
             /*reclaimer->template startOp<T>(ftid, (void *const *const) &reclaimer, 1);
             reclaimer->endOp(ftid);*/
             //reclaimer->rotateEpochBags(ftid);
+            reclaimer->template startOp<T>(ftid, (void *const *const) &reclaimer, 1);
         }
+        reclaimer->retire(ftid, (T *) ptr);
+        if (free_type != 0) {
+            reclaimer->endOp(ftid);
+        }
+        //std::free((T *) ptr);
         return true;
     }
 
