@@ -283,7 +283,7 @@ public:
 
     inline static bool shouldHelp() { return true; }
 
-private:
+public:
     inline void rotateEpochBags(const int tid) {
         int nextIndex = (thread_data[tid].index + 1) % NUMBER_OF_EPOCH_BAGS;
         blockbag<T> *const freeable = thread_data[tid].epochbags[((nextIndex + NUMBER_OF_ALWAYS_EMPTY_EPOCH_BAGS) %
