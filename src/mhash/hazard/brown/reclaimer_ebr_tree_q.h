@@ -303,6 +303,7 @@ public:
         epoch->tryAdvance(tid, false);
     }
 
+    template<typename First, typename... Rest>
     inline bool startOp(const int tid, void *const *const reclaimers, const int numReclaimers) {
         SOFTWARE_BARRIER; // prevent any bookkeeping from being moved after this point by the compiler.
 //        GSTATS_TIMER_RESET(tid, timersplit_guard);

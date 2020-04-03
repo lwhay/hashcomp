@@ -51,7 +51,7 @@ public:
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_hazardptr<>> brown6;
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_token<>> brown7;
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_tree<>> brown8;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_tree<>> brown9;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_tree_q<>> brown9;
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debra<>> brown10;
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debraplus<>> brown11;
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debracap<>> brown12;
