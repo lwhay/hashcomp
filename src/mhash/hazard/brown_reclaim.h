@@ -62,7 +62,8 @@ public:
     }
 
     uint64_t allocate(size_t tid) {
-        return (uint64_t) alloc->allocate(ftid);
+        return (uint64_t) pool->get(ftid);
+        //return (uint64_t) alloc->allocate(ftid);
     }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
