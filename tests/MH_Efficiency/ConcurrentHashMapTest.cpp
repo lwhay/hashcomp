@@ -77,7 +77,7 @@ void MultiReadTest() {
 int main(int argc, char **argv) {
     if (argc > 2) {
         thread_number = std::atol(argv[1]);
-        total_count = std::atol(argv[1]);
+        total_count = std::atol(argv[2]);
     }
     std::cout << "-------------------------" << std::endl;
     SimpleTest();
