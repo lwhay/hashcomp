@@ -131,7 +131,7 @@ public:
 #ifndef DISABLE_INPLACE_UPDATE
 
     size_t GetVersion() {
-        return seq_lock_.load(std::memory_order_acquire);
+        return seq_lock_.load(std::memory_order_relaxed);
     }
 
     Atom<size_t> seq_lock_;
@@ -151,7 +151,7 @@ public:
 
     ArrayNode() {
         for (size_t i = 0; i < LEN; i++) {
-            array_[i].store(nullptr, std::memory_order_release);
+            array_[i].store(nullptr, std::memory_order_relaxed);
         }
     }
 
@@ -220,7 +220,7 @@ public:
         root_ = (Atom<TreeNode *> *) Allocator().allocate(sizeof(TreeNode *) * root_size_);
         for (size_t i = 0; i < root_size_; i++) {
             new(root_[i]) Atom<TreeNode *>;
-            root_[i].store(nullptr, std::memory_order_release);
+            root_[i].store(nullptr, std::memory_order_relaxed);
         }
         ptrmgr = new batch_hazard<TreeNode, DataNodeT>();
         for (size_t i = 0; i < thread_cnt; i++) ptrmgr->registerThread();
@@ -489,7 +489,7 @@ private:
                 }
 
                 bool result = node_ptr->compare_exchange_strong(node, (TreeNode *) ptr.get(),
-                                                                std::memory_order_acq_rel);
+                                                                std::memory_order_relaxed);
                 if (!result) {
                     continue;
                 }
@@ -512,8 +512,7 @@ private:
                             if (!ptr.get()) {
                                 ptr = AllocateDataNodePtr(k, v);
                             }
-                            bool result = node_ptr->compare_exchange_strong(node, ptr.get(),
-                                                                            std::memory_order_acq_rel);
+                            bool result = node_ptr->compare_exchange_strong(node, ptr.get(), std::memory_order_relaxed);
                             if (!result) {
                                 continue;
                             }
@@ -529,10 +528,10 @@ private:
                                     seq = d_node->GetVersion();
                                 } while (seq & 1ull); // while seq is odd, means it is being locked
                                 hold = d_node->seq_lock_.compare_exchange_strong(seq, seq + 1,
-                                                                                 std::memory_order_acq_rel);
+                                                                                 std::memory_order_relaxed);
                             } while (!hold);
                             d_node->kv_pair_.second = *v;
-                            d_node->seq_lock_.store(seq + 2, std::memory_order_release);
+                            d_node->seq_lock_.store(seq + 2, std::memory_order_relaxed);
 #else
                             std::cout << "Shouldn't be here" << std::endl;
                             exit(1);
@@ -546,18 +545,18 @@ private:
                             size_t tmp_idx = GetNthIdx(tmp_hash, n + 1);
                             size_t next_idx = GetNthIdx(h, n + 1);
 
-                            tmp_arr_ptr->array_[tmp_idx].store(node, std::memory_order_release);
+                            tmp_arr_ptr->array_[tmp_idx].store(node, std::memory_order_relaxed);
 
                             if (!ptr.get()) {
                                 ptr = AllocateDataNodePtr(k, v);
                             }
 
                             if (next_idx != tmp_idx) {
-                                tmp_arr_ptr->array_[next_idx].store(ptr.get(), std::memory_order_release);
+                                tmp_arr_ptr->array_[next_idx].store(ptr.get(), std::memory_order_relaxed);
                             }
 
                             bool result = node_ptr->compare_exchange_strong(node, MarkArrayNode(tmp_arr_ptr.get()),
-                                                                            std::memory_order_acq_rel);
+                                                                            std::memory_order_relaxed);
 
                             if (result && next_idx != tmp_idx) {
                                 ptr.release();
