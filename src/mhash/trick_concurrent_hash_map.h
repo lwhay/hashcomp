@@ -454,25 +454,6 @@ private:
         new(new_node) DataNodeT(*k, *v);
         std::unique_ptr<DataNodeT, std::function<void(DataNodeT *)>> ptr(new_node);
         return ptr;
-        /*DataNodeT *new_node = nullptr;
-        if (pq && !pq->empty()) {
-            new_node = pq->front();
-            pq->pop();
-        } else {
-            new_node = (DataNodeT *) Allocator().allocate(sizeof(DataNodeT));
-        }
-        new(new_node) DataNodeT(*k, *v);
-        std::unique_ptr<DataNodeT, std::function<void(DataNodeT *)>>
-                ptr(new_node,
-                    [pq](DataNodeT *n) {
-                        n->~DataNode();
-                        if (pq && !pq->full()) {
-                            pq->push(n);
-                        } else {
-                            Allocator().deallocate((uint8_t *) n, sizeof(DataNodeT));
-                        }
-                    });
-        return ptr;*/
     }
 
 
@@ -487,9 +468,6 @@ private:
                   InsertType type, bool ipu = false) {
         assert(k);
         assert((!v && !ipu) || v);
-#ifdef ENABLE_CACHE_DATA_NODE
-        thread_local CircularQueue<DataNodeT*, 128> cached_data_node_;
-#endif
         size_t n = 0;
 
         size_t idx = GetRootIdx(h);
@@ -507,11 +485,7 @@ private:
                 }
 
                 if (!ptr.get()) {
-#ifdef ENABLE_CACHE_DATA_NODE
-                    ptr = AllocateDataNodePtr(k, v, &cached_data_node_);
-#else
                     ptr = AllocateDataNodePtr(k, v);
-#endif
                 }
 
                 bool result = node_ptr->compare_exchange_strong(node, (TreeNode *) ptr.get(),
@@ -536,11 +510,7 @@ private:
 
                         if (!ipu) {
                             if (!ptr.get()) {
-#ifdef ENABLE_CACHE_DATA_NODE
-                                ptr = AllocateDataNodePtr(k, v, &cached_data_node_);
-#else
                                 ptr = AllocateDataNodePtr(k, v);
-#endif
                             }
                             bool result = node_ptr->compare_exchange_strong(node, ptr.get(),
                                                                             std::memory_order_acq_rel);
@@ -548,19 +518,8 @@ private:
                                 continue;
                             }
                             ptr.release();
-#ifdef ENABLE_CACHE_DATA_NODE
-                            CircularQueue<DataNodeT*, 128> *pq = &cached_data_node_;
-                            HazPtrRetire(d_node, [pq](void *p) {
-                                if (pq && !pq->full()) {
-                                    pq->push((DataNodeT*)p);
-                                } else {
-                                    Allocator().deallocate((uint8_t *) p, sizeof(DataNodeT));
-                                }
-                            });
-#else
                             //HazPtrRetire(d_node);
                             ptrmgr->free((uint64_t) d_node);
-#endif
                         } else {
 #ifndef DISABLE_INPLACE_UPDATE
                             bool hold = false;
@@ -590,11 +549,7 @@ private:
                             tmp_arr_ptr->array_[tmp_idx].store(node, std::memory_order_release);
 
                             if (!ptr.get()) {
-#ifdef ENABLE_CACHE_DATA_NODE
-                                ptr = AllocateDataNodePtr(k, v, &cached_data_node_);
-#else
                                 ptr = AllocateDataNodePtr(k, v);
-#endif
                             }
 
                             if (next_idx != tmp_idx) {

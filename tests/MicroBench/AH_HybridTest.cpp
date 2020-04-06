@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include "tracer.h"
 #include "concurrent_hash_map.h"
+#include "trick_concurrent_hash_map.h"
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
@@ -21,6 +22,8 @@
 #define INPLACE            0
 
 #define COUNT_HASH         1
+
+#define TRICK_MAP          1
 
 struct Value {
     uint64_t value;
@@ -90,7 +93,11 @@ struct MyHash {
     }
 };
 
+#if TRICK_MAP == 1
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>> maptype;
+#else
 typedef ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>> maptype;
+#endif
 
 maptype *store;
 
@@ -138,7 +145,7 @@ pthread_t *workers;
 
 struct target *parms;
 
-#define HASH_VERIFY 1
+#define HASH_VERIFY 0
 
 #if HASH_VERIFY == 1
 
