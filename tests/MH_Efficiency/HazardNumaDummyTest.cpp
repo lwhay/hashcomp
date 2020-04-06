@@ -2,6 +2,7 @@
 // Created by iclab on 11/24/19.
 //
 
+#include <algorithm>
 #include <iostream>
 #include <thread>
 #include <queue>
@@ -19,6 +20,8 @@
 #include "tracer.h"
 
 #define high_intensive 1
+
+#define permutate_keys 1
 
 #define read_factor (1 << 0)
 
@@ -80,6 +83,8 @@ ihazard *deallocator;
 
 long *runtime;
 
+uint64_t *loads;
+
 uint64_t *operations;
 
 uint64_t *conflict;
@@ -97,7 +102,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 #else
             for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
 #endif
-            size_t idx = i * align_width % (list_volume);
+            size_t idx = loads[i] * align_width % (list_volume);
             assert(idx >= 0 && idx < list_volume);
             node *ptr = (node *) deallocator->load(tid, std::ref(bucket[idx]));
             assert(ptr->value == 1);
@@ -178,10 +183,10 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             if (hash_freent >= 5 && hash_freent <= 13) ptr = (node *) deallocator->allocate(tid); // useless tid in 6-12
             else if (hash_freent == 14) ptr = ((faster_epoch<node> *) deallocator)->allocate();
             else ptr = (node *) std::malloc(sizeof(node));
-            ptr->key = i;
+            ptr->key = loads[i];
             ptr->value = 1;
             uint64_t old;
-            size_t idx = i * align_width % (list_volume);
+            size_t idx = loads[i] * align_width % (list_volume);
             assert(idx >= 0 && idx < list_volume);
             do {
                 old = bucket[idx].load();
@@ -238,6 +243,10 @@ int main(int argc, char **argv) {
     std::cout << align_width << " " << list_volume << " " << thrd_number << "(" << worker_gran << ") " << total_count
               << " " << queue_limit << " " << timer_limit << " " << hash_freent << std::endl;
     std::atomic<uint64_t> *bucket = new std::atomic<uint64_t>[list_volume];
+    loads = new uint64_t[total_count];
+#if permutate_keys == 1
+    std::random_shuffle(loads, loads + total_count);
+#endif
     runtime = new long[thrd_number];
     operations = new uint64_t[thrd_number];
     conflict = new uint64_t[thrd_number];
@@ -378,6 +387,7 @@ int main(int argc, char **argv) {
     delete[] runtime;
     delete[] operations;
     delete[] conflict;
+    delete[] loads;
     delete deallocator;
     return 0;
 }

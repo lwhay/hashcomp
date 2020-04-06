@@ -39,7 +39,7 @@ private:
 public:
     lockfreeblockbag() {
         VERBOSE DEBUG std::cout << "constructor lockfreeblockbag lockfree=" << head.is_lock_free() << std::endl;
-        assert(head.is_lock_free());
+        //assert(head.is_lock_free());
         head.store(tagged_ptr({NULL, 0}));
     }
 
