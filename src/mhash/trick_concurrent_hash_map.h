@@ -222,7 +222,7 @@ public:
             new(root_[i]) Atom<TreeNode *>;
             root_[i].store(nullptr, std::memory_order_release);
         }
-        ptrmgr = new batch_hazard<TreeNode>();
+        ptrmgr = new batch_hazard<TreeNode, DataNodeT>();
         for (size_t i = 0; i < thread_cnt; i++) ptrmgr->registerThread();
 #ifdef FAST_TABLE
         stat_.reserve(64);
@@ -344,6 +344,7 @@ public:
             node = ptrmgr->Repin(Thread::id(), *node_ptr, IsArrayNode, FilterValidPtr);
 
             if (!node) {
+                ptrmgr->read(Thread::id());
                 return false;
             }
 
@@ -374,6 +375,7 @@ public:
                     ArrayNodeT *arr_node = static_cast<ArrayNodeT *>(node);
                     idx = GetNthIdx(h, n);
                     node_ptr = &arr_node->array_[idx];
+                    //ptrmgr->read(Thread::id());
                     continue;
                 }
                 case TreeNodeType::BUCKETS_NODE: {
@@ -500,6 +502,7 @@ private:
 
             if (!node) {
                 if (type == InsertType::MUST_EXIST) {
+                    ptrmgr->read(Thread::id());
                     return false;
                 }
 
@@ -518,6 +521,7 @@ private:
                 }
                 assert(ptr != nullptr);
                 ptr.release();
+                ptrmgr->read(Thread::id());
                 return true;
             }
 
@@ -647,6 +651,6 @@ private:
     size_t root_size_{0};
     size_t root_bits_{0};
     size_t max_depth_{0};
-    batch_hazard<TreeNode> *ptrmgr;
+    batch_hazard<TreeNode, DataNodeT> *ptrmgr;
 };
 }

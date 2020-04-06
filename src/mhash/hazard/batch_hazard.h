@@ -118,7 +118,7 @@ thread_local uint64_t thread_id = 0;
 
 #endif
 
-template<typename T>
+template<typename T, typename D = T>
 class batch_hazard : public memory_hazard {
 private:
 #if strategy == 1
@@ -163,7 +163,7 @@ public:
         return (uint64_t) std::malloc(sizeof(T));
 #else
         uint64_t e = cache[tid].pop();
-        if (e == 0) return (uint64_t) std::malloc(sizeof(T)); else return e;
+        if (e == 0) return (uint64_t) std::malloc(sizeof(D)); else return e;
 #endif
     }
 
@@ -187,6 +187,7 @@ public:
             holders[tid].store(address);
 #endif
         } while (address != (uint64_t) res.load(std::memory_order_relaxed));
+        //std::cout << "<" << address << std::endl;
         return (T *) address;
     }
 
@@ -201,6 +202,7 @@ public:
             holders[tid].store(address);
 #endif
         } while (address != ptr.load(std::memory_order_relaxed));
+        //std::cout << "<." << address << std::endl;
         return address;
     }
 
@@ -208,6 +210,7 @@ public:
 #if strategy == 1
         cells[recent_hash][tid].store(0);
 #else
+        //std::cout << ">" << holders[tid].load() << std::endl;
         holders[tid].store(0);
 #endif
     }
