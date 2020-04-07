@@ -267,6 +267,10 @@ public:
 
 #endif
 
+    void initThread(size_t tid = 0) {
+        ptrmgr->initThread(tid);
+    }
+
     bool Delete(const KeyType &k) {
         auto ptr = NullDataNodePtr();
         return DoInsert(HashFn()(k), &k, nullptr, ptr, InsertType::MUST_EXIST, false);
@@ -491,6 +495,7 @@ private:
                 bool result = node_ptr->compare_exchange_strong(node, (TreeNode *) ptr.get(),
                                                                 std::memory_order_relaxed);
                 if (!result) {
+                    ptrmgr->read(Thread::id());
                     continue;
                 }
                 assert(ptr != nullptr);
@@ -505,6 +510,7 @@ private:
                     DataNodeT *d_node = static_cast<DataNodeT *>(node);
                     if (KeyEqual()(d_node->kv_pair_.first, *k)) {
                         if (type == InsertType::DOES_NOT_EXIST) {
+                            ptrmgr->read(Thread::id());
                             return false;
                         }
 
@@ -514,6 +520,7 @@ private:
                             }
                             bool result = node_ptr->compare_exchange_strong(node, ptr.get(), std::memory_order_relaxed);
                             if (!result) {
+                                ptrmgr->read(Thread::id());
                                 continue;
                             }
                             ptr.release();
@@ -537,6 +544,7 @@ private:
                             exit(1);
 #endif
                         }
+                        ptrmgr->read(Thread::id());
                         return true;
                     } else {
                         if (n < max_depth_ - 1) {
@@ -561,6 +569,7 @@ private:
                             if (result && next_idx != tmp_idx) {
                                 ptr.release();
                                 tmp_arr_ptr.release();
+                                ptrmgr->read(Thread::id());
                                 return true;
                             }
 
@@ -570,6 +579,7 @@ private:
                                 node_ptr = &tmp_arr_ptr->array_[curr_idx];
                                 tmp_arr_ptr.release();
                             }
+                            ptrmgr->read(Thread::id());
                             continue;
                         } else {
                             std::cerr << "Not Implemented Yet?" << std::endl;

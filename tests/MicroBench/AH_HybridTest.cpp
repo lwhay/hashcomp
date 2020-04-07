@@ -223,6 +223,9 @@ struct target *parms;
 #endif
 
 void simpleInsert() {
+#if TRICK_MAP >= 6 && TRICK_MAP <= 13
+    store->initThread(thread_number);
+#endif
     Tracer tracer;
     tracer.startTime();
     int inserted = 0;
@@ -283,6 +286,9 @@ void *measureWorker(void *args) {
     uint64_t mfail = 0, rfail = 0;
     int evenRound = 0;
     uint64_t ereased = 0, inserts = 0;
+#if TRICK_MAP != 16
+    store->initThread(work->tid);
+#endif
 #if HASH_VERIFY == 1
     std::unordered_map<uint64_t, uint64_t> map;
     std::unordered_set<uint64_t> set;
@@ -432,7 +438,7 @@ int main(int argc, char **argv) {
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
-    store = new maptype(root_capacity, 20, thread_number);
+    store = new maptype(root_capacity, 20, thread_number + 1);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << distribution_skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage
          << ":" << readPercentage << endl;
