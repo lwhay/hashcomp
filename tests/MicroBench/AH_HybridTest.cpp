@@ -11,6 +11,16 @@
 #include "tracer.h"
 #include "concurrent_hash_map.h"
 #include "trick_concurrent_hash_map.h"
+#include "ihazard.h"
+#include "adaptive_hazard.h"
+#include "memory_hazard.h"
+#include "hash_hazard.h"
+#include "mshazrd_pointer.h"
+#include "wrapper_epoch.h"
+#include "batch_hazard.h"
+#include "brown_reclaim.h"
+#include "faster_epoch.h"
+#include "opthazard_pointer.h"
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)
@@ -23,7 +33,7 @@
 
 #define COUNT_HASH         1
 
-#define TRICK_MAP          1
+#define TRICK_MAP          16 // 0-16: ihazard inheritances, 16: origin awlmap
 
 struct Value {
     uint64_t value;
@@ -93,9 +103,67 @@ struct MyHash {
     }
 };
 
-#if TRICK_MAP == 1
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>> maptype;
+#define brown_new_once 1
+#define brown_use_pool 0
+
+#if brown_new_once == 1
+#define alloc allocator_new
+#elif brown_new_once == 0
+#define alloc allocator_once
 #else
+#define alloc allocator_bump
+#endif
+
+#if brown_use_pool == 0
+#define pool pool_perthread_and_shared
+#else
+#define pool pool_none
+#endif
+
+typedef trick::DataNode<uint64_t, uint64_t> node;
+
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_hazardptr<>> brown6;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_token<>> brown7;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_tree<>> brown8;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_tree_q<>> brown9;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debra<>> brown10;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debraplus<>> brown11;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debracap<>> brown12;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_none<>> brown13;
+
+#if TRICK_MAP == 0
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, memory_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 1
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, hash_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 2
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, mshazard_pointer<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 3
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, adaptive_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 4
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, epoch_wrapper<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 5
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, batch_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 6
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown6<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 7
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown7<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 8
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown8<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 9
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown9<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 10
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown10<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 11
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown11<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 12
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown12<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 13
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown13<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 14
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, faster_epoch<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 15
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, opt_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 16
 typedef ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>> maptype;
 #endif
 
@@ -119,7 +187,7 @@ int thread_number = DEFAULT_THREAD_NUM;
 
 size_t key_range = DEFAULT_KEYS_RANGE;
 
-double skew = 0.0;
+double distribution_skew = 0.0;
 
 int root_capacity = (1 << 16);
 
@@ -357,7 +425,7 @@ int main(int argc, char **argv) {
         key_range = std::atol(argv[2]);
         total_count = std::atol(argv[3]);
         timer_range = std::atol(argv[4]);
-        skew = std::stof(argv[5]);
+        distribution_skew = std::stof(argv[5]);
         updatePercentage = std::atoi(argv[6]);
         ereasePercentage = std::atoi(argv[7]);
         readPercentage = totalPercentage - updatePercentage - ereasePercentage;
@@ -366,10 +434,10 @@ int main(int argc, char **argv) {
         root_capacity = std::atoi(argv[8]);
     store = new maptype(root_capacity, 20, thread_number);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
-         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
-         << readPercentage << endl;
+         << timer_range << " skew: " << distribution_skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage
+         << ":" << readPercentage << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     prepare();
     cout << "simple" << endl;
     simpleInsert();

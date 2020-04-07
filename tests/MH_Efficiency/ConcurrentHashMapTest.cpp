@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <thread>
+#include "hash_hazard.h"
 #include "tracer.h"
 #include "trick_concurrent_hash_map.h"
 
@@ -11,7 +12,7 @@ uint64_t thread_number = 4;
 uint64_t total_count = 1llu << 20;
 
 void SimpleTest() {
-    typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>> maptype;
+    typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, batch_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
     maptype map(total_count, 10, thread_number);
     uint64_t v;
     Tracer tracer;

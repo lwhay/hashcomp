@@ -86,7 +86,7 @@ public:
 
     template<typename IS_SAFE, typename FILTER>
     T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
-        return (T *) load(tid, res);
+        return (T *) load(tid, (std::atomic<uint64_t> &) res);
     }
 
     void read(size_t tid) {
