@@ -185,7 +185,7 @@ struct ThreadHashMapStat {
 };
 #endif
 
-template<typename KeyType, typename ValueType, typename HashFn, typename KeyEqual>
+template<typename KeyType, typename ValueType, typename HashFn, typename KeyEqual, typename Reclaimer = batch_hazard<TreeNode, DataNode<KeyType, ValueType>>>
 class ConcurrentHashMap {
     using Allocator = std::allocator<uint8_t>;
     using Mutex = std::mutex;
@@ -222,7 +222,7 @@ public:
             new(root_[i]) Atom<TreeNode *>;
             root_[i].store(nullptr, std::memory_order_relaxed);
         }
-        ptrmgr = new batch_hazard<TreeNode, DataNodeT>();
+        ptrmgr = new Reclaimer();
         for (size_t i = 0; i < thread_cnt; i++) ptrmgr->registerThread();
 #ifdef FAST_TABLE
         stat_.reserve(64);
@@ -605,6 +605,6 @@ private:
     size_t root_size_{0};
     size_t root_bits_{0};
     size_t max_depth_{0};
-    batch_hazard<TreeNode, DataNodeT> *ptrmgr;
+    Reclaimer *ptrmgr;
 };
 }

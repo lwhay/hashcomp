@@ -171,8 +171,12 @@ public:
 
 thread_local int ftid;
 
-class mshazard_pointer : public ihazard {
+template<class T, class D = T>
+class mshazard_pointer : public virtual ihazard<T, D> {
+private:
     HazardPointers<uint64_t> *hp;
+protected:
+    using ihazard<T, D>::thread_number;
 public:
     mshazard_pointer(size_t thread_number) {
         hp = new HazardPointers<uint64_t>(2, thread_number);
@@ -187,6 +191,11 @@ public:
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
         return (uint64_t) hp->protect(0, (std::atomic<uint64_t *> &) ptr, tid);
+    }
+
+    template<typename IS_SAFE, typename FILTER>
+    T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
+        return (T *) load(tid, res);
     }
 
     void read(size_t tid) { hp->clearOne(0, tid); }

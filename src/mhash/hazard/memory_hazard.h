@@ -21,8 +21,10 @@ public:
     uint64_t load() { return address.load(std::memory_order_relaxed); }
 };
 
-class memory_hazard : public ihazard {
+template<class T, class D = T>
+class memory_hazard : public ihazard<T, D> {
 protected:
+    using ihazard<T, D>::thread_number;
     holder holders[thread_limit];
 
 public:
@@ -39,6 +41,11 @@ public:
         uint64_t address = ptr.load(std::memory_order_relaxed);
         holders[tid].store(address);
         return address;
+    }
+
+    template<typename IS_SAFE, typename FILTER>
+    T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
+        return (T *) load(tid, res);
     }
 
     void read(size_t tid) { holders[tid].store(0); }

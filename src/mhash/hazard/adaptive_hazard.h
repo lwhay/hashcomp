@@ -15,7 +15,8 @@ thread_local uint64_t tick = 0;
 
 char information[255];
 
-class adaptive_hazard : public hash_hazard {
+template<class T, class D = T>
+class adaptive_hazard : public hash_hazard<T, D> {
 private:
     holder lrulist[thread_limit];
     holder holders[thread_limit];
@@ -25,8 +26,14 @@ private:
     indicator readintensive[thread_limit], writeintensive[thread_limit];
 
     alignas(128) std::atomic<uint64_t> intensive{0};
+
+protected:
+    using hash_hazard<T, D>::total_holders;
+    using hash_hazard<T, D>::indicators;
+    using ihazard<T, D>::thread_number;
+
 public:
-    adaptive_hazard(size_t total_thread) : hash_hazard(total_thread) {
+    adaptive_hazard<T, D>(size_t total_thread) : hash_hazard<T, D>(total_thread) {
         for (size_t i = 0; i < total_thread; i++) {
             holders[i].init();
             lrulist[i].init();
@@ -88,6 +95,11 @@ public:
             indicators[hashkey].fetch_add();
         }
         return address;
+    }
+
+    template<typename IS_SAFE, typename FILTER>
+    T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
+        return (T *) load(tid, res);
     }
 
     void read(size_t tid) {

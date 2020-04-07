@@ -74,10 +74,12 @@ public:
 
 thread_local uint64_t hashkey;
 
-class hash_hazard : public ihazard {
+template<class T, class D = T>
+class hash_hazard : public ihazard<T, D> {
 protected:
     size_t total_holders = 0;
     indicator indicators[total_hash_keys];
+    using ihazard<T, D>::thread_number;
 
 public:
     hash_hazard(size_t total_thread) : total_holders(total_hash_keys) {
@@ -99,6 +101,11 @@ public:
         hashkey = simplehash(address);
         indicators[hashkey].fetch_add();
         return address;
+    }
+
+    template<typename IS_SAFE, typename FILTER>
+    T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
+        return (T *) load(tid, res);
     }
 
     void read(size_t tid) {

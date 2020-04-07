@@ -8,8 +8,8 @@
 #include "ihazard.h"
 #include "my_haz_ptr/haz_ptr.h"
 
-template<typename T>
-class opt_hazard : public ihazard {
+template<typename T, typename D = T>
+class opt_hazard : public ihazard<T, D> {
 protected:
     static const int OPT_MAX_THREAD = 128;
     int thread_cnt;
@@ -34,6 +34,11 @@ public:
         } while (!node);
         return (uint64_t) node;*/
         return (uint64_t) holders[tid].Pin((std::atomic<T *> &) ptr);
+    }
+
+    template<typename IS_SAFE, typename FILTER>
+    T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
+        return (T *) load(tid, res);
     }
 
     void read(size_t tid) { holders[tid].Reset(); }

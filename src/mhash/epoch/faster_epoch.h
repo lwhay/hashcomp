@@ -9,8 +9,8 @@
 #include "ihazard.h"
 #include "faster/light_epoch.h"
 
-template<typename T>
-class faster_epoch : public ihazard {
+template<typename T, typename D = T>
+class faster_epoch : public ihazard<T, D> {
     FASTER::core::LightEpoch epoch;
 
     class NodeQueue {
@@ -36,6 +36,11 @@ public:
 
     T *allocate() {
         //return (T *) allocator.Allocate().control();
+    }
+
+    template<typename IS_SAFE, typename FILTER>
+    T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
+        return (T *) load(tid, res);
     }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {

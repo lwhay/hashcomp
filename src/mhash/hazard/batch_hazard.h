@@ -118,8 +118,8 @@ thread_local uint64_t thread_id = 0;
 
 #endif
 
-template<typename T, typename D = T>
-class batch_hazard : public memory_hazard {
+template<class T, class D = T>
+class batch_hazard : public memory_hazard<T, D> {
 private:
 #if strategy == 1
     holder cells[hash_volume][thread_limit];
@@ -148,6 +148,9 @@ private:
             }
         }
     } cache[thread_limit];
+
+protected:
+    using ihazard<T, D>::thread_number;
 
 public:
     void registerThread() {

@@ -78,7 +78,7 @@ uint64_t timer_limit = 30;
 
 size_t worker_gran = thrd_number / 2;
 
-ihazard *deallocator;
+ihazard<node> *deallocator;
 
 long *runtime;
 
@@ -255,15 +255,15 @@ int main(int argc, char **argv) {
     std::vector<std::thread> workers;
     switch (hash_freent) {
         case 1: {
-            deallocator = new hash_hazard(worker_gran);
+            deallocator = new hash_hazard<node>(worker_gran);
             break;
         }
         case 2: {
-            deallocator = new mshazard_pointer(thrd_number);
+            deallocator = new mshazard_pointer<node>(thrd_number);
             break;
         }
         case 3: {
-            deallocator = new adaptive_hazard(worker_gran);
+            deallocator = new adaptive_hazard<node>(worker_gran);
             break;
         }
         case 4 : {
@@ -315,7 +315,7 @@ int main(int argc, char **argv) {
             break;
         }
         default: {
-            deallocator = new memory_hazard;
+            deallocator = new memory_hazard<node>;
             break;
         }
     }

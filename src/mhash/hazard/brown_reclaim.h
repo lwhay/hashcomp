@@ -24,11 +24,11 @@
 thread_local uint64_t holder;
 static int free_type = -1; // 0: hazard; 1: debraplus; 2: others
 
-template<typename T, class N, class P, class R>
-class brown_reclaim : public ihazard {
-    typedef typename N::template rebind<T>::other Allocator;
-    typedef typename P::template rebind2<T, Allocator>::other Pool;
-    typedef typename R::template rebind2<T, Pool>::other Reclaimer;
+template<typename T, class N, class P, class R, typename D = T>
+class brown_reclaim : public ihazard<T, D> {
+    typedef typename N::template rebind<D>::other Allocator;
+    typedef typename P::template rebind2<D, Allocator>::other Pool;
+    typedef typename R::template rebind2<D, Pool>::other Reclaimer;
     /*typedef reclaimer_hazardptr<T, pool_none<T, allocator_new<T>>> Reclaimer;
     typedef allocator_new<T> Allocator;
     typedef pool_none<T, allocator_new<T>> Pool;*/
@@ -38,6 +38,8 @@ private:
     Pool *pool;
     Reclaimer *reclaimer;
     std::atomic<bool> lock{false};
+protected:
+    using ihazard<T, D>::thread_number;
 
 public:
     brown_reclaim(size_t total_thread) : thread_num(total_thread + 1) {
@@ -80,6 +82,11 @@ public:
             reclaimer->template startOp<T>(ftid, (void *const *const) &reclaimer, 1);
             return ptr.load(std::memory_order_relaxed);
         }
+    }
+
+    template<typename IS_SAFE, typename FILTER>
+    T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
+        return (T *) load(tid, res);
     }
 
     void read(size_t tid) {

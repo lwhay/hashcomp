@@ -14,14 +14,17 @@
 thread_local void *curepoch;
 #endif
 
-template<typename T>
-class epoch_wrapper : public ihazard {
+template<typename T, typename D = T>
+class epoch_wrapper : public ihazard<T, D> {
 private:
 #if uselocal == 1
     LocalWriteEM<T> *lwm;
 #else
     GlobalWriteEM<T> *gwm;
 #endif
+
+protected:
+    using ihazard<T, D>::thread_number;
 
 public:
     epoch_wrapper(size_t thread_count) {
@@ -55,6 +58,11 @@ public:
         lwm->AnnounceEnter(tid);
 #endif
         return ptr.load();
+    }
+
+    template<typename IS_SAFE, typename FILTER>
+    T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
+        return (T *) load(tid, res);
     }
 
     void read(size_t tid) {}
