@@ -315,7 +315,7 @@ int main(int argc, char **argv) {
             break;
         }
         default: {
-            deallocator = new memory_hazard<node>;
+            deallocator = new memory_hazard<node>(thrd_number);
             break;
         }
     }

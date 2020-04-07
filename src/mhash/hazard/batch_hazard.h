@@ -153,6 +153,8 @@ protected:
     using ihazard<T, D>::thread_number;
 
 public:
+    batch_hazard<T, D>(uint64_t thread_cnt) : memory_hazard<T, D>(thread_cnt) {}
+
     void registerThread() {
         holders[thread_number++].init();
         /*std::cout << thread_number << ": " << sizeof(freebit) << ", " << std::bitset<sizeof(freebit) * 8>(0).size()
