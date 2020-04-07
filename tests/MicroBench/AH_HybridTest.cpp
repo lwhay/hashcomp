@@ -33,7 +33,7 @@
 
 #define COUNT_HASH         1
 
-#define TRICK_MAP          16 // 0-16: ihazard inheritances, 16: origin awlmap
+#define TRICK_MAP          0 // 0-16: ihazard inheritances, 16: origin awlmap
 
 struct Value {
     uint64_t value;
@@ -122,14 +122,14 @@ struct MyHash {
 
 typedef trick::DataNode<uint64_t, uint64_t> node;
 
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_hazardptr<>> brown6;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_token<>> brown7;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_tree<>> brown8;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_ebr_tree_q<>> brown9;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debra<>> brown10;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debraplus<>> brown11;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debracap<>> brown12;
-typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_none<>> brown13;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_hazardptr<>, node> brown6;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_ebr_token<>, node> brown7;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_ebr_tree<>, node> brown8;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_ebr_tree_q<>, node> brown9;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debra<>, node> brown10;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debraplus<>, node> brown11;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debracap<>, node> brown12;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_none<>, node> brown13;
 
 #if TRICK_MAP == 0
 typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, memory_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
@@ -144,21 +144,21 @@ typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equ
 #elif TRICK_MAP == 5
 typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, batch_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
 #elif TRICK_MAP == 6
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown6<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown6> maptype;
 #elif TRICK_MAP == 7
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown7<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown7> maptype;
 #elif TRICK_MAP == 8
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown8<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown8> maptype;
 #elif TRICK_MAP == 9
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown9<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown9> maptype;
 #elif TRICK_MAP == 10
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown10<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown10> maptype;
 #elif TRICK_MAP == 11
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown11<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown11> maptype;
 #elif TRICK_MAP == 12
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown12<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown12> maptype;
 #elif TRICK_MAP == 13
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown13<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown13> maptype;
 #elif TRICK_MAP == 14
 typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, faster_epoch<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
 #elif TRICK_MAP == 15

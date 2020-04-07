@@ -41,7 +41,8 @@ public:
 //                maxAllocatedBytes = currentAllocatedBytes;
 //            }
         }
-        return new T; //(T*) malloc(sizeof(T));
+        //return new T; //(T*) malloc(sizeof(T));
+        return (T *) malloc(sizeof(T));
     }
 
     void deallocate(const int tid, T *const p) {

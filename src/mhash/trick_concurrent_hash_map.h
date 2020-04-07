@@ -222,7 +222,7 @@ public:
             new(root_[i]) Atom<TreeNode *>;
             root_[i].store(nullptr, std::memory_order_relaxed);
         }
-        ptrmgr = new Reclaimer();
+        ptrmgr = new Reclaimer(thread_cnt);
         for (size_t i = 0; i < thread_cnt; i++) ptrmgr->registerThread();
 #ifdef FAST_TABLE
         stat_.reserve(64);

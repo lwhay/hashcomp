@@ -72,9 +72,9 @@ public:
         if (free_type == 0) {
             uint64_t address = 0;
             do {
-                if (address != 0) reclaimer->unprotect(ftid, (T *) address);
+                if (address != 0) reclaimer->unprotect(ftid, (D *) address);
                 address = ptr.load(std::memory_order_relaxed);
-                reclaimer->protect(ftid, (T *) address, callbackReturnTrue, nullptr, false);
+                reclaimer->protect(ftid, (D *) address, callbackReturnTrue, nullptr, false);
             } while (address != ptr.load(std::memory_order_relaxed));
             holder = address;
             return address;
@@ -91,7 +91,7 @@ public:
 
     void read(size_t tid) {
         if (free_type == 0) {
-            reclaimer->unprotect(ftid, (T *) holder);
+            reclaimer->unprotect(ftid, (D *) holder);
         } else {
             reclaimer->endOp(ftid);
             //reclaimer->rotateEpochBags(ftid);
@@ -100,7 +100,7 @@ public:
 
     bool free(uint64_t ptr) {
         //std::cout << ftid << std::endl;
-        reclaimer->retire(ftid, (T *) ptr);
+        reclaimer->retire(ftid, (D *) ptr);
         if (free_type != 0) {
             //alloc->deallocate(ftid, (T *) ptr);
             /*reclaimer->template startOp<T>(ftid, (void *const *const) &reclaimer, 1);

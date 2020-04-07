@@ -28,6 +28,8 @@ protected:
     holder holders[thread_limit];
 
 public:
+    memory_hazard<T, D>(uint64_t thread_cnt) {}
+
     void registerThread() {
         holders[thread_number].init();
         thread_number++;

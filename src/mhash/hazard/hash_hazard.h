@@ -83,7 +83,7 @@ protected:
     using ihazard<T, D>::thread_number;
 
 public:
-    hash_hazard(size_t total_thread) : total_holders(total_hash_keys) {
+    hash_hazard<T, D>(size_t total_thread) : total_holders(total_hash_keys) {
         thread_number = total_thread;
         for (size_t i = 0; i < total_hash_keys; i++) indicators[i].init();
         std::cout << "Hash hazard" << std::endl;
