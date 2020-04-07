@@ -271,7 +271,7 @@ int main(int argc, char **argv) {
             break;
         }
         case 5: {
-            deallocator = new batch_hazard<node>();
+            deallocator = new batch_hazard<node>(thrd_number);
             break;
         }
         case 6: {
