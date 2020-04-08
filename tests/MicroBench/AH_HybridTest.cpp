@@ -33,7 +33,7 @@
 
 #define COUNT_HASH         1
 
-#define TRICK_MAP          5 // 0-16: ihazard inheritances, 16: origin awlmap
+#define TRICK_MAP          5 // 0-15: ihazard inheritances, 16: origin awlmap
 
 struct Value {
     uint64_t value;

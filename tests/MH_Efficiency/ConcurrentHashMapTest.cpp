@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <thread>
+#include "brown_reclaim.h"
 #include "hash_hazard.h"
 #include "tracer.h"
 #include "trick_concurrent_hash_map.h"
@@ -11,8 +12,38 @@
 uint64_t thread_number = 4;
 uint64_t total_count = 1llu << 20;
 
+#define brown_new_once 1
+#define brown_use_pool 0
+
+#if brown_new_once == 1
+#define alloc allocator_new
+#elif brown_new_once == 0
+#define alloc allocator_once
+#else
+#define alloc allocator_bump
+#endif
+
+#if brown_use_pool == 0
+#define pool pool_perthread_and_shared
+#else
+#define pool pool_none
+#endif
+
+typedef trick::DataNode<uint64_t, uint64_t> node;
+
+typedef batch_hazard<trick::TreeNode, node> batch;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_hazardptr<>, node> brown6;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_ebr_token<>, node> brown7;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_ebr_tree<>, node> brown8;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_ebr_tree_q<>, node> brown9;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debra<>, node> brown10;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debraplus<>, node> brown11;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debracap<>, node> brown12;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_none<>, node> brown13;
+
+template<typename reclaimer>
 void SimpleTest() {
-    typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, batch_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+    typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
     maptype map(total_count, 10, thread_number);
     uint64_t v;
     Tracer tracer;
@@ -28,8 +59,9 @@ void SimpleTest() {
     std::cout << "Find: " << tracer.getRunTime() << std::endl;
 }
 
+template<typename reclaimer>
 void MultiWriteTest() {
-    typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>> maptype;
+    typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
     maptype map(1llu << 27, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
@@ -48,8 +80,9 @@ void MultiWriteTest() {
     std::cout << "MultiInsert: " << tracer.getRunTime() << std::endl;
 }
 
+template<typename reclaimer>
 void MultiReadTest() {
-    typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>> maptype;
+    typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
     maptype map(1llu << 27, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
@@ -80,12 +113,23 @@ int main(int argc, char **argv) {
         thread_number = std::atol(argv[1]);
         total_count = std::atol(argv[2]);
     }
-    std::cout << "-------------------------" << std::endl;
-    SimpleTest();
-    std::cout << "-------------------------" << std::endl;
-    MultiWriteTest();
-    std::cout << "-------------------------" << std::endl;
-    MultiReadTest();
-    std::cout << "-------------------------" << std::endl;
+    {
+        std::cout << "-------------------------" << std::endl;
+        SimpleTest<batch>();
+        std::cout << "-------------------------" << std::endl;
+        MultiReadTest<batch>();
+        std::cout << "-------------------------" << std::endl;
+        MultiWriteTest<batch>();
+        std::cout << "-------------------------" << std::endl;
+    }
+    {
+        std::cout << "-------------------------" << std::endl;
+        SimpleTest<brown6>();
+        std::cout << "-------------------------" << std::endl;
+        MultiReadTest<brown6>();
+        std::cout << "-------------------------" << std::endl;
+        MultiWriteTest<brown6>();
+        std::cout << "-------------------------" << std::endl;
+    }
     return 0;
 }

@@ -124,7 +124,7 @@ private:
 #if strategy == 1
     holder cells[hash_volume][thread_limit];
 #else
-    holder holders[thread_limit];
+    struct holder holders[thread_limit];
 #endif
 
     class circulequeue {

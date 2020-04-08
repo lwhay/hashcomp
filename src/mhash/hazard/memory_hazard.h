@@ -25,7 +25,7 @@ template<class T, class D = T>
 class memory_hazard : public ihazard<T, D> {
 protected:
     using ihazard<T, D>::thread_number;
-    holder holders[thread_limit];
+    struct holder holders[thread_limit];
 
 public:
     memory_hazard<T, D>(uint64_t thread_cnt) {}
