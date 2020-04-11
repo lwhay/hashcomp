@@ -74,6 +74,7 @@ public:
             do {
                 if (address != 0) reclaimer->unprotect(brown_tid, (D *) address);
                 address = ptr.load(std::memory_order_relaxed);
+                if (address == 0) break;
                 reclaimer->protect(brown_tid, (D *) address, callbackReturnTrue, nullptr, false);
             } while (address != ptr.load(std::memory_order_relaxed));
             holder = address;
@@ -90,11 +91,13 @@ public:
     }
 
     void read(size_t tid) {
-        if (free_type == 0) {
-            reclaimer->unprotect(brown_tid, (D *) holder);
-        } else {
-            reclaimer->endOp(brown_tid);
-            //reclaimer->rotateEpochBags(ftid);
+        if (holder != 0) {
+            if (free_type == 0) {
+                reclaimer->unprotect(brown_tid, (D *) holder);
+            } else {
+                reclaimer->endOp(brown_tid);
+                //reclaimer->rotateEpochBags(ftid);
+            }
         }
     }
 

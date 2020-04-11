@@ -45,6 +45,7 @@ template<typename reclaimer>
 void SimpleTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
     maptype map(total_count, 10, thread_number);
+    map.initThread();
     uint64_t v;
     Tracer tracer;
     tracer.startTime();
@@ -64,10 +65,12 @@ void MultiWriteTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
     maptype map(1llu << 27, 10, thread_number);
     Tracer tracer;
+    map.initThread(thread_number);
     tracer.startTime();
     std::vector<std::thread> threads;
     for (int i = 0; i < thread_number; i++) {
         threads.push_back(std::thread([](maptype &map, uint64_t tid) {
+            map.initThread(tid);
             for (uint64_t i = tid; i < total_count; i += thread_number) {
                 map.Insert(i, i);
                 if (tid == 0 && i % 1000000 == 0) std::cout << i << std::endl;
@@ -86,11 +89,13 @@ void MultiReadTest() {
     maptype map(1llu << 27, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
+    map.initThread(thread_number);
     for (uint64_t i = 0; i < total_count; i++) map.Insert(i, i);
     std::cout << "MultiInsert: " << tracer.getRunTime() << std::endl;
     std::vector<std::thread> threads;
     for (int i = 0; i < thread_number; i++) {
         threads.push_back(std::thread([](maptype &map, uint64_t tid) {
+            map.initThread(tid);
             uint64_t v;
             for (uint64_t i = tid; i < total_count; i += thread_number) {
                 map.Find(i, v);
@@ -108,28 +113,30 @@ void MultiReadTest() {
     std::cout << "MultiFind: " << tracer.getRunTime() << std::endl;
 }
 
+template<typename reclaimer>
+void test() {
+    std::cout << "-------------------------" << typeid(reclaimer).name() << std::endl;
+    SimpleTest<reclaimer>();
+    std::cout << "-------------------------" << typeid(reclaimer).name() << std::endl;
+    MultiReadTest<reclaimer>();
+    std::cout << "-------------------------" << typeid(reclaimer).name() << std::endl;
+    MultiWriteTest<reclaimer>();
+    std::cout << "-------------------------" << typeid(reclaimer).name() << std::endl;
+}
+
 int main(int argc, char **argv) {
     if (argc > 2) {
         thread_number = std::atol(argv[1]);
         total_count = std::atol(argv[2]);
     }
-    {
-        std::cout << "-------------------------" << std::endl;
-        SimpleTest<batch>();
-        std::cout << "-------------------------" << std::endl;
-        MultiReadTest<batch>();
-        std::cout << "-------------------------" << std::endl;
-        MultiWriteTest<batch>();
-        std::cout << "-------------------------" << std::endl;
-    }
-    {
-        std::cout << "-------------------------" << std::endl;
-        SimpleTest<brown6>();
-        std::cout << "-------------------------" << std::endl;
-        MultiReadTest<brown6>();
-        std::cout << "-------------------------" << std::endl;
-        MultiWriteTest<brown6>();
-        std::cout << "-------------------------" << std::endl;
-    }
+    test<batch>();
+    test<brown6>();
+    test<brown7>();
+    test<brown8>();
+    test<brown9>();
+    test<brown10>();
+    //test<brown11>();
+    test<brown12>();
+    test<brown13>();
     return 0;
 }
