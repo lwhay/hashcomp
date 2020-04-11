@@ -73,7 +73,7 @@ void MultiWriteTest() {
             map.initThread(tid);
             for (uint64_t i = tid; i < total_count; i += thread_number) {
                 map.Insert(i, i);
-                if (tid == 0 && i % 1000000 == 0) std::cout << i << std::endl;
+                if (tid == 0 && i % (total_count / 4) == 0) std::cout << i << std::endl;
             }
         }, std::ref(map), i));
     }
@@ -100,7 +100,45 @@ void MultiReadTest() {
             for (uint64_t i = tid; i < total_count; i += thread_number) {
                 map.Find(i, v);
                 assert(i == v);
-                if (tid == 0 && i % 1000000 == 0) {
+                if (tid == 0 && i % (total_count / 4) == 0) {
+                    if (i != v) std::cout << "\t" << i << ":" << v << std::endl;
+                    std::cout << i << std::endl;
+                }
+            }
+        }, std::ref(map), i));
+    }
+    for (int i = 0; i < thread_number; i++) {
+        threads[i].join();
+    }
+    std::cout << "MultiFind: " << tracer.getRunTime() << std::endl;
+}
+
+template<typename reclaimer>
+void MultiRWTest() {
+    typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
+    maptype map(1llu << 27, 10, thread_number);
+    Tracer tracer;
+    tracer.startTime();
+    std::cout << "MultiInsert: " << tracer.getRunTime() << std::endl;
+    std::vector<std::thread> threads;
+    int i = 0;
+    for (; i < thread_number / 2; i++) {
+        threads.push_back(std::thread([](maptype &map, uint64_t tid) {
+            map.initThread(tid);
+            for (uint64_t i = tid; i < total_count; i++) {
+                map.Insert(i, i);
+                if (tid == 0 && i % (total_count / 4) == 0) std::cout << i << std::endl;
+            }
+        }, std::ref(map), i));
+    }
+    for (; i < thread_number; i++) {
+        threads.push_back(std::thread([](maptype &map, uint64_t tid) {
+            map.initThread(tid);
+            uint64_t v;
+            for (uint64_t i = tid; i < total_count; i++) {
+                bool ret = map.Find(i, v);
+                if (ret) assert(i == v);
+                if (tid == 0 && i % (total_count / 4) == 0) {
                     if (i != v) std::cout << "\t" << i << ":" << v << std::endl;
                     std::cout << i << std::endl;
                 }
@@ -121,6 +159,8 @@ void test() {
     MultiReadTest<reclaimer>();
     std::cout << "-------------------------" << typeid(reclaimer).name() << std::endl;
     MultiWriteTest<reclaimer>();
+    std::cout << "-------------------------" << typeid(reclaimer).name() << std::endl;
+    MultiRWTest<reclaimer>();
     std::cout << "-------------------------" << typeid(reclaimer).name() << std::endl;
 }
 
