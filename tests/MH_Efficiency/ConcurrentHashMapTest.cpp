@@ -10,7 +10,7 @@
 #include "trick_concurrent_hash_map.h"
 
 uint64_t thread_number = 4;
-uint64_t total_count = 1llu << 20;
+uint64_t total_count = 1llu << 10;
 
 #define brown_new_once 1
 #define brown_use_pool 0
@@ -44,16 +44,18 @@ typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_none<>, no
 template<typename reclaimer>
 void SimpleTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
-    maptype map(total_count, 10, thread_number);
+    maptype map(total_count / 2, 10, thread_number);
     map.initThread();
     uint64_t v;
     Tracer tracer;
     tracer.startTime();
     for (uint64_t i = 0; i < total_count; i++) {
         map.Insert(i, i);
+        //std::cout << i << ":" << total_count << std::endl;
     }
     std::cout << "Insert: " << tracer.getRunTime() << std::endl;
     for (uint64_t i = 0; i < total_count; i++) {
+        //std::cout << i << ":" << total_count << std::endl;
         bool ret = map.Find(i, v);
         if (ret) assert(i == v);
     }
@@ -63,7 +65,7 @@ void SimpleTest() {
 template<typename reclaimer>
 void MultiWriteTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
-    maptype map(1llu << 27, 10, thread_number);
+    maptype map(total_count, 10, thread_number);
     Tracer tracer;
     map.initThread(thread_number);
     tracer.startTime();
@@ -86,7 +88,7 @@ void MultiWriteTest() {
 template<typename reclaimer>
 void MultiReadTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
-    maptype map(1llu << 27, 10, thread_number);
+    maptype map(total_count, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
     map.initThread(thread_number);
@@ -116,7 +118,7 @@ void MultiReadTest() {
 template<typename reclaimer>
 void MultiRWTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
-    maptype map(1llu << 27, 10, thread_number);
+    maptype map(total_count, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
     std::cout << "MultiInsert: " << tracer.getRunTime() << std::endl;

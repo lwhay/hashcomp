@@ -65,7 +65,8 @@ public:
 
     uint64_t allocate(size_t tid) {
         return (uint64_t) pool->get(brown_tid);
-        //return (uint64_t) alloc->allocate(ftid);
+        //return (uint64_t) std::malloc(sizeof(D));
+        //return (uint64_t) alloc->allocate(brown_tid);
     }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
@@ -80,6 +81,8 @@ public:
             holder = address;
             return address;
         } else {
+            uint64_t address = ptr.load(std::memory_order_relaxed);
+            if (address == 0) return holder = address;
             reclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
             return ptr.load(std::memory_order_relaxed);
         }
@@ -87,7 +90,34 @@ public:
 
     template<typename IS_SAFE, typename FILTER>
     T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
-        return (T *) load(tid, (std::atomic<uint64_t> &) res);
+        if (free_type == 0) {
+            uint64_t address = 0;
+            do {
+                if (address != 0) reclaimer->unprotect(brown_tid, (D *) address);
+                address = (uint64_t) res.load(std::memory_order_relaxed);
+                if (!address) {
+                    return nullptr;
+                }
+
+                if (is_safe((T *) address)) {
+                    return filter((T *) address);
+                }
+                reclaimer->protect(brown_tid, (D *) address, callbackReturnTrue, nullptr, false);
+            } while (address != (uint64_t) res.load(std::memory_order_relaxed));
+            holder = address;
+            return (T *) address;
+        } else {
+            uint64_t address = (uint64_t) res.load(std::memory_order_relaxed);
+            if (address == 0) {
+                holder = address;
+                return nullptr;
+            }
+            if (is_safe((T *) address)) {
+                return filter((T *) address);
+            }
+            reclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
+            return res.load(std::memory_order_relaxed);
+        }
     }
 
     void read(size_t tid) {
@@ -103,6 +133,7 @@ public:
 
     bool free(uint64_t ptr) {
         //std::cout << ftid << std::endl;
+        return true;
         reclaimer->retire(brown_tid, (D *) ptr);
         if (free_type != 0) {
             //alloc->deallocate(ftid, (T *) ptr);
