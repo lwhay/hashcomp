@@ -304,6 +304,7 @@ public:
             std::memset(freebit, 0, sizeof(freebit));
 #endif
             for (size_t t = 0; t < thread_number; t++) {
+                if (t == thread_id) continue;
                 const uint64_t target = holders[t].load();
                 if (target != 0) {
                     for (size_t i = idx; i < (idx + batch_size); i++) {
