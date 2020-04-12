@@ -216,7 +216,7 @@ public:
         cells[recent_hash][tid].store(0);
 #else
         //std::cout << ">" << holders[tid].load() << std::endl;
-        holders[tid].store(0);
+        if (holders[tid].load() != 0) holders[tid].store(0);
 #endif
     }
 
