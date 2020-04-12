@@ -133,7 +133,6 @@ public:
 
     bool free(uint64_t ptr) {
         //std::cout << ftid << std::endl;
-        return true;
         reclaimer->retire(brown_tid, (D *) ptr);
         if (free_type != 0) {
             //alloc->deallocate(ftid, (T *) ptr);
