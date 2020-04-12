@@ -116,6 +116,8 @@ thread_local size_t idx = 0;
 
 thread_local uint64_t thread_id = 0;
 
+thread_local uint64_t recent_address = 0;
+
 #endif
 
 template<class T, class D = T>
@@ -193,6 +195,7 @@ public:
 #endif
         } while (address != (uint64_t) res.load(std::memory_order_relaxed));
         //std::cout << "<" << address << std::endl;
+        recent_address = address;
         return (T *) address;
     }
 
@@ -200,6 +203,7 @@ public:
         uint64_t address;
         do {
             address = ptr.load(std::memory_order_relaxed);
+            if (address == 0) break;
 #if strategy == 1
             recent_hash = hash_idx((const void *) address);
             cells[recent_hash][tid].store(address);
@@ -208,6 +212,7 @@ public:
 #endif
         } while (address != ptr.load(std::memory_order_relaxed));
         //std::cout << "<." << address << std::endl;
+        recent_address = address;
         return address;
     }
 
@@ -216,7 +221,7 @@ public:
         cells[recent_hash][tid].store(0);
 #else
         //std::cout << ">" << holders[tid].load() << std::endl;
-        if (holders[tid].load() != 0) holders[tid].store(0);
+        if (recent_address != 0) holders[tid].store(0);
 #endif
     }
 
