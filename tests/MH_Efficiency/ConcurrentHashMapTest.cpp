@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <thread>
+#include <cassert>
 #include "brown_reclaim.h"
 #include "hash_hazard.h"
 #include "tracer.h"
@@ -40,6 +41,47 @@ typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debra<>, n
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debraplus<>, node> brown11;
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debracap<>, node> brown12;
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_none<>, node> brown13;
+
+char *cm[4] = {
+        "\033[0;30m%llu\n",
+        "\033[0;31m%llu\n",
+        "\033[0;32m%llu\n",
+        "\033[0;33m%llu\n"
+};
+
+void deleteTest() {
+    typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, batch> maptype;
+    maptype map(4, 1, thread_number);
+    map.initThread();
+    std::vector<std::thread> threads;
+    for (int i = 0; i < thread_number; i++) {
+        threads.push_back(std::thread([](maptype &map, uint64_t tid) {
+            map.initThread(tid);
+            for (uint64_t r = 0; r < (1llu << 4); r++) {
+                for (uint64_t i = 0; i < 4; i += thread_number) {
+                    uint64_t k = i; //(uint64_t) -1 - (r * 4 + i);
+                    map.Insert(k, k);
+                    //printf(cm[tid], k);
+                    //std::cout << k << std::endl;
+                }
+                for (uint64_t i = 0; i < 4; i += thread_number) {
+                    uint64_t k = i; //(uint64_t) -1 - (r * 4 + i);
+                    map.Delete(k);
+                }
+                for (uint64_t i = 0; i < 4; i += thread_number) {
+                    uint64_t v;
+                    uint64_t k = i; //(uint64_t) -1 - (r * 4 + i);
+                    bool ret = map.Find(k, v);
+                    if (ret) printf(cm[tid], k);//std::cout << tid << ":" << k << std::endl;
+                }
+            }
+        }, std::ref(map), i));
+    }
+    for (int i = 0; i < thread_number; i++) {
+        threads[i].join();
+    }
+    printf(cm[0], total_count);
+}
 
 template<typename reclaimer>
 void SimpleTest() {
@@ -171,6 +213,8 @@ int main(int argc, char **argv) {
         thread_number = std::atol(argv[1]);
         total_count = std::atol(argv[2]);
     }
+    std::cout << thread_number << " " << total_count << std::endl;
+    deleteTest();
     test<batch>();
     test<brown6>();
     test<brown7>();
