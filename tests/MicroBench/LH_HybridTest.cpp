@@ -302,6 +302,9 @@ int main(int argc, char **argv) {
     //prepare();
     cout << "restart" << endl;
     restart();
+#if INPUT_SHUFFLE == 1
+    std::random_shuffle(loads, loads + total_count);
+#endif
     cout << "multiinsert" << endl;
     multiWorkers();
     cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "

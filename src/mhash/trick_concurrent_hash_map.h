@@ -19,6 +19,7 @@
 
 #include "hazard/batch_hazard.h"
 #include "hash_map/thread.h"
+#include "tracer.h"
 
 #ifdef FAST_TABLE
 #include "fast_table.h"
@@ -383,7 +384,7 @@ public:
                     continue;
                 }
                 case TreeNodeType::BUCKETS_NODE: {
-                    std::cerr << "Not supported yet" << std::endl;
+                    std::cerr << "Find not supported yet" << std::endl;
                     exit(1);
                 }
             }
@@ -582,7 +583,8 @@ private:
                             ptrmgr->read(Thread::id());
                             continue;
                         } else {
-                            std::cerr << "Not Implemented Yet?" << std::endl;
+                            std::cerr << "Insert not Implemented Yet? " << cm[Thread::id()] << n << ":" << max_depth_
+                                      << std::endl;
                             exit(1);
                         }
                     }
@@ -597,7 +599,7 @@ private:
                     continue;
                 }
                 case TreeNodeType::BUCKETS_NODE: {
-                    std::cerr << "Not Implemented Yet" << std::endl;
+                    std::cerr << "Bucket not Implemented Yet" << std::endl;
                     exit(1);
                 }
             }

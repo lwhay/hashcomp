@@ -26,6 +26,8 @@
 
 #define INPUT_METHOD 2 //0: duplicated; 1: stepping; 2: segmented
 
+#define INPUT_SHUFFLE 1 //0: same order, 1: random reorder
+
 #define FUZZY_BOUND 0
 
 using namespace std;
@@ -124,6 +126,13 @@ private:
     std::chrono::time_point<std::chrono::system_clock> m_StartTime;
     std::chrono::time_point<std::chrono::system_clock> m_EndTime;
     bool m_bRunning = false;
+};
+
+char *cm[4] = {
+        "\033[0;30m%llu\n",
+        "\033[0;31m%llu\n",
+        "\033[0;32m%llu\n",
+        "\033[0;33m%llu\n"
 };
 
 const char *existingFilePath = "./testfile.dat";
