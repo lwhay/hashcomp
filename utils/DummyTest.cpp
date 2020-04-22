@@ -485,14 +485,14 @@ void RecordPageHashTest() {
     for (uint64_t i = 0; i < total_count; i++) {
         if (page_remaining <= sizeof(record)) {
             pages.push_back((uint64_t) std::malloc(page_size));
-            block_remaining = block_size;
+            page_remaining = page_size;
         }
-        addresses[i] = Address(pages.size() - 1, block_remaining);
+        addresses[i] = Address(pages.size() - 1, page_remaining);
         record *ptr = (record *) (pages[addresses[i].page()] + addresses[i].offset());
         ptr->header1.store(loads[i]);
         ptr->key = loads[i];
         ptr->value = loads[i];
-        block_remaining -= sizeof(record);
+        page_remaining -= sizeof(record);
     }
     Tracer tracer;
     tracer.startTime();
