@@ -206,7 +206,7 @@ void RecordHashTest() {
     delete[] records;
 }
 
-uint64_t block_size = (1llu << 20);
+constexpr uint64_t block_size = (1llu << 20);
 
 uint64_t block_remaining = 0;
 
@@ -250,6 +250,66 @@ void RecordBlockHashTest() {
     delete[] records;
 }
 
+#ifdef linux
+
+#include <numa.h>
+
+void RecordNumaBlockHashTest() {
+    block_remaining = 0;
+    blocks.clear();
+    loads = new uint64_t[total_count];
+    std::vector<std::thread> workers;
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
+    record **records = new record *[total_count];
+    unsigned num_cpus = std::thread::hardware_concurrency();
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    for (size_t i = 1; i < num_cpus; i++) CPU_SET(i, &cpuset);
+    std::cout << num_cpus << "\t" << *(cpuset.__bits) << std::endl;
+    for (uint64_t i = 0; i < total_count; i++) {
+        if (block_remaining <= sizeof(record)) {
+            blocks.push_back((uint64_t) std::malloc(block_size));
+            block_remaining = block_size;
+        }
+        records[i] = (record *) (blocks.back() + block_size - block_remaining);
+        records[i]->header1.store(loads[i]);
+        records[i]->key = loads[i];
+        records[i]->value = loads[i];
+        block_remaining -= sizeof(record);
+    }
+    Tracer tracer;
+    tracer.startTime();
+    for (uint64_t t = 0; t < thread_number; t++) {
+        workers.push_back(std::thread([](record **records, uint64_t tid) {
+            uint64_t card = total_count / thread_number;
+            uint64_t start = tid * card;
+            for (uint64_t i = start; i < start + card; i++) {
+                uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+                uint64_t mark = records[hash]->header1.load();
+                value += records[hash]->value;
+            }
+        }, records, t));
+        // Create a cpu_set_t object representing a set of CPUs. Clear it and mark
+        // only CPU i as set.
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(t, &cpuset);
+        int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
+        if (rc != 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+    }
+
+    for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
+    total_time.fetch_add(tracer.getRunTime());
+
+    std::cout << "Recordseq Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    for (uint64_t i = 0; i < blocks.size(); i++) std::free((void *) blocks[i]);
+    delete[] records;
+}
+
+#endif
+
 int main(int argc, char **argv) {
     if (argc > 4) {
         thread_number = std::atol(argv[1]);
@@ -262,6 +322,9 @@ int main(int argc, char **argv) {
     RecordScanTest();
     RecordHashTest();
     RecordBlockHashTest();
+#ifdef linux
+    RecordNumaBlockHashTest();
+#endif
 
     std::bitset<128> bs(0);
     for (int i = 0; i < 128; i++) if (i % 2 == 0) bs.set(i);
