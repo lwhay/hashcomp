@@ -2,23 +2,26 @@
 // Created by iclab on 10/7/19.
 //
 
-#include <cassert>
 #include <atomic>
 #include <bitset>
+#include <cassert>
+#include <cstring>
 #include <iostream>
 #include <thread>
 #include <vector>
-#include <tracer.h>
+#include "tracer.h"
 
 using namespace std;
 
 uint64_t *loads;
 
-uint64_t key_range = (1llu << 30);
+uint64_t key_range = (1llu << 20);
 
 uint64_t total_count = (1llu << 20);
 
 uint64_t thread_number = 4;
+
+char *switcher = "111111111";
 
 double distribution_skew = .0f;
 
@@ -41,9 +44,7 @@ atomic<int> stopMeasure(0);
 uint64_t timer_range = default_timer_range;
 
 void RecordTest() {
-    loads = new uint64_t[total_count];
     std::vector<std::thread> workers;
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     record *records = new record[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         records[i].header1.store(loads[i]);
@@ -64,7 +65,7 @@ void RecordTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
-                    value += records[loads[i]].value;
+                    value += records[loads[i] % total_count].value;
                     tick++;
                 }
             }
@@ -84,9 +85,7 @@ void RecordTest() {
 }
 
 void RecordPtrTest() {
-    loads = new uint64_t[total_count];
     std::vector<std::thread> workers;
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     record **records = new record *[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         records[i] = new record;
@@ -108,7 +107,7 @@ void RecordPtrTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
-                    value += records[loads[i]]->value;
+                    value += records[loads[i] % total_count]->value;
                     tick++;
                 }
             }
@@ -129,15 +128,15 @@ void RecordPtrTest() {
 }
 
 void RecordScanTest() {
-    loads = new uint64_t[total_count];
     std::vector<std::thread> workers;
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     record **records = new record *[total_count];
+    std::memset(records, 0, sizeof(record *) * total_count);
     for (uint64_t i = 0; i < total_count; i++) {
-        records[loads[i]] = new record;
-        records[loads[i]]->header1.store(loads[i]);
-        records[loads[i]]->key = loads[i];
-        records[loads[i]]->value = loads[i];
+        uint64_t idx = loads[i] % total_count;
+        records[idx] = new record;
+        records[idx]->header1.store(loads[i]);
+        records[idx]->key = loads[i];
+        records[idx]->value = loads[i];
     }
     total_time.store(0);
     total_tick.store(0);
@@ -153,7 +152,7 @@ void RecordScanTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
-                    value += records[loads[i]]->value;
+                    value += records[loads[i] % total_count]->value;
                     tick++;
                 }
             }
@@ -169,7 +168,12 @@ void RecordScanTest() {
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
     std::cout << "RecordScan Tpt: " << (double) total_tick.load() * thread_number / total_time.load() << std::endl;
-    for (uint64_t i = 0; i < total_count; i++) delete records[i];
+    for (uint64_t i = 0; i < total_count; i++) {
+        uint64_t idx = loads[i] % total_count;
+        if (records[idx] == nullptr) continue;
+        delete records[idx];
+        records[idx] = nullptr;
+    }
     delete[] records;
 }
 
@@ -223,9 +227,7 @@ uint64_t MurmurHash64A(const void *key, int len, uint64_t seed) {
 }
 
 void RecordHashTest() {
-    loads = new uint64_t[total_count];
     std::vector<std::thread> workers;
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     record **records = new record *[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         records[i] = new record;
@@ -277,9 +279,7 @@ uint64_t block_remaining = 0;
 std::vector<uint64_t> blocks;
 
 void RecordBlockHashTest() {
-    loads = new uint64_t[total_count];
     std::vector<std::thread> workers;
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     record **records = new record *[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         if (block_remaining <= sizeof(record)) {
@@ -336,9 +336,7 @@ void RecordBlockHashTest() {
 void RecordNumaBlockHashTest() {
     block_remaining = 0;
     blocks.clear();
-    loads = new uint64_t[total_count];
     std::vector<std::thread> workers;
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     record **records = new record *[total_count];
     unsigned num_cpus = std::thread::hardware_concurrency();
     cpu_set_t cpuset;
@@ -572,9 +570,7 @@ uint64_t page_remaining = 0;
 std::vector<uint64_t> pages;
 
 void RecordPageHashTest() {
-    loads = new uint64_t[total_count];
     std::vector<std::thread> workers;
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     Address *addresses = new Address[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         if (page_remaining <= sizeof(record)) {
@@ -636,9 +632,7 @@ std::vector<uint64_t> *heap;
 uint64_t *heap_remaining;
 
 void RecordPageLocalTest() {
-    loads = new uint64_t[total_count];
     std::vector<std::thread> workers;
-    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     Address *addresses = new Address[total_count];
     heap = new std::vector<uint64_t>[thread_number];
     heap_remaining = new uint64_t[thread_number];
@@ -711,49 +705,58 @@ void RecordPageLocalTest() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 4) {
+    if (argc > 5) {
         thread_number = std::atol(argv[1]);
         key_range = std::atol(argv[2]);
         total_count = std::atol(argv[3]);
         distribution_skew = std::atof(argv[4]);
+        switcher = argv[5];
     }
-    RecordTest();
-    RecordPtrTest();
-    RecordScanTest();
-    RecordHashTest();
-    RecordBlockHashTest();
-#ifdef linux
-    RecordNumaBlockHashTest();
-#endif
-    RecordPageHashTest();
-    RecordPageLocalTest();
+    std::cout << thread_number << " " << key_range << " " << total_count << " " << distribution_skew << " " << switcher
+              << std::endl;
+    loads = new uint64_t[total_count];
+    RandomGenerator<uint64_t>::generate(loads, key_range % total_count - 1, total_count, distribution_skew);
 
-    std::bitset<128> bs(0);
-    for (int i = 0; i < 128; i++) if (i % 2 == 0) bs.set(i);
-    for (int i = 0; i < 128; i++) if (bs.test(i)) cout << "1"; else cout << "0";
-    cout << endl;
-    cout << bs.to_string() << endl;
-    atomic<long long> tick(0);
-    cout << tick.load() << endl;
-    tick.fetch_add(1);
-    cout << tick.load() << endl;
-    u_char a = 0x3;
-    u_char b = 0x6;
-    cout << "0x3 and 0x0: " << (a and 0x0) << endl;
-    cout << "0x3 and 0x6: " << (a and b) << endl;
-    cout << "0x3 & 0x6: " << (a & b) << endl;
-    cout << "0x3 or 0x6: " << (a or b) << endl;
-    cout << "0x3 | 0x6: " << (a | b) << endl;
-    cout << "0x3 xor 0x6: " << (a xor b) << endl;
-    cout << "~0x6: " << (0xff & (~b)) << endl;
-    u_char c = a;
-    c &= b;
-    cout << "0x3 &= 0x6: " << (0xff & c) << endl;
-    c = a;
-    c |= b;
-    cout << "0x3 |= 0x6: " << (0xff & c) << endl;
-    c = (a and b);
-    cout << "0x3 and= 0x6: " << (0xff & c) << endl;
-    c = (a or b);
-    cout << "0x3 and= 0x6: " << (0xff & c) << endl;
+    if (std::strlen(switcher) > 0 && switcher[0] == '1') RecordTest();
+    if (std::strlen(switcher) > 1 && switcher[1] == '1') RecordPtrTest();
+    if (std::strlen(switcher) > 2 && switcher[2] == '1') RecordScanTest();
+    if (std::strlen(switcher) > 3 && switcher[3] == '1') RecordHashTest();
+    if (std::strlen(switcher) > 4 && switcher[4] == '1') RecordBlockHashTest();
+#ifdef linux
+    if (std::strlen(switcher) > 5 && switcher[0] == '1') RecordNumaBlockHashTest();
+#endif
+    if (std::strlen(switcher) > 6 && switcher[6] == '1') RecordPageHashTest();
+    if (std::strlen(switcher) > 7 && switcher[7] == '1') RecordPageLocalTest();
+    delete[] loads;
+
+    if (std::strlen(switcher) > 8 && switcher[8] == '1') {
+        std::bitset<128> bs(0);
+        for (int i = 0; i < 128; i++) if (i % 2 == 0) bs.set(i);
+        for (int i = 0; i < 128; i++) if (bs.test(i)) cout << "1"; else cout << "0";
+        cout << endl;
+        cout << bs.to_string() << endl;
+        atomic<long long> tick(0);
+        cout << tick.load() << endl;
+        tick.fetch_add(1);
+        cout << tick.load() << endl;
+        u_char a = 0x3;
+        u_char b = 0x6;
+        cout << "0x3 and 0x0: " << (a and 0x0) << endl;
+        cout << "0x3 and 0x6: " << (a and b) << endl;
+        cout << "0x3 & 0x6: " << (a & b) << endl;
+        cout << "0x3 or 0x6: " << (a or b) << endl;
+        cout << "0x3 | 0x6: " << (a | b) << endl;
+        cout << "0x3 xor 0x6: " << (a xor b) << endl;
+        cout << "~0x6: " << (0xff & (~b)) << endl;
+        u_char c = a;
+        c &= b;
+        cout << "0x3 &= 0x6: " << (0xff & c) << endl;
+        c = a;
+        c |= b;
+        cout << "0x3 |= 0x6: " << (0xff & c) << endl;
+        c = (a and b);
+        cout << "0x3 and= 0x6: " << (0xff & c) << endl;
+        c = (a or b);
+        cout << "0x3 and= 0x6: " << (0xff & c) << endl;
+    }
 }
