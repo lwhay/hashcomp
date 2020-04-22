@@ -67,7 +67,7 @@ void RecordPtrTest() {
     record **records = new record *[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         records[i] = new record;
-        records[i].header1.store(loads[i]);
+        records[i]->header1.store(loads[i]);
         records[i]->key = loads[i];
         records[i]->value = loads[i];
     }
@@ -98,7 +98,7 @@ void RecordScanTest() {
     record **records = new record *[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         records[loads[i]] = new record;
-        records[i].header1.store(loads[i]);
+        records[loads[i]].header1.store(loads[i]);
         records[loads[i]]->key = loads[i];
         records[loads[i]]->value = loads[i];
     }
