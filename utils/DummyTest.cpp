@@ -632,6 +632,84 @@ void RecordPageHashTest() {
     delete[] addresses;
 }
 
+std::vector<uint64_t> *heap;
+uint64_t *heap_remaining;
+
+void RecordPageLocalTest() {
+    loads = new uint64_t[total_count];
+    std::vector<std::thread> workers;
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
+    Address *addresses = new Address[total_count];
+    heap = new std::vector<uint64_t>[thread_number];
+    heap_remaining = new uint64_t[thread_number];
+    for (uint64_t t = 0; t < thread_number; t++) {
+        heap_remaining[t] = 0;
+        workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
+            for (uint64_t i = 0; i < total_count; i++) {
+                if (heap_remaining[tid] <= sizeof(record)) {
+                    heap[tid].push_back((uint64_t) std::malloc(page_size));
+                    heap_remaining[tid] = page_size;
+                }
+                if (i % thread_number != tid) continue;
+                addresses[i] = Address(heap[tid].size() - 1, heap_remaining[tid]);
+                record *ptr = (record *) (heap[tid][addresses[i].page()] + addresses[i].offset());
+                ptr->header1.store(loads[i]);
+                ptr->key = loads[i];
+                ptr->value = loads[i];
+                heap_remaining[tid] -= sizeof(record);
+            }
+        }, addresses, t));
+    }
+    for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
+    workers.clear();
+    total_time.store(0);
+    total_tick.store(0);
+    stopMeasure.store(0);
+    Timer timer;
+    timer.start();
+    for (uint64_t t = 0; t < thread_number; t++) {
+        workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
+            uint64_t card = total_count / thread_number;
+            uint64_t start = tid * card;
+            Tracer tracer;
+            tracer.startTime();
+            uint64_t tick = 0;
+            while (stopMeasure.load() == 0) {
+                for (uint64_t i = 0; i < total_count; i++) {
+                    uint64_t hash =
+                            MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+                    if (hash % thread_number != tid) continue;
+#if USE_ATOMIC_ADDRESS == 1
+                    Address address = AtomicAddress(addresses[hash]).load();
+#else
+                    Address address = addresses[hash];
+#endif
+                    record *ptr = (record *) (heap[tid][address.page()] + address.offset());
+                    ptr->header1.load();
+                    value += ptr->value;
+                    tick++;
+                }
+            }
+            total_time.fetch_add(tracer.getRunTime());
+            total_tick.fetch_add(tick);
+        }, addresses, t));
+    }
+    while (timer.elapsedSeconds() < timer_range) {
+        sleep(1);
+    }
+    stopMeasure.store(1, memory_order_relaxed);
+
+    for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
+
+    std::cout << "RecordPageLocal Tpt: " << (double) total_tick.load() * thread_number / total_time.load() << std::endl;
+    for (uint64_t t = 0; t < thread_number; t++) {
+        for (uint64_t i = 0; i < pages.size(); i++)std::free((void *) heap[t][i]);
+    }
+    delete[] heap;
+    delete[] heap_remaining;
+    delete[] addresses;
+}
+
 int main(int argc, char **argv) {
     if (argc > 4) {
         thread_number = std::atol(argv[1]);
@@ -648,6 +726,7 @@ int main(int argc, char **argv) {
     RecordNumaBlockHashTest();
 #endif
     RecordPageHashTest();
+    RecordPageLocalTest();
 
     std::bitset<128> bs(0);
     for (int i = 0; i < 128; i++) if (i % 2 == 0) bs.set(i);
