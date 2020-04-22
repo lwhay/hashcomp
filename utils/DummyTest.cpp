@@ -34,6 +34,12 @@ thread_local double value;
 
 std::atomic<uint64_t> total_time{0};
 
+std::atomic<uint64_t> total_tick{0};
+
+atomic<int> stopMeasure(0);
+
+uint64_t timer_range = default_timer_range;
+
 void RecordTest() {
     loads = new uint64_t[total_count];
     std::vector<std::thread> workers;
@@ -45,22 +51,35 @@ void RecordTest() {
         records[i].value = loads[i];
     }
     total_time.store(0);
+    total_tick.store(0);
+    stopMeasure.store(0);
+    Timer timer;
+    timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
         workers.push_back(std::thread([](record *records, uint64_t tid) {
             Tracer tracer;
             tracer.startTime();
             uint64_t card = total_count / thread_number;
             uint64_t start = tid * card;
-            for (uint64_t i = start; i < start + card; i++) {
-                value += records[loads[i]].value;
+            uint64_t tick = 0;
+            while (stopMeasure.load() == 0) {
+                for (uint64_t i = start; i < start + card; i++) {
+                    value += records[loads[i]].value;
+                    tick++;
+                }
             }
             total_time.fetch_add(tracer.getRunTime());
+            total_tick.fetch_add(tick);
         }, records, t));
     }
+    while (timer.elapsedSeconds() < timer_range) {
+        sleep(1);
+    }
+    stopMeasure.store(1, memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
-    std::cout << "Record Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "Record Tpt: " << (double) total_tick.load() * thread_number / total_time.load() << std::endl;
     delete[] records;
 }
 
@@ -76,22 +95,35 @@ void RecordPtrTest() {
         records[i]->value = loads[i];
     }
     total_time.store(0);
+    total_tick.store(0);
+    stopMeasure.store(0);
+    Timer timer;
+    timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
         workers.push_back(std::thread([](record **records, uint64_t tid) {
             Tracer tracer;
             tracer.startTime();
             uint64_t card = total_count / thread_number;
             uint64_t start = tid * card;
-            for (uint64_t i = start; i < start + card; i++) {
-                value += records[loads[i]]->value;
+            uint64_t tick = 0;
+            while (stopMeasure.load() == 0) {
+                for (uint64_t i = start; i < start + card; i++) {
+                    value += records[loads[i]]->value;
+                    tick++;
+                }
             }
             total_time.fetch_add(tracer.getRunTime());
+            total_tick.fetch_add(tick);
         }, records, t));
     }
+    while (timer.elapsedSeconds() < timer_range) {
+        sleep(1);
+    }
+    stopMeasure.store(1, memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
-    std::cout << "RecordPtr Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordPtr Tpt: " << (double) total_tick.load() * thread_number / total_time.load() << std::endl;
     for (uint64_t i = 0; i < total_count; i++) delete records[i];
     delete[] records;
 }
@@ -108,22 +140,35 @@ void RecordScanTest() {
         records[loads[i]]->value = loads[i];
     }
     total_time.store(0);
+    total_tick.store(0);
+    stopMeasure.store(0);
+    Timer timer;
+    timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
         workers.push_back(std::thread([](record **records, uint64_t tid) {
             Tracer tracer;
             tracer.startTime();
             uint64_t card = total_count / thread_number;
             uint64_t start = tid * card;
-            for (uint64_t i = start; i < start + card; i++) {
-                value += records[loads[i]]->value;
+            uint64_t tick = 0;
+            while (stopMeasure.load() == 0) {
+                for (uint64_t i = start; i < start + card; i++) {
+                    value += records[loads[i]]->value;
+                    tick++;
+                }
             }
             total_time.fetch_add(tracer.getRunTime());
+            total_tick.fetch_add(tick);
         }, records, t));
     }
+    while (timer.elapsedSeconds() < timer_range) {
+        sleep(1);
+    }
+    stopMeasure.store(1, memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
-    std::cout << "RecordScan Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordScan Tpt: " << (double) total_tick.load() * thread_number / total_time.load() << std::endl;
     for (uint64_t i = 0; i < total_count; i++) delete records[i];
     delete[] records;
 }
@@ -189,24 +234,38 @@ void RecordHashTest() {
         records[i]->value = loads[i];
     }
     total_time.store(0);
+    total_tick.store(0);
+    stopMeasure.store(0);
+    Timer timer;
+    timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
         workers.push_back(std::thread([](record **records, uint64_t tid) {
             Tracer tracer;
             tracer.startTime();
             uint64_t card = total_count / thread_number;
             uint64_t start = tid * card;
-            for (uint64_t i = start; i < start + card; i++) {
-                uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
-                uint64_t mark = records[hash]->header1.load();
-                value += records[hash]->value;
+            uint64_t tick = 0;
+            while (stopMeasure.load() == 0) {
+                for (uint64_t i = start; i < start + card; i++) {
+                    uint64_t hash =
+                            MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+                    uint64_t mark = records[hash]->header1.load();
+                    value += records[hash]->value;
+                    tick++;
+                }
             }
             total_time.fetch_add(tracer.getRunTime());
+            total_tick.fetch_add(tick);
         }, records, t));
     }
+    while (timer.elapsedSeconds() < timer_range) {
+        sleep(1);
+    }
+    stopMeasure.store(1, memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
-    std::cout << "RecordHash Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordHash Tpt: " << (double) total_tick.load() * thread_number / total_time.load() << std::endl;
     for (uint64_t i = 0; i < total_count; i++) delete records[i];
     delete[] records;
 }
@@ -234,24 +293,38 @@ void RecordBlockHashTest() {
         block_remaining -= sizeof(record);
     }
     total_time.store(0);
+    total_tick.store(0);
+    stopMeasure.store(0);
+    Timer timer;
+    timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
         workers.push_back(std::thread([](record **records, uint64_t tid) {
             Tracer tracer;
             tracer.startTime();
             uint64_t card = total_count / thread_number;
             uint64_t start = tid * card;
-            for (uint64_t i = start; i < start + card; i++) {
-                uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
-                uint64_t mark = records[hash]->header1.load();
-                value += records[hash]->value;
+            uint64_t tick = 0;
+            while (stopMeasure.load() == 0) {
+                for (uint64_t i = start; i < start + card; i++) {
+                    uint64_t hash =
+                            MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+                    uint64_t mark = records[hash]->header1.load();
+                    value += records[hash]->value;
+                    tick++;
+                }
             }
             total_time.fetch_add(tracer.getRunTime());
+            total_tick.fetch_add(tick);
         }, records, t));
     }
+    while (timer.elapsedSeconds() < timer_range) {
+        sleep(1);
+    }
+    stopMeasure.store(1, memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
-    std::cout << "RecordBlockHash Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordBlockHash Tpt: " << (double) total_tick.load() * thread_number / total_time.load() << std::endl;
     for (uint64_t i = 0; i < blocks.size(); i++) std::free((void *) blocks[i]);
     delete[] records;
 }
@@ -284,18 +357,28 @@ void RecordNumaBlockHashTest() {
         block_remaining -= sizeof(record);
     }
     total_time.store(0);
+    total_tick.store(0);
+    stopMeasure.store(0);
+    Timer timer;
+    timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
         workers.push_back(std::thread([](record **records, uint64_t tid) {
             Tracer tracer;
             tracer.startTime();
             uint64_t card = total_count / thread_number;
             uint64_t start = tid * card;
-            for (uint64_t i = start; i < start + card; i++) {
-                uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
-                uint64_t mark = records[hash]->header1.load();
-                value += records[hash]->value;
+            uint64_t tick = 0;
+            while (stopMeasure.load() == 0) {
+                for (uint64_t i = start; i < start + card; i++) {
+                    uint64_t hash =
+                            MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+                    uint64_t mark = records[hash]->header1.load();
+                    value += records[hash]->value;
+                    tick++;
+                }
             }
             total_time.fetch_add(tracer.getRunTime());
+            total_tick.fetch_add(tick);
         }, records, t));
         // Create a cpu_set_t object representing a set of CPUs. Clear it and mark
         // only CPU i as set.
@@ -307,10 +390,15 @@ void RecordNumaBlockHashTest() {
             std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
         }
     }
+    while (timer.elapsedSeconds() < timer_range) {
+        sleep(1);
+    }
+    stopMeasure.store(1, memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
-    std::cout << "RecordNumaBlockHash Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordNumaBlockHash Tpt: " << (double) total_tick.load() * thread_number / total_time.load()
+              << std::endl;
     for (uint64_t i = 0; i < blocks.size(); i++) std::free((void *) blocks[i]);
     delete[] records;
 }
@@ -501,30 +589,44 @@ void RecordPageHashTest() {
         page_remaining -= sizeof(record);
     }
     total_time.store(0);
+    total_tick.store(0);
+    stopMeasure.store(0);
+    Timer timer;
+    timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
         workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
             uint64_t card = total_count / thread_number;
             uint64_t start = tid * card;
             Tracer tracer;
             tracer.startTime();
-            for (uint64_t i = start; i < start + card; i++) {
-                uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+            uint64_t tick = 0;
+            while (stopMeasure.load() == 0) {
+                for (uint64_t i = start; i < start + card; i++) {
+                    uint64_t hash =
+                            MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
 #if USE_ATOMIC_ADDRESS == 1
-                Address address = AtomicAddress(addresses[hash]).load();
+                    Address address = AtomicAddress(addresses[hash]).load();
 #else
-                Address address = addresses[hash];
+                    Address address = addresses[hash];
 #endif
-                record *ptr = (record *) (pages[address.page()] + address.offset());
-                ptr->header1.load();
-                value += ptr->value;
+                    record *ptr = (record *) (pages[address.page()] + address.offset());
+                    ptr->header1.load();
+                    value += ptr->value;
+                    tick++;
+                }
             }
             total_time.fetch_add(tracer.getRunTime());
+            total_tick.fetch_add(tick);
         }, addresses, t));
     }
+    while (timer.elapsedSeconds() < timer_range) {
+        sleep(1);
+    }
+    stopMeasure.store(1, memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
-    std::cout << "RecordPageHash Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordPageHash Tpt: " << (double) total_tick.load() * thread_number / total_time.load() << std::endl;
     for (uint64_t i = 0; i < pages.size(); i++) std::free((void *) pages[i]);
     pages.clear();
     delete[] addresses;
