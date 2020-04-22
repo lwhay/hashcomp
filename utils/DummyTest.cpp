@@ -25,6 +25,8 @@ struct record {
     std::atomic<uint64_t> header1;
     uint64_t key;
     uint64_t value;
+    uint8_t unaligned;
+    bool ub;
 };
 
 thread_local double value;
@@ -98,7 +100,7 @@ void RecordScanTest() {
     record **records = new record *[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         records[loads[i]] = new record;
-        records[loads[i]].header1.store(loads[i]);
+        records[loads[i]]->header1.store(loads[i]);
         records[loads[i]]->key = loads[i];
         records[loads[i]]->value = loads[i];
     }
