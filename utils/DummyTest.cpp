@@ -189,7 +189,7 @@ void RecordHashTest() {
             uint64_t card = total_count / thread_number;
             uint64_t start = tid * card;
             for (uint64_t i = start; i < start + card; i++) {
-                uint64_t hash = MurmurHash64A((void *) loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+                uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                 value += records[hash]->value;
             }
         }, records, t));
