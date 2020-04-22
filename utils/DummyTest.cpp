@@ -88,7 +88,7 @@ void RecordPtrTest() {
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
     total_time.fetch_add(tracer.getRunTime());
 
-    std::cout << "Recordptr Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordPtr Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
     for (uint64_t i = 0; i < total_count; i++) delete records[i];
     delete[] records;
 }
@@ -119,7 +119,7 @@ void RecordScanTest() {
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
     total_time.fetch_add(tracer.getRunTime());
 
-    std::cout << "Recordseq Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordScan Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
     for (uint64_t i = 0; i < total_count; i++) delete records[i];
     delete[] records;
 }
@@ -201,7 +201,7 @@ void RecordHashTest() {
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
     total_time.fetch_add(tracer.getRunTime());
 
-    std::cout << "Recordseq Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordHash Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
     for (uint64_t i = 0; i < total_count; i++) delete records[i];
     delete[] records;
 }
@@ -245,7 +245,7 @@ void RecordBlockHashTest() {
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
     total_time.fetch_add(tracer.getRunTime());
 
-    std::cout << "Recordseq Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordBlockHash Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
     for (uint64_t i = 0; i < blocks.size(); i++) std::free((void *) blocks[i]);
     delete[] records;
 }
@@ -303,12 +303,224 @@ void RecordNumaBlockHashTest() {
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
     total_time.fetch_add(tracer.getRunTime());
 
-    std::cout << "Recordseq Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordNumaBlockHash Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
     for (uint64_t i = 0; i < blocks.size(); i++) std::free((void *) blocks[i]);
     delete[] records;
 }
 
 #endif
+
+class Address {
+public:
+    friend class PageOffset;
+
+    /// An invalid address, used when you need to initialize an address but you don't have a valid
+    /// value for it yet. NOTE: set to 1, not 0, to distinguish an invalid hash bucket entry
+    /// (initialized to all zeros) from a valid hash bucket entry that points to an invalid address.
+    static constexpr uint64_t kInvalidAddress = 1;
+
+    /// A logical address is 8 bytes.
+    /// --of which 48 bits are used for the address. (The remaining 16 bits are used by the hash
+    /// table, for control bits and the tag.)
+    static constexpr uint64_t kAddressBits = 48;
+    static constexpr uint64_t kMaxAddress = ((uint64_t) 1 << kAddressBits) - 1;
+    /// --of which 25 bits are used for offsets into a page, of size 2^25 = 32 MB.
+    static constexpr uint64_t kOffsetBits = 25;
+    static constexpr uint32_t kMaxOffset = ((uint32_t) 1 << kOffsetBits) - 1;
+    /// --and the remaining 23 bits are used for the page index, allowing for approximately 8 million
+    /// pages.
+    static uint64_t x;
+    static constexpr uint64_t kHBits = 8;
+    static constexpr uint64_t kPageBits = kAddressBits - kOffsetBits - kHBits;
+    static constexpr uint32_t kMaxPage = ((uint32_t) 1 << kPageBits) - 1;
+
+    /// Default constructor.
+    Address() : control_{0} {
+    }
+
+    Address(uint32_t page, uint32_t offset) : reserved_{0}, h_{0}, page_{page}, offset_{offset} {
+    }
+
+    Address(uint32_t page, uint32_t offset, uint32_t h) : reserved_{0}, h_{h}, page_{page}, offset_{offset} {
+    }
+
+    /// Copy constructor.
+    Address(const Address &other) : control_{other.control_} {
+    }
+
+    Address(uint64_t control) : control_{control} {
+        assert(reserved_ == 0);
+    }
+
+    inline Address &operator=(const Address &other) {
+        control_ = other.control_;
+        return *this;
+    }
+
+    inline Address &operator+=(uint64_t delta) {
+        //assert(delta < UINT32_MAX);
+        control_ += delta;
+        return *this;
+    }
+
+    inline Address operator-(const Address &other) {
+        return control_ - other.control_;
+    }
+
+    /// Comparison operators.
+    inline bool operator<(const Address &other) const {
+        assert(reserved_ == 0);
+        assert(other.reserved_ == 0);
+        return control_ < other.control_;
+    }
+
+    inline bool operator<=(const Address &other) const {
+        assert(reserved_ == 0);
+        assert(other.reserved_ == 0);
+        return control_ <= other.control_;
+    }
+
+    inline bool operator>(const Address &other) const {
+        assert(reserved_ == 0);
+        assert(other.reserved_ == 0);
+        return control_ > other.control_;
+    }
+
+    inline bool operator>=(const Address &other) const {
+        assert(reserved_ == 0);
+        assert(other.reserved_ == 0);
+        return control_ >= other.control_;
+    }
+
+    inline bool operator==(const Address &other) const {
+        return control_ == other.control_;
+    }
+
+    inline bool operator!=(const Address &other) const {
+        return control_ != other.control_;
+    }
+
+    /// Accessors.
+    inline uint32_t page() const {
+        return static_cast<uint32_t>(page_);
+    }
+
+    inline uint32_t offset() const {
+        return static_cast<uint32_t>(offset_);
+    }
+
+    inline uint32_t h() const {
+        return static_cast<uint32_t>(h_);
+    }
+
+    inline uint64_t control() const {
+        return control_;
+    }
+
+private:
+    union {
+        struct {
+            uint64_t offset_ : kOffsetBits;         // 25 bits
+            uint64_t page_ : kPageBits;  // 15 bits
+            uint64_t h_:kHBits; //8 bit
+            uint64_t reserved_ : 64 - kAddressBits; // 16 bits
+        };
+        uint64_t control_;
+    };
+};
+
+class AtomicAddress {
+public:
+    AtomicAddress(const Address &address) : control_{address.control()} {
+    }
+
+    /// Atomic access.
+    inline Address load() const {
+        return Address{control_.load()};
+    }
+
+    inline void store(Address value) {
+        control_.store(value.control());
+    }
+
+    inline bool compare_exchange_strong(Address &expected, Address desired) {
+        uint64_t expected_control = expected.control();
+        bool result = control_.compare_exchange_strong(expected_control, desired.control());
+        expected = Address{expected_control};
+        return result;
+    }
+
+    /// Accessors.
+    inline uint32_t page() const {
+        return load().page();
+    }
+
+    inline uint32_t offset() const {
+        return load().offset();
+    }
+
+    inline uint64_t control() const {
+        return load().control();
+    }
+
+private:
+    /// Atomic access to the address.
+    std::atomic<uint64_t> control_;
+};
+
+#define USE_ATOMIC_ADDRESS 0
+
+constexpr uint64_t page_size = (1llu << 25);
+
+uint64_t page_remaining = 0;
+
+std::vector<uint64_t> pages;
+
+void RecordPageHashTest() {
+    loads = new uint64_t[total_count];
+    std::vector<std::thread> workers;
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
+    Address *addresses = new Address[total_count];
+    for (uint64_t i = 0; i < total_count; i++) {
+        if (page_remaining <= sizeof(record)) {
+            pages.push_back((uint64_t) std::malloc(page_size));
+            block_remaining = block_size;
+        }
+        addresses[i] = Address(pages.size() - 1, block_remaining);
+        record *ptr = (record *) (pages[addresses[i].page()] + addresses[i].offset());
+        ptr->header1.store(loads[i]);
+        ptr->key = loads[i];
+        ptr->value = loads[i];
+        block_remaining -= sizeof(record);
+    }
+    Tracer tracer;
+    tracer.startTime();
+    for (uint64_t t = 0; t < thread_number; t++) {
+        workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
+            uint64_t card = total_count / thread_number;
+            uint64_t start = tid * card;
+            for (uint64_t i = start; i < start + card; i++) {
+                uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+#if USE_ATOMIC_ADDRESS == 1
+                Address address = AtomicAddress(addresses[hash]).load();
+#else
+                Address address = addresses[hash];
+#endif
+                record *ptr = (record *) (pages[address.page()] + address.offset());
+                ptr->header1.load();
+                value += ptr->value;
+            }
+        }, addresses, t));
+    }
+
+    for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
+    total_time.fetch_add(tracer.getRunTime());
+
+    std::cout << "RecordPageHash Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    for (uint64_t i = 0; i < pages.size(); i++) std::free((void *) pages[i]);
+    pages.clear();
+    delete[] addresses;
+}
 
 int main(int argc, char **argv) {
     if (argc > 4) {
@@ -325,6 +537,7 @@ int main(int argc, char **argv) {
 #ifdef linux
     RecordNumaBlockHashTest();
 #endif
+    RecordPageHashTest();
 
     std::bitset<128> bs(0);
     for (int i = 0; i < 128; i++) if (i % 2 == 0) bs.set(i);
