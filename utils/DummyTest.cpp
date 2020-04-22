@@ -723,7 +723,7 @@ int main(int argc, char **argv) {
     if (std::strlen(switcher) > 3 && switcher[3] == '1') RecordHashTest();
     if (std::strlen(switcher) > 4 && switcher[4] == '1') RecordBlockHashTest();
 #ifdef linux
-    if (std::strlen(switcher) > 5 && switcher[0] == '1') RecordNumaBlockHashTest();
+    if (std::strlen(switcher) > 5 && switcher[5] == '1') RecordNumaBlockHashTest();
 #endif
     if (std::strlen(switcher) > 6 && switcher[6] == '1') RecordPageHashTest();
     if (std::strlen(switcher) > 7 && switcher[7] == '1') RecordPageLocalTest();
