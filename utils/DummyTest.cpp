@@ -715,7 +715,7 @@ int main(int argc, char **argv) {
     std::cout << thread_number << " " << key_range << " " << total_count << " " << distribution_skew << " " << switcher
               << std::endl;
     loads = new uint64_t[total_count];
-    RandomGenerator<uint64_t>::generate(loads, key_range % total_count - 1, total_count, distribution_skew);
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
 
     if (std::strlen(switcher) > 0 && switcher[0] == '1') RecordTest();
     if (std::strlen(switcher) > 1 && switcher[1] == '1') RecordPtrTest();
