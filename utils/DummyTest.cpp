@@ -56,7 +56,70 @@ void RecordTest() {
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
     total_time.fetch_add(tracer.getRunTime());
 
-    std::cout << "Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    std::cout << "Record Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    delete[] records;
+}
+
+void RecordPtrTest() {
+    loads = new uint64_t[total_count];
+    std::vector<std::thread> workers;
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
+    record **records = new record *[total_count];
+    for (uint64_t i = 0; i < total_count; i++) {
+        records[i] = new record;
+        records[i]->header1 = 0xff;
+        records[i]->key = loads[i];
+        records[i]->value = loads[i];
+    }
+    Tracer tracer;
+    tracer.startTime();
+    for (uint64_t t = 0; t < thread_number; t++) {
+        workers.push_back(std::thread([](record **records, uint64_t tid) {
+            uint64_t card = total_count / thread_number;
+            uint64_t start = tid * card;
+            for (uint64_t i = start; i < start + card; i++) {
+                value += records[loads[i]]->value;
+            }
+        }, records, t));
+    }
+
+    for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
+    total_time.fetch_add(tracer.getRunTime());
+
+    std::cout << "Recordptr Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    for (uint64_t i = 0; i < total_count; i++) delete records[i];
+    delete[] records;
+}
+
+void RecordScanTest() {
+    loads = new uint64_t[total_count];
+    std::vector<std::thread> workers;
+    RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
+    record **records = new record *[total_count];
+    for (uint64_t i = 0; i < total_count; i++) {
+        records[loads[i]] = new record;
+        records[loads[i]]->header1 = 0xff;
+        records[loads[i]]->key = loads[i];
+        records[loads[i]]->value = loads[i];
+    }
+    Tracer tracer;
+    tracer.startTime();
+    for (uint64_t t = 0; t < thread_number; t++) {
+        workers.push_back(std::thread([](record **records, uint64_t tid) {
+            uint64_t card = total_count / thread_number;
+            uint64_t start = tid * card;
+            for (uint64_t i = start; i < start + card; i++) {
+                value += records[loads[i]]->value;
+            }
+        }, records, t));
+    }
+
+    for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
+    total_time.fetch_add(tracer.getRunTime());
+
+    std::cout << "Recordseq Tpt: " << (double) total_count * thread_number / total_time.load() << std::endl;
+    for (uint64_t i = 0; i < total_count; i++) delete records[i];
+    delete[] records;
 }
 
 int main(int argc, char **argv) {
@@ -67,6 +130,8 @@ int main(int argc, char **argv) {
         distribution_skew = std::atof(argv[4]);
     }
     RecordTest();
+    RecordPtrTest();
+    RecordScanTest();
 
     std::bitset<128> bs(0);
     for (int i = 0; i < 128; i++) if (i % 2 == 0) bs.set(i);
