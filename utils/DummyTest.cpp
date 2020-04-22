@@ -177,10 +177,10 @@ void RecordHashTest() {
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     record **records = new record *[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
-        records[loads[i]] = new record;
-        records[loads[i]]->header1 = 0xff;
-        records[loads[i]]->key = loads[i];
-        records[loads[i]]->value = loads[i];
+        records[i] = new record;
+        records[i]->header1 = 0xff;
+        records[i]->key = loads[i];
+        records[i]->value = loads[i];
     }
     Tracer tracer;
     tracer.startTime();
