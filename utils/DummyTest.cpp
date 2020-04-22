@@ -22,7 +22,7 @@ uint64_t thread_number = 4;
 double distribution_skew = .0f;
 
 struct record {
-    uint64_t header1;
+    std::atomic<uint64_t> header1;
     uint64_t key;
     uint64_t value;
 };
@@ -37,7 +37,7 @@ void RecordTest() {
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     record *records = new record[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
-        records[i].header1 = 0xff;
+        records[i].header1.store(loads[i]);
         records[i].key = loads[i];
         records[i].value = loads[i];
     }
@@ -67,7 +67,7 @@ void RecordPtrTest() {
     record **records = new record *[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         records[i] = new record;
-        records[i]->header1 = 0xff;
+        records[i].header1.store(loads[i]);
         records[i]->key = loads[i];
         records[i]->value = loads[i];
     }
@@ -98,7 +98,7 @@ void RecordScanTest() {
     record **records = new record *[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         records[loads[i]] = new record;
-        records[loads[i]]->header1 = 0xff;
+        records[i].header1.store(loads[i]);
         records[loads[i]]->key = loads[i];
         records[loads[i]]->value = loads[i];
     }
@@ -178,7 +178,7 @@ void RecordHashTest() {
     record **records = new record *[total_count];
     for (uint64_t i = 0; i < total_count; i++) {
         records[i] = new record;
-        records[i]->header1 = 0xff;
+        records[i]->header1.store(loads[i]);
         records[i]->key = loads[i];
         records[i]->value = loads[i];
     }
@@ -190,6 +190,7 @@ void RecordHashTest() {
             uint64_t start = tid * card;
             for (uint64_t i = start; i < start + card; i++) {
                 uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+                uint64_t mark = records[hash]->header1.load();
                 value += records[hash]->value;
             }
         }, records, t));
