@@ -224,6 +224,7 @@ if (WITH_STRUCT)
             utils/CacheSteppingTest.cpp
             utils/CacheSteppingAtomicTest.cpp
             utils/MallocTest.cpp
+            utils/GeneralMapTest.cpp
             tests/NUMA_Unit/BST_UsageTest.cpp)
 endif ()
 
