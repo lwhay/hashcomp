@@ -13,6 +13,8 @@
 
 using namespace std;
 
+#define USE_SEPARATE 1
+
 uint64_t *loads;
 
 uint64_t key_range = (1llu << 20);
@@ -631,6 +633,10 @@ void RecordPageHashTest() {
 std::vector<uint64_t> *heap;
 uint64_t *heap_remaining;
 
+#if USE_SEPARATE == 1
+std::vector<uint64_t> *localloads;
+#endif
+
 void RecordPageLocalTest() {
     std::vector<std::thread> workers;
     Address *addresses = new Address[total_count];
@@ -659,6 +665,13 @@ void RecordPageLocalTest() {
     total_time.store(0);
     total_tick.store(0);
     stopMeasure.store(0);
+#if USE_SEPARATE == 1
+    localloads = new std::vector<uint64_t>[thread_number];
+    for (uint64_t i = 0; i < total_count; i++) {
+        uint64_t tid = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % thread_number;
+        localloads[tid].push_back(loads[i]);
+    }
+#endif
     Timer timer;
     timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
@@ -669,10 +682,16 @@ void RecordPageLocalTest() {
             tracer.startTime();
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
+#if USE_SEPARATE
+                for (uint64_t i = 0; i < localloads[tid].size(); i++) {
+                    uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) %
+                                    total_count;
+#else
                 for (uint64_t i = 0; i < total_count; i++) {
                     uint64_t hash =
                             MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                     if (hash % thread_number != tid) continue;
+#endif
 #if USE_ATOMIC_ADDRESS == 1
                     Address address = AtomicAddress(addresses[hash]).load();
 #else
