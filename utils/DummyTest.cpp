@@ -13,16 +13,6 @@
 
 using namespace std;
 
-#define USE_SEPARATE 1
-
-#define FULL_ISOLATE 1
-
-#ifdef linux
-#define NUMA_ISOLATE 1
-#else
-#define NUMA_ISOLATE 0
-#endif
-
 uint64_t *loads;
 
 uint64_t key_range = (1llu << 20);
@@ -51,7 +41,7 @@ std::atomic<uint64_t> total_tick{0};
 
 atomic<int> stopMeasure(0);
 
-uint64_t timer_range = default_timer_range;
+uint64_t timer_range = 30;
 
 void RecordTest() {
     std::vector<std::thread> workers;
@@ -587,7 +577,7 @@ void RecordPageHashTest() {
             pages.push_back((uint64_t) std::malloc(page_size));
             page_remaining = page_size;
         }
-        addresses[i] = Address(pages.size() - 1, page_remaining);
+        addresses[i] = Address(pages.size() - 1, page_size - page_remaining);
         record *ptr = (record *) (pages[addresses[i].page()] + addresses[i].offset());
         ptr->header1.store(loads[i]);
         ptr->key = loads[i];
@@ -641,9 +631,25 @@ void RecordPageHashTest() {
 std::vector<uint64_t> *heap;
 uint64_t *heap_remaining;
 
+#define USE_SEPARATE 1 // It means that pages are thread-local;
+
+#if USE_SEPARATE == 1
+#define FULL_ISOLATE 1 // It means that addresses are thread-local;
+#else
+#define FULL_ISOLATE 0
+#endif
+
+#ifdef linux
+#define NUMA_ISOLATE 1 // It means that threads are numa-based
+#else
+#define NUMA_ISOLATE 0
+#endif
+
 #if USE_SEPARATE == 1
 std::vector<uint64_t> *localloads;
 #endif
+
+#define SHUFFLE 1
 
 void RecordPageLocalTest() {
     std::vector<std::thread> workers;
@@ -673,26 +679,21 @@ void RecordPageLocalTest() {
             workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
 #endif
             for (uint64_t i = 0; i < total_count; i++) {
-#if FULL_ISOLATE == 1
                 if (heap_remaining[tid] <= sizeof(record)) {
                     heap[tid].push_back((uint64_t) std::malloc(page_size));
                     heap_remaining[tid] = page_size;
                 }
-                if (i % thread_number != tid) continue;
-
+#if FULL_ISOLATE == 1
                 uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323);
                 if (hash % thread_number != tid) continue;
                 hash = hash % (total_count / thread_number);
-                addresses[hash] = Address(heap[tid].size() - 1, heap_remaining[tid]);
+                addresses[hash] = Address(heap[tid].size() - 1, page_size - heap_remaining[tid]);
                 record *ptr = (record *) (heap[tid][addresses[hash].page()] + addresses[hash].offset());
 #else
-                if (heap_remaining[tid] <= sizeof(record)) {
-                    heap[tid].push_back((uint64_t) std::malloc(page_size));
-                    heap_remaining[tid] = page_size;
-                }
-                if (i % thread_number != tid) continue;
-                addresses[i] = Address(heap[tid].size() - 1, heap_remaining[tid]);
-                record *ptr = (record *) (heap[tid][addresses[i].page()] + addresses[i].offset());
+                uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+                if (hash % thread_number != tid) continue;
+                addresses[hash] = Address(heap[tid].size() - 1, page_size - heap_remaining[tid]);
+                record *ptr = (record *) (heap[tid][addresses[hash].page()] + addresses[hash].offset());
 #endif
                 ptr->header1.store(loads[i]);
                 ptr->key = loads[i];
@@ -723,12 +724,23 @@ void RecordPageLocalTest() {
 #if USE_SEPARATE == 1
     localloads = new std::vector<uint64_t>[thread_number];
     for (uint64_t i = 0; i < total_count; i++) {
-        uint64_t tid = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % thread_number;
+#if FULL_ISOLATE == 1
+        uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323);
+#else
+        uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+#endif
+        uint64_t tid = hash % thread_number;
         localloads[tid].push_back(loads[i]);
     }
-    for (uint64_t t = 0; t < thread_number; t++) std::random_shuffle(localloads[t].begin(), localloads[t].end());
+    for (uint64_t t = 0; t < thread_number; t++) {
+        std::cout << t << ":" << localloads[t].size() << "\t";
+        if ((t + 1) % 8 == 0) std::cout << std::endl;
+#if SHUFFLE == 1
+        std::random_shuffle(localloads[t].begin(), localloads[t].end());
 #endif
-    std::cout << "begin" << std::endl;
+    }
+#endif
+    std::cout << std::endl << "begin" << std::endl;
     Timer timer;
     timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
@@ -738,15 +750,19 @@ void RecordPageLocalTest() {
             workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
 #endif
             uint64_t card = total_count / thread_number;
-            uint64_t start = tid * card;
             Tracer tracer;
             tracer.startTime();
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
-#if USE_SEPARATE
+#if USE_SEPARATE == 1
                 for (uint64_t i = 0; i < localloads[tid].size(); i++) {
+#if FULL_ISOLATE
                     uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) %
                                     (total_count / thread_number);
+#else
+                    uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) %
+                                    total_count;
+#endif
 #else
                     for (uint64_t i = 0; i < total_count; i++) {
                         uint64_t hash =
@@ -761,6 +777,9 @@ void RecordPageLocalTest() {
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
                     value += ptr->value;
+                    /*if (tid == 0)
+                        std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
+                                  << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
                     tick++;
                 }
             }
