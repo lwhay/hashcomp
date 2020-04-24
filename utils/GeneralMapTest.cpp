@@ -49,11 +49,11 @@ void densemaptest(bool random) {
     for (uint64_t i = 0; i < total_count; i++) map.insert(std::pair<uint64_t, uint64_t>(loads[i], loads[i]));
     std::cout << "Google densemap insert: " << (double) total_count / tracer.getRunTime() << std::endl;
     if (random) std::random_shuffle(loads, loads + total_count);
-    std::cout << "Google densesemap shuffle: " << (double) total_count / tracer.getRunTime() << std::endl;
+    std::cout << "Google densemap shuffle: " << (double) total_count / tracer.getRunTime() << std::endl;
     for (int r = 0; r < 10; r++) for (uint64_t i = 0; i < total_count; i++) value = map.find(loads[i])->second;
-    std::cout << "Google densesemap find: " << (double) total_count * total_round / tracer.getRunTime() << std::endl;
+    std::cout << "Google densemap find: " << (double) total_count * total_round / tracer.getRunTime() << std::endl;
     for (int r = 0; r < 10; r++) for (uint64_t i = 0; i < total_count; i++) map.find(loads[i])->second = loads[i];
-    std::cout << "Google densesemap find: " << (double) total_count * total_round / tracer.getRunTime() << std::endl;
+    std::cout << "Google densemap find: " << (double) total_count * total_round / tracer.getRunTime() << std::endl;
 }
 
 void sparsemaptest(bool random) {
