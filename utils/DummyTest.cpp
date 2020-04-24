@@ -1189,12 +1189,22 @@ void RecordPageLocal4Test() {
     numa_set_localalloc();
     bitmask *bm = numa_bitmask_alloc(numcpus);
     std::cout << numa_available() << " " << numa_num_task_cpus() << " " << numa_max_node() << std::endl;
+
+    for (int i = 0; i <= numa_max_node(); ++i) {
+        numa_node_to_cpus(i, bm);
+        std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
+    }
+
     std::vector<std::thread> workers;
     unsigned num_cpus = std::thread::hardware_concurrency();
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
-    for (size_t i = 1; i < num_cpus; i++) CPU_SET(i, &cpuset);
+    for (size_t i = 0; i < num_cpus; i++) CPU_SET(i, &cpuset);
     std::cout << num_cpus << "\t" << *(cpuset.__bits) << std::endl;
+
+    for (int i = 0; i <= numa_max_node(); ++i) {
+        std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
+    }
 
     /*int numcpus = numa_num_task_cpus();
     bitmask *bm = numa_bitmask_alloc(numcpus);
@@ -1397,7 +1407,7 @@ int main(int argc, char **argv) {
     if (std::strlen(switcher) > 8 && switcher[8] == '1') RecordPageLocal2Test();
     if (std::strlen(switcher) > 9 && switcher[9] == '1') RecordPageLocal3Test();
     if (std::strlen(switcher) > 10 && switcher[10] == '1') RecordPageLocal4Test();
-    if (std::strlen(switcher) > 11 && switcher[11] == '1') RecordPageLocal1Test();
+    if (std::strlen(switcher) > 11 && switcher[11] == '1') RecordPageLocalTest();
     delete[] loads;
 
     if (std::strlen(switcher) > 12 && switcher[12] == '1') {
