@@ -667,9 +667,9 @@ void RecordPageLocalTest() {
 #endif
 #if FULL_ISOLATE == 1
     std::vector<Address> *localaddress = new std::vector<Address>[thread_number];
-    for (uint64_t i = 0; i < thread_number; i++) //localaddress[i].reserve(total_count / thread_number);
+    /*for (uint64_t i = 0; i < thread_number; i++) //localaddress[i].reserve(total_count / thread_number);
         for (uint64_t j = 0; j < total_count / thread_number; j++)
-            localaddress[i].push_back(Address(0, 0));
+            localaddress[i].push_back(Address(0, 0));*/
 #else
     Address *addresses = new Address[total_count];
 #endif
@@ -680,6 +680,7 @@ void RecordPageLocalTest() {
         heap_remaining[t] = 0;
 #if FULL_ISOLATE == 1
         workers.push_back(std::thread([](std::vector<Address> &addresses, uint64_t tid) {
+            for (uint64_t i = 0; i < total_count / thread_number; i++) addresses.push_back(Address{0, 0});
 #else
             workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
 #endif
@@ -762,8 +763,8 @@ void RecordPageLocalTest() {
 #if USE_SEPARATE == 1
                 for (uint64_t i = 0; i < localloads[tid].size(); i++) {
 #if FULL_ISOLATE
-                    uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) %
-                                    (total_count / thread_number);
+                    uint64_t hash =
+                            MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) % card;
 #else
                     uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) %
                                     total_count;
