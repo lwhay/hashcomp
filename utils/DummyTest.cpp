@@ -17,6 +17,12 @@ using namespace std;
 
 #define FULL_ISOLATE 1
 
+#ifdef linux
+#define NUMA_ISOLATE 1
+#else
+#define NUMA_ISOLATE 0
+#endif
+
 uint64_t *loads;
 
 uint64_t key_range = (1llu << 20);
@@ -641,6 +647,13 @@ std::vector<uint64_t> *localloads;
 
 void RecordPageLocalTest() {
     std::vector<std::thread> workers;
+#if NUMA_ISOLATE == 1
+    unsigned num_cpus = std::thread::hardware_concurrency();
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    for (size_t i = 1; i < num_cpus; i++) CPU_SET(i, &cpuset);
+    std::cout << num_cpus << "\t" << *(cpuset.__bits) << std::endl;
+#endif
 #if FULL_ISOLATE == 1
     std::vector<Address> *localaddress = new std::vector<Address>[thread_number];
     for (uint64_t i = 0; i < thread_number; i++) //localaddress[i].reserve(total_count / thread_number);
@@ -691,6 +704,15 @@ void RecordPageLocalTest() {
 #else
         }, addresses, t));
 #endif
+#if NUMA_ISOLATE
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(t, &cpuset);
+        int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
+        if (rc != 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+#endif
     }
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
     workers.clear();
@@ -704,6 +726,7 @@ void RecordPageLocalTest() {
         uint64_t tid = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % thread_number;
         localloads[tid].push_back(loads[i]);
     }
+    for (uint64_t t = 0; t < thread_number; t++) std::random_shuffle(localloads[t].begin(), localloads[t].end());
 #endif
     std::cout << "begin" << std::endl;
     Timer timer;
@@ -747,6 +770,15 @@ void RecordPageLocalTest() {
         }, std::ref(localaddress[t]), t));
 #else
         }, addresses, t));
+#endif
+#if NUMA_ISOLATE
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(t, &cpuset);
+        int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
+        if (rc != 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
 #endif
     }
 
