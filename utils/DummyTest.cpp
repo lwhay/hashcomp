@@ -1202,6 +1202,7 @@ void RecordPageLocal4Test() {
     for (size_t i = 0; i < num_cpus; i++) CPU_SET(i, &cpuset);
     std::cout << num_cpus << "\t" << *(cpuset.__bits) << std::endl;
 
+    bm = numa_bitmask_alloc(numcpus);
     for (int i = 0; i <= numa_max_node(); ++i) {
         std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
     }
@@ -1268,6 +1269,10 @@ void RecordPageLocal4Test() {
             std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
         }
 #endif
+    }
+    bm = numa_bitmask_alloc(numcpus);
+    for (int i = 0; i <= numa_max_node(); ++i) {
+        std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
     }
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
     workers.clear();
