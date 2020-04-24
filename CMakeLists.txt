@@ -240,7 +240,7 @@ foreach (sourcefile ${STRUCT_TESTS_EXES})
             EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
             OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
             )
-    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${PTHREAD} ${ATOMIC})
+    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${PTHREAD} ${ATOMIC} ${NUMA})
 endforeach (sourcefile ${STRUCT_TESTS_EXES})
 
 set(XH_TESTS_EXES ${XH_TEST})

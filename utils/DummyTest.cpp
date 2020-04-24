@@ -641,7 +641,7 @@ uint64_t *heap_remaining;
 #define USE_SEPARATE 1 // It means that pages are thread-local;
 
 #if USE_SEPARATE == 1
-#define FULL_ISOLATE 0 // It means that addresses are thread-local;
+#define FULL_ISOLATE 1 // It means that addresses are thread-local;
 #else
 #define FULL_ISOLATE 0
 #endif
@@ -652,9 +652,7 @@ uint64_t *heap_remaining;
 #define NUMA_ISOLATE 0
 #endif
 
-#if USE_SEPARATE == 1
 std::vector<uint64_t> *localloads;
-#endif
 
 void RecordPageLocalTest() {
     std::vector<std::thread> workers;
@@ -682,7 +680,7 @@ void RecordPageLocalTest() {
         workers.push_back(std::thread([](std::vector<Address> &addresses, uint64_t tid) {
             for (uint64_t i = 0; i < total_count / thread_number; i++) addresses.push_back(Address{0, 0});
 #else
-        workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
+            workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
 #endif
             for (uint64_t i = 0; i < total_count; i++) {
                 if (heap_remaining[tid] <= sizeof(record)) {
@@ -707,7 +705,7 @@ void RecordPageLocalTest() {
                 heap_remaining[tid] -= sizeof(record);
             }
 #if FULL_ISOLATE == 1
-            }, std::ref(localaddress[t]), t));
+        }, std::ref(localaddress[t]), t));
 #else
         }, addresses, t));
 #endif
@@ -753,7 +751,7 @@ void RecordPageLocalTest() {
 #if FULL_ISOLATE == 1
         workers.push_back(std::thread([](std::vector<Address> &addresses, uint64_t tid) {
 #else
-        workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
+            workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
 #endif
             uint64_t card = total_count / thread_number;
             Tracer tracer;
@@ -792,7 +790,7 @@ void RecordPageLocalTest() {
             total_time.fetch_add(tracer.getRunTime());
             total_tick.fetch_add(tick);
 #if FULL_ISOLATE == 1
-            }, std::ref(localaddress[t]), t));
+        }, std::ref(localaddress[t]), t));
 #else
         }, addresses, t));
 #endif
@@ -1184,6 +1182,195 @@ void RecordPageLocal3Test() {
     delete[] localloads;
 }
 
+void RecordPageLocal4Test() {
+#if NUMA_ISOLATE == 1
+    int numcpus = numa_num_task_cpus();
+    std::cout << "numa_available() " << numa_available() << std::endl;
+    numa_set_localalloc();
+    bitmask *bm = numa_bitmask_alloc(numcpus);
+    std::cout << numa_available() << " " << numa_num_task_cpus() << " " << numa_max_node() << std::endl;
+    std::vector<std::thread> workers;
+    unsigned num_cpus = std::thread::hardware_concurrency();
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    for (size_t i = 1; i < num_cpus; i++) CPU_SET(i, &cpuset);
+    std::cout << num_cpus << "\t" << *(cpuset.__bits) << std::endl;
+
+    /*int numcpus = numa_num_task_cpus();
+    bitmask *bm = numa_bitmask_alloc(numcpus);
+    for (int i = 0; i <= numa_max_node(); ++i) {
+        numa_node_to_cpus(i, bm);
+        std::cout << "numa node " << i << " " << *bm << " " << numa_node_size(i, 0) << std::endl;
+    }
+    numa_bitmask_free(bm);*/
+#if FULL_ISOLATE == 1
+    std::vector<Address> *localaddress = new std::vector<Address>[thread_number];
+    /*for (uint64_t i = 0; i < thread_number; i++) //localaddress[i].reserve(total_count / thread_number);
+        for (uint64_t j = 0; j < total_count / thread_number; j++)
+            localaddress[i].push_back(Address(0, 0));*/
+#else
+    Address *addresses = new Address[total_count];
+#endif
+    std::cout << "begin2" << std::endl;
+    heap = new std::vector<uint64_t>[thread_number];
+    heap_remaining = new uint64_t[thread_number];
+    for (uint64_t t = 0; t < thread_number; t++) {
+        heap_remaining[t] = 0;
+#if FULL_ISOLATE == 1
+        workers.push_back(std::thread([](std::vector<Address> &addresses, uint64_t tid) {
+            for (uint64_t i = 0; i < total_count / thread_number; i++) addresses.push_back(Address{0, 0});
+#else
+            workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
+#endif
+            for (uint64_t i = 0; i < total_count; i++) {
+                if (heap_remaining[tid] <= sizeof(record)) {
+                    heap[tid].push_back((uint64_t) std::malloc(page_size));
+                    heap_remaining[tid] = page_size;
+                }
+#if FULL_ISOLATE == 1
+                uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323);
+                if (hash % thread_number != tid) continue;
+                hash = hash % (total_count / thread_number);
+                addresses[hash] = Address(heap[tid].size() - 1, page_size - heap_remaining[tid]);
+                record *ptr = (record *) (heap[tid][addresses[hash].page()] + addresses[hash].offset());
+#else
+                uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+                if (hash % thread_number != tid) continue;
+                addresses[hash] = Address(heap[tid].size() - 1, page_size - heap_remaining[tid]);
+                record *ptr = (record *) (heap[tid][addresses[hash].page()] + addresses[hash].offset());
+#endif
+                ptr->header1.store(loads[i]);
+                ptr->key = loads[i];
+                ptr->value = loads[i];
+                heap_remaining[tid] -= sizeof(record);
+            }
+#if FULL_ISOLATE == 1
+        }, std::ref(localaddress[t]), t));
+#else
+        }, addresses, t));
+#endif
+#if NUMA_ISOLATE
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(t, &cpuset);
+        int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
+        if (rc != 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+#endif
+    }
+    for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
+    workers.clear();
+    total_time.store(0);
+    total_tick.store(0);
+    stopMeasure.store(0);
+    std::cout << "begin1" << std::endl;
+#if USE_SEPARATE == 1
+    localloads = new std::vector<uint64_t>[thread_number];
+    for (uint64_t i = 0; i < total_count; i++) {
+#if FULL_ISOLATE == 1
+        uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323);
+#else
+        uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+#endif
+        uint64_t tid = hash % thread_number;
+        localloads[tid].push_back(loads[i]);
+    }
+    for (uint64_t t = 0; t < thread_number; t++) {
+        std::cout << t << ":" << localloads[t].size() << "\t";
+        if ((t + 1) % 8 == 0) std::cout << std::endl;
+#if SHUFFLE == 1
+        std::random_shuffle(localloads[t].begin(), localloads[t].end());
+#endif
+    }
+#endif
+    std::cout << std::endl << "begin" << std::endl;
+    Timer timer;
+    timer.start();
+    for (uint64_t t = 0; t < thread_number; t++) {
+#if FULL_ISOLATE == 1
+        workers.push_back(std::thread([](std::vector<Address> &addresses, uint64_t tid) {
+#else
+            workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
+#endif
+            uint64_t card = total_count / thread_number;
+            Tracer tracer;
+            tracer.startTime();
+            uint64_t tick = 0;
+            while (stopMeasure.load() == 0) {
+#if USE_SEPARATE == 1
+                for (uint64_t i = 0; i < localloads[tid].size(); i++) {
+#if FULL_ISOLATE
+                    uint64_t hash =
+                            MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) % card;
+#else
+                    uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) %
+                                    total_count;
+#endif
+#else
+                    for (uint64_t i = 0; i < total_count; i++) {
+                        uint64_t hash =
+                                MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+                        if (hash % thread_number != tid) continue;
+#endif
+#if USE_ATOMIC_ADDRESS == 1
+                    Address address = AtomicAddress(addresses[hash]).load();
+#else
+                    Address address = addresses[hash];
+#endif
+                    record *ptr = (record *) (heap[tid][address.page()] + address.offset());
+                    ptr->header1.load();
+                    value += ptr->value;
+                    /*if (tid == 0)
+                        std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
+                                  << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
+                    tick++;
+                }
+            }
+            total_time.fetch_add(tracer.getRunTime());
+            total_tick.fetch_add(tick);
+#if FULL_ISOLATE == 1
+        }, std::ref(localaddress[t]), t));
+#else
+        }, addresses, t));
+#endif
+#if NUMA_ISOLATE
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(t, &cpuset);
+        int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
+        if (rc != 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+#endif
+    }
+
+    while (timer.elapsedSeconds() < timer_range) {
+        sleep(1);
+    }
+    stopMeasure.store(1, memory_order_relaxed);
+
+    for (uint64_t t = 0; t < thread_number; t++)
+        workers[t].join();
+
+    std::cout << "RecordPageLocal Tpt: " << (double) total_tick.load() * thread_number / total_time.load() << std::endl;
+    for (uint64_t t = 0; t < thread_number; t++) {
+        for (uint64_t i = 0; i < pages.size(); i++)
+            std::free((void *) heap[t][i]);
+    }
+    delete[] heap;
+    delete[] heap_remaining;
+#if USE_SEPARATE == 1
+#if FULL_ISOLATE == 1
+    delete[] localaddress;
+#endif
+    delete[] localloads;
+#else
+    delete[] addresses;
+#endif
+#endif
+}
+
 int main(int argc, char **argv) {
     if (argc > 5) {
         thread_number = std::atol(argv[1]);
@@ -1209,7 +1396,7 @@ int main(int argc, char **argv) {
     if (std::strlen(switcher) > 7 && switcher[7] == '1') RecordPageLocal1Test();
     if (std::strlen(switcher) > 8 && switcher[8] == '1') RecordPageLocal2Test();
     if (std::strlen(switcher) > 9 && switcher[9] == '1') RecordPageLocal3Test();
-    if (std::strlen(switcher) > 10 && switcher[10] == '1') RecordPageLocalTest();
+    if (std::strlen(switcher) > 10 && switcher[10] == '1') RecordPageLocal4Test();
     if (std::strlen(switcher) > 11 && switcher[11] == '1') RecordPageLocal1Test();
     delete[] loads;
 
