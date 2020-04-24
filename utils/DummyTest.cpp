@@ -569,6 +569,8 @@ uint64_t page_remaining = 0;
 
 std::vector<uint64_t> pages;
 
+#define SHUFFLE 1
+
 void RecordPageHashTest() {
     std::vector<std::thread> workers;
     Address *addresses = new Address[total_count];
@@ -577,8 +579,9 @@ void RecordPageHashTest() {
             pages.push_back((uint64_t) std::malloc(page_size));
             page_remaining = page_size;
         }
-        addresses[i] = Address(pages.size() - 1, page_size - page_remaining);
-        record *ptr = (record *) (pages[addresses[i].page()] + addresses[i].offset());
+        uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
+        addresses[hash] = Address(pages.size() - 1, page_size - page_remaining);
+        record *ptr = (record *) (pages[addresses[hash].page()] + addresses[hash].offset());
         ptr->header1.store(loads[i]);
         ptr->key = loads[i];
         ptr->value = loads[i];
@@ -587,6 +590,10 @@ void RecordPageHashTest() {
     total_time.store(0);
     total_tick.store(0);
     stopMeasure.store(0);
+#if SHUFFLE == 1
+    for (uint64_t t = 0; t < thread_number; t++)
+        std::random_shuffle(loads + t * total_count / thread_number, loads + (t + 1) * total_count / thread_number);
+#endif
     Timer timer;
     timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
@@ -648,8 +655,6 @@ uint64_t *heap_remaining;
 #if USE_SEPARATE == 1
 std::vector<uint64_t> *localloads;
 #endif
-
-#define SHUFFLE 1
 
 void RecordPageLocalTest() {
     std::vector<std::thread> workers;
