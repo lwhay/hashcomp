@@ -1182,7 +1182,12 @@ void RecordPageLocal3Test() {
     delete[] localloads;
 }
 
+unsigned num_cpus;
+
+int num_sock;
+
 void RecordPageLocal4Test() {
+#ifdef linux
 #if NUMA_ISOLATE == 1
     int numcpus = numa_num_task_cpus();
     std::cout << "numa_available() " << numa_available() << std::endl;
@@ -1190,20 +1195,22 @@ void RecordPageLocal4Test() {
     bitmask *bm = numa_bitmask_alloc(numcpus);
     std::cout << numa_available() << " " << numa_num_task_cpus() << " " << numa_max_node() << std::endl;
 
-    for (int i = 0; i <= numa_max_node(); ++i) {
+    num_sock = numa_max_node() + 1;
+
+    for (int i = 0; i < num_sock; ++i) {
         numa_node_to_cpus(i, bm);
         std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
     }
 
     std::vector<std::thread> workers;
-    unsigned num_cpus = std::thread::hardware_concurrency();
+    num_cpus = std::thread::hardware_concurrency();
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     for (size_t i = 0; i < num_cpus; i++) CPU_SET(i, &cpuset);
     std::cout << num_cpus << "\t" << *(cpuset.__bits) << std::endl;
 
     bm = numa_bitmask_alloc(numcpus);
-    for (int i = 0; i <= numa_max_node(); ++i) {
+    for (int i = 0; i < num_sock; ++i) {
         std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
     }
 
@@ -1214,6 +1221,7 @@ void RecordPageLocal4Test() {
         std::cout << "numa node " << i << " " << *bm << " " << numa_node_size(i, 0) << std::endl;
     }
     numa_bitmask_free(bm);*/
+#endif
 #if FULL_ISOLATE == 1
     std::vector<Address> *localaddress = new std::vector<Address>[thread_number];
     /*for (uint64_t i = 0; i < thread_number; i++) //localaddress[i].reserve(total_count / thread_number);
@@ -1239,12 +1247,14 @@ void RecordPageLocal4Test() {
                     heap_remaining[tid] = page_size;
                 }
 #if FULL_ISOLATE == 1
+                //both addresses and blocks are organized by threads;
                 uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323);
                 if (hash % thread_number != tid) continue;
                 hash = hash % (total_count / thread_number);
                 addresses[hash] = Address(heap[tid].size() - 1, page_size - heap_remaining[tid]);
                 record *ptr = (record *) (heap[tid][addresses[hash].page()] + addresses[hash].offset());
 #else
+                //addresses are organized uniformally
                 uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                 if (hash % thread_number != tid) continue;
                 addresses[hash] = Address(heap[tid].size() - 1, page_size - heap_remaining[tid]);
@@ -1280,58 +1290,41 @@ void RecordPageLocal4Test() {
     total_tick.store(0);
     stopMeasure.store(0);
     std::cout << "begin1" << std::endl;
-#if USE_SEPARATE == 1
-    localloads = new std::vector<uint64_t>[thread_number];
-    for (uint64_t i = 0; i < total_count; i++) {
-#if FULL_ISOLATE == 1
-        uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323);
-#else
-        uint64_t hash = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
-#endif
-        uint64_t tid = hash % thread_number;
-        localloads[tid].push_back(loads[i]);
-    }
-    for (uint64_t t = 0; t < thread_number; t++) {
-        std::cout << t << ":" << localloads[t].size() << "\t";
-        if ((t + 1) % 8 == 0) std::cout << std::endl;
-#if SHUFFLE == 1
-        std::random_shuffle(localloads[t].begin(), localloads[t].end());
-#endif
-    }
-#endif
     std::cout << std::endl << "begin" << std::endl;
     Timer timer;
     timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
 #if FULL_ISOLATE == 1
-        workers.push_back(std::thread([](std::vector<Address> &addresses, uint64_t tid) {
+        workers.push_back(std::thread([](std::vector<Address> *&addresses, uint64_t tid) {
 #else
             workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
 #endif
             uint64_t card = total_count / thread_number;
+            uint64_t thrd = thread_number;
+            uint64_t cpus = num_cpus / num_sock;
+            uint64_t sock = num_sock;
+            uint64_t skid = tid % cpus;
+            uint64_t begin = (tid % cpus) * (total_count / cpus);
+            uint64_t end = (tid + 1);
             Tracer tracer;
             tracer.startTime();
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
-#if USE_SEPARATE == 1
-                for (uint64_t i = 0; i < localloads[tid].size(); i++) {
+                for (uint64_t i = 0; i < total_count; i++) {
 #if FULL_ISOLATE
-                    uint64_t hash =
-                            MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) % card;
+                    uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323);
+                    uint64_t thrd_id = hash % thrd;
+                    uint64_t hash_id = hash % card;
+                    // should compute sock_id w.r.t hardware mapping.
+                    uint64_t sock_id = thrd_id % skid;
+                    if (sock_id != skid) continue;
 #else
-                    uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) %
-                                    total_count;
-#endif
-#else
-                    for (uint64_t i = 0; i < total_count; i++) {
-                        uint64_t hash =
-                                MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
-                        if (hash % thread_number != tid) continue;
+                    uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) %total_count;
 #endif
 #if USE_ATOMIC_ADDRESS == 1
                     Address address = AtomicAddress(addresses[hash]).load();
 #else
-                    Address address = addresses[hash];
+                    Address address = addresses[thrd_id][hash];
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
@@ -1345,7 +1338,7 @@ void RecordPageLocal4Test() {
             total_time.fetch_add(tracer.getRunTime());
             total_tick.fetch_add(tick);
 #if FULL_ISOLATE == 1
-        }, std::ref(localaddress[t]), t));
+        }, std::ref(localaddress), t));
 #else
         }, addresses, t));
 #endif
@@ -1368,18 +1361,16 @@ void RecordPageLocal4Test() {
     for (uint64_t t = 0; t < thread_number; t++)
         workers[t].join();
 
-    std::cout << "RecordPageLocal Tpt: " << (double) total_tick.load() * thread_number / total_time.load() << std::endl;
+    std::cout << "RecordPageLocal4 Tpt: " << (double) total_tick.load() * thread_number / total_time.load()
+              << std::endl;
     for (uint64_t t = 0; t < thread_number; t++) {
         for (uint64_t i = 0; i < pages.size(); i++)
             std::free((void *) heap[t][i]);
     }
     delete[] heap;
     delete[] heap_remaining;
-#if USE_SEPARATE == 1
 #if FULL_ISOLATE == 1
     delete[] localaddress;
-#endif
-    delete[] localloads;
 #else
     delete[] addresses;
 #endif
