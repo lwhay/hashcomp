@@ -1225,10 +1225,7 @@ void RecordPageLocal4Test() {
               << std::endl;
 #endif
 #if FULL_ISOLATE == 1
-    std::vector<Address> *localaddress = new std::vector<Address>[thread_number];
-    /*for (uint64_t i = 0; i < thread_number; i++) //localaddress[i].reserve(total_count / thread_number);
-        for (uint64_t j = 0; j < total_count / thread_number; j++)
-            localaddress[i].push_back(Address(0, 0));*/
+    Address **localaddress = new Address *[thread_number];
 #else
     Address *addresses = new Address[total_count];
 #endif
@@ -1238,8 +1235,14 @@ void RecordPageLocal4Test() {
     for (uint64_t t = 0; t < thread_number; t++) {
         heap_remaining[t] = 0;
 #if FULL_ISOLATE == 1
-        workers.push_back(std::thread([](std::vector<Address> &addresses, uint64_t tid) {
-            for (uint64_t i = 0; i < total_count / thread_number; i++) addresses.push_back(Address{0, 0});
+        workers.push_back(std::thread([](Address *&addresses, uint64_t tid) {
+#if NUMA_LOCAL
+            addresses = (Address *) numa_alloc_onnode(sizeof(Address) * total_count / thread_number,
+                                                      numa_node_of_cpu(tid));
+#else
+            address = (Address *)std::malloc(sizeof(Address) * total_count / thread_number);
+#endif
+            //for (uint64_t i = 0; i < total_count / thread_number; i++) addresses.push_back(Address{0, 0});
 #else
             workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
 #endif
@@ -1301,7 +1304,7 @@ void RecordPageLocal4Test() {
     timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
 #if FULL_ISOLATE == 1
-        workers.push_back(std::thread([](std::vector<Address> *&addresses, uint64_t tid) {
+        workers.push_back(std::thread([](Address **const &addresses, uint64_t tid) {
 #else
             workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
 #endif
@@ -1385,6 +1388,12 @@ void RecordPageLocal4Test() {
     delete[] heap;
     delete[] heap_remaining;
 #if FULL_ISOLATE == 1
+    for (uint64_t t = 0; t < thread_number; t++)
+#if NUMA_LOCAL
+            numa_free((void *) localaddress[t], sizeof(Address) * total_count / thread_number);
+#else
+    std::free((void*)localaddress[t]);
+#endif
     delete[] localaddress;
 #else
     delete[] addresses;
