@@ -1299,6 +1299,9 @@ void RecordPageLocal4Test() {
     total_tick.store(0);
     stopMeasure.store(0);
     std::cout << "begin" << std::endl;
+#if SHUFFLE == 1
+    std::random_shuffle(loads, loads + total_count);
+#endif
     /*for (uint64_t t = 0; t < thread_number; t++) std::cout << localaddress[t].size() << std::endl;*/
     Timer timer;
     timer.start();
