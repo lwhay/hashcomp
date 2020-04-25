@@ -1237,8 +1237,9 @@ void RecordPageLocal4Test() {
 #if FULL_ISOLATE == 1
         workers.push_back(std::thread([](Address *&addresses, uint64_t tid) {
 #if NUMA_LOCAL
-            addresses = (Address *) numa_alloc_onnode(sizeof(Address) * total_count / thread_number,
-                                                      numa_node_of_cpu(tid));
+            /*addresses = (Address *) numa_alloc_onnode(sizeof(Address) * total_count / thread_number,
+                                                      numa_node_of_cpu(tid));*/
+            addresses = (Address *) numa_alloc_local(sizeof(Address) * total_count / thread_number);
 #else
             addresses = (Address *)std::malloc(sizeof(Address) * total_count / thread_number);
 #endif
@@ -1249,8 +1250,8 @@ void RecordPageLocal4Test() {
             for (uint64_t i = 0; i < total_count; i++) {
                 if (heap_remaining[tid] <= sizeof(record)) {
 #if NUMA_LOCAL == 1
-                    heap[tid].push_back((uint64_t) numa_alloc_onnode(page_size, numa_node_of_cpu(tid)));
-                    //heap[tid].push_back((uint64_t) numa_alloc_local(page_size));
+                    //heap[tid].push_back((uint64_t) numa_alloc_onnode(page_size, numa_node_of_cpu(tid)));
+                    heap[tid].push_back((uint64_t) numa_alloc_local(page_size));
 #else
                     heap[tid].push_back((uint64_t) std::malloc(page_size));
 #endif
