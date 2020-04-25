@@ -1233,6 +1233,7 @@ void RecordPageLocal4Test() {
     heap = new std::vector<uint64_t>[thread_number];
     heap_remaining = new uint64_t[thread_number];
     for (uint64_t t = 0; t < thread_number; t++) {
+        std::cout << map[t] << std::endl;
         heap_remaining[t] = 0;
 #if FULL_ISOLATE == 1
         workers.push_back(std::thread([](Address *&addresses, uint64_t tid) {
@@ -1285,7 +1286,7 @@ void RecordPageLocal4Test() {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
         CPU_SET(t, &cpuset);
-        std::cout << std::bitset<MAX_HARD_THREAD_NUMBER>(*(cpuset.__bits)) << std::endl;
+        //std::cout << std::bitset<MAX_HARD_THREAD_NUMBER>(*(cpuset.__bits)) << std::endl;
         int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
         if (rc != 0) {
             std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
