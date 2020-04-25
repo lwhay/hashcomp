@@ -1188,6 +1188,8 @@ int num_sock;
 
 #define MAX_HARD_THREAD_NUMBER 64
 
+#define NUMA_LOCAL 1
+
 //char map[MAX_HARD_THREAD_NUMBER];
 std::bitset<MAX_HARD_THREAD_NUMBER> map[MAX_HARD_THREAD_NUMBER];
 
@@ -1208,26 +1210,19 @@ void RecordPageLocal4Test() {
         std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
         for (int i = 0; i < numcpus; i++) if (curcpu.test(i)) map[i] = std::bitset<64>(*bm->maskp);
     }
+    numa_bitmask_free(bm);
 
     std::vector<std::thread> workers;
     num_cpus = std::thread::hardware_concurrency();
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
-    for (size_t i = 0; i < num_cpus; i++) CPU_SET(i, &cpuset);
-    std::cout << num_cpus << "\t" << std::bitset<64>(*(cpuset.__bits)) << std::endl;
-
-    bm = numa_bitmask_alloc(numcpus);
-    for (int i = 0; i < num_sock; ++i) {
-        std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
+    for (size_t i = 0; i < num_cpus; i++) {
+        CPU_SET(i, &cpuset);
+        std::cout << "\t" << numa_node_of_cpu(i);
+        if ((i + 1) % (num_cpus / num_sock) == 0) std::cout << endl;
     }
-
-    /*int numcpus = numa_num_task_cpus();
-    bitmask *bm = numa_bitmask_alloc(numcpus);
-    for (int i = 0; i <= numa_max_node(); ++i) {
-        numa_node_to_cpus(i, bm);
-        std::cout << "numa node " << i << " " << *bm << " " << numa_node_size(i, 0) << std::endl;
-    }
-    numa_bitmask_free(bm);*/
+    std::cout << "cpus " << num_cpus << " " << std::bitset<64>(*(cpuset.__bits)) << " " << numa_num_configured_nodes()
+              << std::endl;
 #endif
 #if FULL_ISOLATE == 1
     std::vector<Address> *localaddress = new std::vector<Address>[thread_number];
@@ -1250,7 +1245,12 @@ void RecordPageLocal4Test() {
 #endif
             for (uint64_t i = 0; i < total_count; i++) {
                 if (heap_remaining[tid] <= sizeof(record)) {
+#if NUMA_LOCAL == 1
+                    heap[tid].push_back((uint64_t) numa_alloc_onnode(page_size, numa_node_of_cpu(tid)));
+                    //heap[tid].push_back((uint64_t) numa_alloc_local(page_size));
+#else
                     heap[tid].push_back((uint64_t) std::malloc(page_size));
+#endif
                     heap_remaining[tid] = page_size;
                 }
 #if FULL_ISOLATE == 1
@@ -1281,23 +1281,21 @@ void RecordPageLocal4Test() {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
         CPU_SET(t, &cpuset);
+        std::cout << std::bitset<MAX_HARD_THREAD_NUMBER>(*(cpuset.__bits)) << std::endl;
         int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
         if (rc != 0) {
             std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
         }
 #endif
     }
-    bm = numa_bitmask_alloc(numcpus);
-    for (int i = 0; i <= numa_max_node(); ++i) {
-        std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
-    }
+    std::cout << "begin1" << std::endl;
+
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
     workers.clear();
     total_time.store(0);
     total_tick.store(0);
     stopMeasure.store(0);
-    std::cout << "begin1" << std::endl;
-    std::cout << std::endl << "begin" << std::endl;
+    std::cout << "begin" << std::endl;
     /*for (uint64_t t = 0; t < thread_number; t++) std::cout << localaddress[t].size() << std::endl;*/
     Timer timer;
     timer.start();
@@ -1378,7 +1376,11 @@ void RecordPageLocal4Test() {
               << std::endl;
     for (uint64_t t = 0; t < thread_number; t++) {
         for (uint64_t i = 0; i < pages.size(); i++)
-            std::free((void *) heap[t][i]);
+#if NUMA_LOCAL == 1
+                numa_free((void *) heap[t][i], page_size);
+#else
+        std::free((void *) heap[t][i]);
+#endif
     }
     delete[] heap;
     delete[] heap_remaining;
