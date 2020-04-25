@@ -1291,6 +1291,7 @@ void RecordPageLocal4Test() {
     stopMeasure.store(0);
     std::cout << "begin1" << std::endl;
     std::cout << std::endl << "begin" << std::endl;
+    /*for (uint64_t t = 0; t < thread_number; t++) std::cout << localaddress[t].size() << std::endl;*/
     Timer timer;
     timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
@@ -1305,19 +1306,22 @@ void RecordPageLocal4Test() {
             uint64_t sock = num_sock;
             uint64_t skid = tid % cpus;
             uint64_t begin = (tid % cpus) * (total_count / cpus);
-            uint64_t end = (tid + 1);
+            uint64_t end = (tid % cpus + 1) * (total_count / cpus);
             Tracer tracer;
             tracer.startTime();
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
-                for (uint64_t i = 0; i < total_count; i++) {
+                for (uint64_t i = begin; i < end; i++) {
 #if FULL_ISOLATE
-                    uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323);
-                    uint64_t thrd_id = hash % thrd;
-                    uint64_t hash_id = hash % card;
+                    uint64_t hashkey = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323);
+                    uint64_t thrd_id = hashkey % thrd;
                     // should compute sock_id w.r.t hardware mapping.
-                    uint64_t sock_id = thrd_id % skid;
+                    uint64_t sock_id = thrd_id / cpus;
+                    /*if (tid == 0)
+                        std::cout << "\t" << thrd_id << " " << tick << " " << hash << " " << hash % thread_number
+                                  << std::endl;*/
                     if (sock_id != skid) continue;
+                    uint64_t hash = hashkey % card;
 #else
                     uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) %total_count;
 #endif
@@ -1326,11 +1330,11 @@ void RecordPageLocal4Test() {
 #else
                     Address address = addresses[thrd_id][hash];
 #endif
-                    record *ptr = (record *) (heap[tid][address.page()] + address.offset());
+                    record *ptr = (record *) (heap[thrd_id][address.page()] + address.offset());
                     ptr->header1.load();
                     value += ptr->value;
                     /*if (tid == 0)
-                        std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
+                        std::cout << "\t*" << thrd_id << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
                     tick++;
                 }
@@ -1358,8 +1362,7 @@ void RecordPageLocal4Test() {
     }
     stopMeasure.store(1, memory_order_relaxed);
 
-    for (uint64_t t = 0; t < thread_number; t++)
-        workers[t].join();
+    for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
     std::cout << "RecordPageLocal4 Tpt: " << (double) total_tick.load() * thread_number / total_time.load()
               << std::endl;
