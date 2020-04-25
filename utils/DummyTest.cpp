@@ -1186,6 +1186,10 @@ unsigned num_cpus;
 
 int num_sock;
 
+#define MAX_HARD_THREAD_NUMBER 64
+
+int map[MAX_HARD_THREAD_NUMBER];
+
 void RecordPageLocal4Test() {
 #ifdef linux
 #if NUMA_ISOLATE == 1
@@ -1199,7 +1203,9 @@ void RecordPageLocal4Test() {
 
     for (int i = 0; i < num_sock; ++i) {
         numa_node_to_cpus(i, bm);
+        std::bitset<64> curcpu(*bm->maskp);
         std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
+        for (int i = 0; i < numcpus; i++) if (curcpu.test(i)) map[i] = i;
     }
 
     std::vector<std::thread> workers;
@@ -1300,11 +1306,14 @@ void RecordPageLocal4Test() {
 #else
             workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
 #endif
+            int mapping[MAX_HARD_THREAD_NUMBER];
+            std::memcpy(mapping, map, sizeof(mapping));
+            //if (tid == 0) std::cout << sizeof(mapping) << std::endl;
             uint64_t card = total_count / thread_number;
             uint64_t thrd = thread_number;
             uint64_t cpus = num_cpus / num_sock;
             uint64_t sock = num_sock;
-            uint64_t skid = tid / cpus;
+            uint64_t skid = mapping[tid];//tid / cpus;
             uint64_t begin = (tid % cpus) * (total_count / cpus);
             uint64_t end = (tid % cpus + 1) * (total_count / cpus);
             Tracer tracer;
@@ -1316,7 +1325,7 @@ void RecordPageLocal4Test() {
                     uint64_t hashkey = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323);
                     uint64_t thrd_id = hashkey % thrd;
                     // should compute sock_id w.r.t hardware mapping.
-                    uint64_t sock_id = thrd_id / cpus;
+                    uint64_t sock_id = mapping[thrd_id]; //thrd_id / cpus;
                     /*if (tid == 2)
                         std::cout << "\t" << thrd_id << " " << tick << " " << sock_id << " " << skid << std::endl;*/
                     if (sock_id != skid) continue;
