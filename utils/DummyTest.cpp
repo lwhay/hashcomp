@@ -1240,7 +1240,7 @@ void RecordPageLocal4Test() {
             addresses = (Address *) numa_alloc_onnode(sizeof(Address) * total_count / thread_number,
                                                       numa_node_of_cpu(tid));
 #else
-            address = (Address *)std::malloc(sizeof(Address) * total_count / thread_number);
+            addresses = (Address *)std::malloc(sizeof(Address) * total_count / thread_number);
 #endif
             //for (uint64_t i = 0; i < total_count / thread_number; i++) addresses.push_back(Address{0, 0});
 #else
