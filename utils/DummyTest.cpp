@@ -1304,7 +1304,7 @@ void RecordPageLocal4Test() {
             uint64_t thrd = thread_number;
             uint64_t cpus = num_cpus / num_sock;
             uint64_t sock = num_sock;
-            uint64_t skid = tid % cpus;
+            uint64_t skid = tid / cpus;
             uint64_t begin = (tid % cpus) * (total_count / cpus);
             uint64_t end = (tid % cpus + 1) * (total_count / cpus);
             Tracer tracer;
@@ -1317,9 +1317,8 @@ void RecordPageLocal4Test() {
                     uint64_t thrd_id = hashkey % thrd;
                     // should compute sock_id w.r.t hardware mapping.
                     uint64_t sock_id = thrd_id / cpus;
-                    /*if (tid == 0)
-                        std::cout << "\t" << thrd_id << " " << tick << " " << hash << " " << hash % thread_number
-                                  << std::endl;*/
+                    /*if (tid == 2)
+                        std::cout << "\t" << thrd_id << " " << tick << " " << sock_id << " " << skid << std::endl;*/
                     if (sock_id != skid) continue;
                     uint64_t hash = hashkey % card;
 #else
@@ -1333,7 +1332,7 @@ void RecordPageLocal4Test() {
                     record *ptr = (record *) (heap[thrd_id][address.page()] + address.offset());
                     ptr->header1.load();
                     value += ptr->value;
-                    /*if (tid == 0)
+                    /*if (tid == 1)
                         std::cout << "\t*" << thrd_id << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
                     tick++;
