@@ -1188,7 +1188,7 @@ int num_sock;
 
 #define MAX_HARD_THREAD_NUMBER 64
 
-int map[MAX_HARD_THREAD_NUMBER];
+char map[MAX_HARD_THREAD_NUMBER];
 
 void RecordPageLocal4Test() {
 #ifdef linux
@@ -1213,7 +1213,7 @@ void RecordPageLocal4Test() {
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     for (size_t i = 0; i < num_cpus; i++) CPU_SET(i, &cpuset);
-    std::cout << num_cpus << "\t" << *(cpuset.__bits) << std::endl;
+    std::cout << num_cpus << "\t" << std::bitset<64>(*(cpuset.__bits)) << std::endl;
 
     bm = numa_bitmask_alloc(numcpus);
     for (int i = 0; i < num_sock; ++i) {
@@ -1306,13 +1306,12 @@ void RecordPageLocal4Test() {
 #else
             workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
 #endif
-            int mapping[MAX_HARD_THREAD_NUMBER];
+            char mapping[MAX_HARD_THREAD_NUMBER];
             std::memcpy(mapping, map, sizeof(mapping));
             //if (tid == 0) std::cout << sizeof(mapping) << std::endl;
             uint64_t card = total_count / thread_number;
             uint64_t thrd = thread_number;
             uint64_t cpus = num_cpus / num_sock;
-            uint64_t sock = num_sock;
             uint64_t skid = mapping[tid];//tid / cpus;
             uint64_t begin = (tid % cpus) * (total_count / cpus);
             uint64_t end = (tid % cpus + 1) * (total_count / cpus);
