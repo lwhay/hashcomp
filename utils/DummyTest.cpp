@@ -21,6 +21,8 @@ uint64_t total_count = (1llu << 20);
 
 uint64_t thread_number = 4;
 
+#define VALUE_SIZE 8
+
 char *switcher = "1111111111111";
 
 double distribution_skew = .0f;
@@ -28,7 +30,7 @@ double distribution_skew = .0f;
 struct record {
     std::atomic<uint64_t> header1;
     uint64_t key;
-    uint64_t value;
+    uint64_t value[VALUE_SIZE];
     uint8_t unaligned;
     bool ub;
 };
@@ -49,7 +51,7 @@ void RecordTest() {
     for (uint64_t i = 0; i < total_count; i++) {
         records[i].header1.store(loads[i]);
         records[i].key = loads[i];
-        records[i].value = loads[i];
+        for (int j = 0; j < VALUE_SIZE; j++) records[i].value[j] = loads[i];
     }
     total_time.store(0);
     total_tick.store(0);
@@ -65,7 +67,7 @@ void RecordTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
-                    value += records[loads[i] % total_count].value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += records[loads[i] % total_count].value[j];
                     tick++;
                 }
             }
@@ -91,7 +93,7 @@ void RecordPtrTest() {
         records[i] = new record;
         records[i]->header1.store(loads[i]);
         records[i]->key = loads[i];
-        records[i]->value = loads[i];
+        for (int j = 0; j < VALUE_SIZE; j++) records[i]->value[j] = loads[i];
     }
     total_time.store(0);
     total_tick.store(0);
@@ -107,7 +109,7 @@ void RecordPtrTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
-                    value += records[loads[i] % total_count]->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += records[loads[i] % total_count]->value[j];
                     tick++;
                 }
             }
@@ -136,7 +138,7 @@ void RecordScanTest() {
         records[idx] = new record;
         records[idx]->header1.store(loads[i]);
         records[idx]->key = loads[i];
-        records[idx]->value = loads[i];
+        for (int j = 0; j < VALUE_SIZE; j++) records[idx]->value[j] = loads[i];
     }
     total_time.store(0);
     total_tick.store(0);
@@ -152,7 +154,7 @@ void RecordScanTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
-                    value += records[loads[i] % total_count]->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += records[loads[i] % total_count]->value[j];
                     tick++;
                 }
             }
@@ -233,7 +235,7 @@ void RecordHashTest() {
         records[i] = new record;
         records[i]->header1.store(loads[i]);
         records[i]->key = loads[i];
-        records[i]->value = loads[i];
+        for (int j = 0; j < VALUE_SIZE; j++) records[i]->value[j] = loads[i];
     }
     total_time.store(0);
     total_tick.store(0);
@@ -252,7 +254,7 @@ void RecordHashTest() {
                     uint64_t hash =
                             MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                     uint64_t mark = records[hash]->header1.load();
-                    value += records[hash]->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += records[hash]->value[j];
                     tick++;
                 }
             }
@@ -289,7 +291,7 @@ void RecordBlockHashTest() {
         records[i] = (record *) (blocks.back() + block_size - block_remaining);
         records[i]->header1.store(loads[i]);
         records[i]->key = loads[i];
-        records[i]->value = loads[i];
+        for (int j = 0; j < VALUE_SIZE; j++) records[i]->value[j] = loads[i];
         block_remaining -= sizeof(record);
     }
     total_time.store(0);
@@ -309,7 +311,7 @@ void RecordBlockHashTest() {
                     uint64_t hash =
                             MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                     uint64_t mark = records[hash]->header1.load();
-                    value += records[hash]->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += records[hash]->value[j];
                     tick++;
                 }
             }
@@ -351,7 +353,7 @@ void RecordNumaBlockHashTest() {
         records[i] = (record *) (blocks.back() + block_size - block_remaining);
         records[i]->header1.store(loads[i]);
         records[i]->key = loads[i];
-        records[i]->value = loads[i];
+        for (int j = 0; j < VALUE_SIZE; j++) records[i]->value[j] = loads[i];
         block_remaining -= sizeof(record);
     }
     total_time.store(0);
@@ -371,7 +373,7 @@ void RecordNumaBlockHashTest() {
                     uint64_t hash =
                             MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                     uint64_t mark = records[hash]->header1.load();
-                    value += records[hash]->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += records[hash]->value[j];
                     tick++;
                 }
             }
@@ -584,7 +586,7 @@ void RecordPageHashTest() {
         record *ptr = (record *) (pages[addresses[hash].page()] + addresses[hash].offset());
         ptr->header1.store(loads[i]);
         ptr->key = loads[i];
-        ptr->value = loads[i];
+        for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = loads[i];
         page_remaining -= sizeof(record);
     }
     total_time.store(0);
@@ -614,7 +616,7 @@ void RecordPageHashTest() {
 #endif
                     record *ptr = (record *) (pages[address.page()] + address.offset());
                     ptr->header1.load();
-                    value += ptr->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
                     tick++;
                 }
             }
@@ -701,7 +703,7 @@ void RecordPageLocalTest() {
 #endif
                 ptr->header1.store(loads[i]);
                 ptr->key = loads[i];
-                ptr->value = loads[i];
+                for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = loads[i];
                 heap_remaining[tid] -= sizeof(record);
             }
 #if FULL_ISOLATE == 1
@@ -781,7 +783,7 @@ void RecordPageLocalTest() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
-                    value += ptr->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -858,7 +860,7 @@ void RecordPageLocal1Test() {
                 record *ptr = (record *) (heap[tid][addresses[hash].page()] + addresses[hash].offset());
                 ptr->header1.store(loads[i]);
                 ptr->key = loads[i];
-                ptr->value = loads[i];
+                for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = loads[i];
                 heap_remaining[tid] -= sizeof(record);
             }
         }, addresses, t));
@@ -899,7 +901,7 @@ void RecordPageLocal1Test() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
-                    value += ptr->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -966,7 +968,7 @@ void RecordPageLocal2Test() {
                 record *ptr = (record *) (heap[tid][addresses[hash].page()] + addresses[hash].offset());
                 ptr->header1.store(loads[i]);
                 ptr->key = loads[i];
-                ptr->value = loads[i];
+                for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = loads[i];
                 heap_remaining[tid] -= sizeof(record);
             }
         }, addresses, t));
@@ -1019,7 +1021,7 @@ void RecordPageLocal2Test() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
-                    value += ptr->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -1089,7 +1091,7 @@ void RecordPageLocal3Test() {
                 record *ptr = (record *) (heap[tid][addresses[hash].page()] + addresses[hash].offset());
                 ptr->header1.store(loads[i]);
                 ptr->key = loads[i];
-                ptr->value = loads[i];
+                for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = loads[i];
                 heap_remaining[tid] -= sizeof(record);
             }
         }, std::ref(localaddress[t]), t));
@@ -1142,7 +1144,7 @@ void RecordPageLocal3Test() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
-                    value += ptr->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -1275,7 +1277,7 @@ void RecordPageLocal4Test() {
 #endif
                 ptr->header1.store(loads[i]);
                 ptr->key = loads[i];
-                ptr->value = loads[i];
+                for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = loads[i];
                 heap_remaining[tid] -= sizeof(record);
             }
 #if FULL_ISOLATE == 1
@@ -1358,7 +1360,7 @@ void RecordPageLocal4Test() {
 
                     register record *ptr = (record *) (heap[thrd_id][address.page()] + address.offset());
                     ptr->header1.load();
-                    value += ptr->value;
+                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
                     /*if (tid == 1)
                         std::cout << "\t*" << thrd_id << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
