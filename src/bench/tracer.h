@@ -181,7 +181,7 @@ public:
 };
 
 class YCSBLoader {
-private:
+protected:
     char *inputpath;
     size_t numberOfRequests;
     size_t limitOfRequests;
@@ -215,6 +215,7 @@ public:
         std::vector<YCSB_request *> requests;
         std::fstream lf(inputpath, ios::in);
         string line;
+
         while (std::getline(lf, line)) {
             std::vector<std::string> fields;
             supersplit(line, fields, " ", 3);
@@ -240,6 +241,68 @@ public:
     }
 
     size_t size() { return numberOfRequests; }
+};
+
+class YCSB_fixed_request {
+private:
+    YCSB_operator op;
+    uint64_t key;
+    char *val;
+    size_t vs;
+public:
+    YCSB_fixed_request(YCSB_operator _op, uint64_t _key, size_t _ks, char *_val = nullptr, size_t _vs = 0) : op(_op),
+                                                                                                             key(_key),
+                                                                                                             val(_val),
+                                                                                                             vs(_vs) {}
+
+    ~YCSB_fixed_request() {
+        delete val;
+    }
+
+    YCSB_operator getOp() { return op; }
+
+    uint64_t getKey() { return key; }
+
+    size_t keyLength() { return sizeof(uint64_t); }
+
+    char *getVal() { return val; }
+
+    size_t valLength() { return vs; }
+};
+
+class YCSBFixedLengthLoader : public YCSBLoader {
+public:
+    YCSBFixedLengthLoader(char *path, size_t number = std::numeric_limits<size_t>::max()) : YCSBLoader(path, number) {}
+
+    std::vector<YCSB_fixed_request *> load() {
+        std::vector<YCSB_fixed_request *> requests;
+        std::fstream lf(inputpath, ios::in);
+        string line;
+
+        while (std::getline(lf, line)) {
+            std::vector<std::string> fields;
+            supersplit(line, fields, " ", 3);
+            if (fields.size() < 2) continue;
+            for (int i = 0; i < 5; i++) {
+                if (fields[0].compare(YCSB_command[i]) == 0) {
+                    if (i % 2 == 0) {
+                        requests.push_back(new YCSB_fixed_request(static_cast<YCSB_operator>(i),
+                                                                  std::atol(strdup(fields[2].substr(4).c_str())),
+                                                                  fields[2].length()));
+                    } else {
+                        requests.push_back(new YCSB_fixed_request(static_cast<YCSB_operator>(i),
+                                                                  std::atol(strdup(fields[2].substr(4).c_str())),
+                                                                  fields[2].length(), strdup(fields[3].c_str()),
+                                                                  fields[3].length()));
+                    }
+                    if (++numberOfRequests == limitOfRequests) goto complete;
+                }
+            }
+        }
+        complete:
+        lf.close();
+        return requests;
+    }
 };
 }
 

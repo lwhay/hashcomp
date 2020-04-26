@@ -885,7 +885,6 @@ void RecordPageLocal1Test() {
     timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
         workers.push_back(std::thread([](Address *addresses, uint64_t tid) {
-            uint64_t card = total_count / thread_number;
             Tracer tracer;
             tracer.startTime();
             uint64_t tick = 0;
@@ -933,7 +932,7 @@ void RecordPageLocal1Test() {
     std::cout << "RecordPageLocal1 Tpt: " << (double) total_tick.load() * thread_number / total_time.load()
               << std::endl;
     for (uint64_t t = 0; t < thread_number; t++) {
-        for (uint64_t i = 0; i < pages.size(); i++)
+        for (uint64_t i = 0; i < heap[t].size(); i++)
             std::free((void *) heap[t][i]);
     }
     delete[] heap;
@@ -1053,7 +1052,7 @@ void RecordPageLocal2Test() {
     std::cout << "RecordPageLocal2 Tpt: " << (double) total_tick.load() * thread_number / total_time.load()
               << std::endl;
     for (uint64_t t = 0; t < thread_number; t++) {
-        for (uint64_t i = 0; i < pages.size(); i++)
+        for (uint64_t i = 0; i < heap[t].size(); i++)
             std::free((void *) heap[t][i]);
     }
     delete[] heap;
@@ -1176,7 +1175,7 @@ void RecordPageLocal3Test() {
     std::cout << "RecordPageLocal3 Tpt: " << (double) total_tick.load() * thread_number / total_time.load()
               << std::endl;
     for (uint64_t t = 0; t < thread_number; t++) {
-        for (uint64_t i = 0; i < pages.size(); i++)
+        for (uint64_t i = 0; i < heap[t].size(); i++)
             std::free((void *) heap[t][i]);
     }
     delete[] heap;
@@ -1395,7 +1394,7 @@ void RecordPageLocal4Test() {
     std::cout << "RecordPageLocal4 Tpt: " << (double) total_tick.load() * thread_number / total_time.load()
               << std::endl;
     for (uint64_t t = 0; t < thread_number; t++) {
-        for (uint64_t i = 0; i < pages.size(); i++)
+        for (uint64_t i = 0; i < heap[t].size(); i++)
 #if NUMA_LOCAL == 1
                 numa_free((void *) heap[t][i], page_size);
 #else
