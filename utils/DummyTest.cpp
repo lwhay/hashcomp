@@ -1316,10 +1316,12 @@ void RecordPageLocal4Test() {
 #endif
             //char mapping[MAX_HARD_THREAD_NUMBER];
             //std::memcpy(mapping, map, sizeof(mapping));
-            std::bitset<MAX_HARD_THREAD_NUMBER> mapping(map[tid]);
+            //uint64_t mapping = map[tid].to_ullong();
+            register std::bitset<MAX_HARD_THREAD_NUMBER> mapping(map[tid]);
+            register uint64_t *input = loads;
             //if (tid == 0) std::cout << sizeof(mapping) << std::endl;
             uint64_t card = total_count / thread_number;
-            uint64_t thrd = thread_number;
+            unsigned char thrd = thread_number;
             uint64_t cpus = num_cpus / num_sock;
             //uint64_t skid = mapping[tid];//tid / cpus;
             uint64_t begin = (tid % cpus) * (total_count / cpus);
@@ -1329,20 +1331,22 @@ void RecordPageLocal4Test() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = begin; i < end; i++) {
-                    uint64_t hashkey = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323);
-                    uint64_t thrd_id = hashkey % thrd;
+                    register uint64_t hashkey = MurmurHash64A((void *) (input + i), sizeof(uint64_t),
+                                                              0x234233242324323);
+                    register uint64_t thrd_id = hashkey % thrd;
                     // should compute sock_id w.r.t hardware mapping.
                     //uint64_t sock_id = mapping[thrd_id]; //thrd_id / cpus;
                     /*if (tid == 2)
                         std::cout << "\t" << thrd_id << " " << tick << " " << sock_id << " " << skid << std::endl;*/
                     //if (sock_id != skid) continue;
+                    //if (mapping and 1llu << thrd_id == 0) continue;
                     if (!mapping.test(thrd_id)) continue;
-                    uint64_t hash = hashkey % card;
+                    register uint64_t hash = hashkey % card;
 #if FULL_ISOLATE
 #if USE_ATOMIC_ADDRESS == 1
                     Address address = AtomicAddress(addresses[thrd_id][hash]).load();
 #else
-                    Address address = addresses[thrd_id][hash];
+                    register Address address = addresses[thrd_id][hash];
 #endif
 #else
 #if USE_ATOMIC_ADDRESS == 1
@@ -1352,7 +1356,7 @@ void RecordPageLocal4Test() {
 #endif
 #endif
 
-                    record *ptr = (record *) (heap[thrd_id][address.page()] + address.offset());
+                    register record *ptr = (record *) (heap[thrd_id][address.page()] + address.offset());
                     ptr->header1.load();
                     value += ptr->value;
                     /*if (tid == 1)
