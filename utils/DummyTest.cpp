@@ -744,7 +744,8 @@ void RecordPageLocalTest() {
 #endif
     }
 #endif
-    std::cout << std::endl << "begin" << std::endl;
+    if (thread_number % 8 != 0) std::cout << std::endl;
+    std::cout << "begin" << std::endl;
     Timer timer;
     timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
@@ -877,7 +878,7 @@ void RecordPageLocal1Test() {
     total_tick.store(0);
     stopMeasure.store(0);
     std::cout << "begin1" << std::endl;
-    std::cout << std::endl << "begin" << std::endl;
+    std::cout << "begin" << std::endl;
     Timer timer;
     timer.start();
     for (uint64_t t = 0; t < thread_number; t++) {
@@ -1328,7 +1329,6 @@ void RecordPageLocal4Test() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = begin; i < end; i++) {
-#if FULL_ISOLATE
                     uint64_t hashkey = MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323);
                     uint64_t thrd_id = hashkey % thrd;
                     // should compute sock_id w.r.t hardware mapping.
@@ -1338,14 +1338,20 @@ void RecordPageLocal4Test() {
                     //if (sock_id != skid) continue;
                     if (!mapping.test(thrd_id)) continue;
                     uint64_t hash = hashkey % card;
-#else
-                    uint64_t hash = MurmurHash64A((void *) &localloads[tid][i], sizeof(uint64_t), 0x234233242324323) %total_count;
-#endif
+#if FULL_ISOLATE
 #if USE_ATOMIC_ADDRESS == 1
-                    Address address = AtomicAddress(addresses[hash]).load();
+                    Address address = AtomicAddress(addresses[thrd_id][hash]).load();
 #else
                     Address address = addresses[thrd_id][hash];
 #endif
+#else
+#if USE_ATOMIC_ADDRESS == 1
+                    Address address = AtomicAddress(addresses[hash]).load();
+#else
+                    Address address = addresses[hash];
+#endif
+#endif
+
                     record *ptr = (record *) (heap[thrd_id][address.page()] + address.offset());
                     ptr->header1.load();
                     value += ptr->value;
