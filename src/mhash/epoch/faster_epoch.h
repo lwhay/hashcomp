@@ -28,6 +28,10 @@ class faster_epoch : public ihazard<T, D> {
 public:
     faster_epoch(uint64_t thread_count) : epoch(thread_count) {}
 
+    ~faster_epoch() {
+        epoch.Unprotect();
+    }
+
     void registerThread() {}
 
     void initThread(size_t tid = 0) {}
@@ -44,16 +48,18 @@ public:
     }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
-        //epoch.ReentrantProtect();
+        epoch.ReentrantProtect();
         return ptr.load();
     }
 
     void read(size_t tid) {
-        //epoch.ReentrantUnprotect();
+        epoch.ReentrantUnprotect();
     }
 
     bool free(uint64_t ptr) {
         //allocator.FreeAtEpoch(ptr, 0);
+        epoch.BumpCurrentEpoch();
+        return true;
     }
 
     const char *info() { return "faster_epoch"; }

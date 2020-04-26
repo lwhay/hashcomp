@@ -180,7 +180,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             else
 #endif
             if (hash_freent >= 5 && hash_freent <= 13) ptr = (node *) deallocator->allocate(tid); // useless tid in 6-12
-            else if (hash_freent == 14) ptr = ((faster_epoch<node> *) deallocator)->allocate();
+                //else if (hash_freent == 14) ptr = ((faster_epoch<node> *) deallocator)->allocate();
             else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = loads[i];
             ptr->value = 1;
