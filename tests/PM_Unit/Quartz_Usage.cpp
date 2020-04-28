@@ -61,7 +61,11 @@ std::atomic<uint64_t> total_time{0};
 
 std::atomic<uint64_t> total_count{0};
 
+std::atomic<double> total_summation(.0f);
+
 bool first_round = true;
+
+#define ENFORCE_READING 1
 
 pthread_t *workers;
 void ****ptrs;
@@ -136,6 +140,14 @@ void *pmreader(void *args) {
             }
         }
     }
+#if ENFORCE_READING == 1
+    double oldtotal;
+    double newtotal;
+    do {
+        oldtotal = total_summation.load();
+        newtotal = oldtotal + total;
+    } while (!total_summation.compare_exchange_strong(oldtotal, newtotal));
+#endif
     total_time.fetch_add(tracer.getRunTime());
     total_count.fetch_add(run_iteration * total_element * gran_perround / run_iteration / thread_number);
 }
@@ -208,8 +220,9 @@ void runner(void *func(void *), const char *fname, int r = -1) {
     if (r == -1)
         printf("%s: %lld %f\n", fname, duration, (double) total_count.load() * thread_number / total_time.load());
     else
-        printf("%s%d: %lld %f MB/s\n", fname, r, duration,
-               (double) total_count.load() * thread_number * 1000000 / total_time.load() / (1llu << 30));
+        printf("%s%d: %lld %f GB/s %f\n", fname, r, duration,
+               (double) total_count.load() * thread_number * 1000000 / total_time.load() / (1llu << 30),
+               total_summation.load());
 
     free(tids);
 }
