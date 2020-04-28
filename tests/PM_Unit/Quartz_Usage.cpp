@@ -208,8 +208,8 @@ void runner(void *func(void *), const char *fname, int r = -1) {
     if (r == -1)
         printf("%s: %lld %f\n", fname, duration, (double) total_count.load() * thread_number / total_time.load());
     else
-        printf("%s%d: %lld %f MB\n", fname, r, duration,
-               (double) total_count.load() * thread_number / total_time.load() / (1llu << 20));
+        printf("%s%d: %lld %f MB/s\n", fname, r, duration,
+               (double) total_count.load() * thread_number * 1000000 / total_time.load() / (1llu << 30));
 
     free(tids);
 }
