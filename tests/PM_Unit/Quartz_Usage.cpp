@@ -2,6 +2,7 @@
 // Created by iclab on 1/23/20.
 //
 
+#include <cassert>
 #include <atomic>
 #include <iostream>
 #include <pthread.h>
