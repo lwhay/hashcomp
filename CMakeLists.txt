@@ -703,7 +703,7 @@ if (WITH_QUARTZ)
         if (PMEM_NVMEMUL AND CMAKE_SYSTEM_NAME MATCHES "Linux")
             add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} quartz)
         endif ()
-        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${LIBNVMEMUL} pthread $(NUMA))
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${LIBNVMEMUL} pthread ${NUMA})
     endforeach (sourcefile ${QUARTZ_TEST})
 endif ()
 
