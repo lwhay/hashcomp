@@ -70,6 +70,8 @@ bool first_round = true;
 
 #define OPERATION_TYPE 0 // 0: char; 1: ushort; 2: uint; 3: ulong
 
+#define ROUND_ROBIN 1 // 0: 1-1; 1: 1-2, 2-3, ..., n-1; 2: 0:n, 1:n-1,...
+
 pthread_t *workers;
 void ****ptrs;
 
@@ -117,29 +119,35 @@ void *pmwriter(void *args) {
     int tid = *(int *) args;
     double total = .0f;
     bool init = first_round;
+    int idx = tid;
+#if ROUND_ROBIN == 1
+    idx = (idx + 1) % thread_number;
+#elif ROUND_ROBIN == 2
+    idx = thread_number - idx;
+#endif
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
             for (size_t j = 0; j < gran_perround; j++) {
 #if OPERATION_TYPE == 0
                 if (init)
-                    *(((char *) ptrs[tid][r][i]) + j) = 0;
+                    *(((char *) ptrs[idx][r][i]) + j) = 0;
                 else
-                    *(((char *) ptrs[tid][r][i]) + ((j * 1009) % gran_perround)) += 1;
+                    *(((char *) ptrs[idx][r][i]) + ((j * 1009) % gran_perround)) += 1;
 #elif OPERATION_TYPE == 1
                 if (init)
-                    *(((unsigned short *) ptrs[tid][r][i]) + (j * 2) % (gran_perround / 2)) = 0;
+                    *(((unsigned short *) ptrs[idx][r][i]) + (j * 2) % (gran_perround / 2)) = 0;
                 else
-                    *(((unsigned short *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 2))) += 1;
+                    *(((unsigned short *) ptrs[idx][r][i]) + ((j * 1009) % (gran_perround / 2))) += 1;
 #elif OPERATION_TYPE == 2
                 if (init)
-                    *(((uint32_t *) ptrs[tid][r][i]) + (j * 4) % (gran_perround / 4)) = 0;
+                    *(((uint32_t *) ptrs[idx][r][i]) + (j * 4) % (gran_perround / 4)) = 0;
                 else
-                    *(((uint32_t *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 4))) += 1;
+                    *(((uint32_t *) ptrs[idx][r][i]) + ((j * 1009) % (gran_perround / 4))) += 1;
 #elif OPERATION_TYPE == 3
                 if (init)
-                    *(((uint64_t *) ptrs[tid][r][i]) + (j * 8) % (gran_perround / 8)) = 0;
+                    *(((uint64_t *) ptrs[idx][r][i]) + (j * 8) % (gran_perround / 8)) = 0;
                 else
-                    *(((uint64_t *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 8))) += 1;
+                    *(((uint64_t *) ptrs[idx][r][i]) + ((j * 1009) % (gran_perround / 8))) += 1;
 #endif
             }
         }
@@ -153,17 +161,23 @@ void *pmreader(void *args) {
     tracer.startTime();
     int tid = *(int *) args;
     double total = .0f;
+    int idx = tid;
+#if ROUND_ROBIN == 1
+    idx = (idx + 1) % thread_number;
+#elif ROUND_ROBIN == 2
+    idx = thread_number - idx;
+#endif
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
             for (size_t j = 0; j < gran_perround; j++) {
 #if OPERATION_TYPE == 0
-                total += *(((char *) ptrs[tid][r][i]) + ((j * 1009) % gran_perround));
+                total += *(((char *) ptrs[idx][r][i]) + ((j * 1009) % gran_perround));
 #elif OPERATION_TYPE == 1
-                total += *(((unsigned short *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 2)));
+                total += *(((unsigned short *) ptrs[idx][r][i]) + ((j * 1009) % (gran_perround / 2)));
 #elif OPERATION_TYPE == 2
-                total += *(((uint32_t *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 4)));
+                total += *(((uint32_t *) ptrs[idx][r][i]) + ((j * 1009) % (gran_perround / 4)));
 #elif OPERATION_TYPE == 3
-                total += *(((uint64_t *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 8)));
+                total += *(((uint64_t *) ptrs[idx][r][i]) + ((j * 1009) % (gran_perround / 8)));
 #endif
             }
         }
