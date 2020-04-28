@@ -17,6 +17,15 @@
 extern "C" void *pmalloc(size_t size);
 
 #endif
+
+#include <numa.h>
+
+#define nmalloc numa_alloc_local
+
+#define nfree numa_free
+#else
+#define nmalloc malloc
+#define nfree(p, n) free(p)
 #endif
 
 #define MASK(msb, lsb) (~((~0) << (msb + 1)) & ((~0) << lsb))
@@ -44,7 +53,7 @@ size_t total_element = (1llu << 20);
 size_t run_iteration = (1llu < 10);
 size_t gran_perround = (1llu << 4);
 size_t thread_number = 4;
-size_t numa_malloc = 1;
+size_t numa_malloc = 3;   // bit0: 0/1 non-numa/nua; bit1: non-local/numa-local
 
 pthread_t *workers;
 void ****ptrs;
@@ -56,7 +65,10 @@ void *ppmall(void *args) {
 #if PMEM_NVMEMUL == 1
             ptrs[tid][r][i] = pmalloc(gran_perround);
 #else
-            ptrs[tid][r][i] = malloc(gran_perround);
+            if (numa_malloc and 0x2 == 0x2)
+                ptrs[tid][r][i] = nmalloc(gran_perround);
+            else
+                ptrs[tid][r][i] = malloc(gran_perround);
 #endif
         }
     }
@@ -66,7 +78,10 @@ void *pmmall(void *args) {
     int tid = *(int *) args;
     ptrs[tid] = (void ***) malloc(sizeof(void **) * run_iteration);
     for (size_t r = 0; r < run_iteration; r++) {
-        ptrs[tid][r] = (void **) malloc(sizeof(void *) * (total_element / run_iteration));
+        if (numa_malloc and 0x2 == 0x2)
+            ptrs[tid][r] = (void **) malloc(sizeof(void *) * (total_element / run_iteration));
+        else
+            ptrs[tid][r] = (void **) nmalloc(sizeof(void *) * (total_element / run_iteration));
     }
 }
 
@@ -77,7 +92,10 @@ void *ppfree(void *args) {
 #if PMEM_NVMEMUL == 1
             pfree(ptrs[tid][r][i], gran_perround);
 #else
-            free(ptrs[tid][r][i]);
+            if (numa_malloc and 0x2 == 0x2)
+                nfree(ptrs[tid][r][i], gran_perround);
+            else
+                free(ptrs[tid][r][i]);
 #endif
         }
     }
@@ -86,9 +104,15 @@ void *ppfree(void *args) {
 void *pmfree(void *args) {
     int tid = *(int *) args;
     for (size_t r = 0; r < run_iteration; r++) {
-        free(ptrs[tid][r]);
+        if (numa_malloc and 0x2 == 0x2)
+            nfree(ptrs[tid][r], sizeof(void *) * (total_element / run_iteration));
+        else
+            free(ptrs[tid][r]);
     }
-    free(ptrs[tid]);
+    if (numa_malloc and 0x2 == 0x2)
+        nfree(ptrs[tid], sizeof(void **) * run_iteration);
+    else
+        free(ptrs[tid]);
 }
 
 void multiWorkers() {
