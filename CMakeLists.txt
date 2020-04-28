@@ -657,7 +657,8 @@ if (WITH_QUARTZ)
     set(QUARTZ_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/quartz")
     message(STATUS "BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
     message(STATUS "QUARTZ_PREFIX: ${QUARTZ_PREFIX}")
-    if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    if (PMEM_NVMEMUL AND CMAKE_SYSTEM_NAME MATCHES "Linux")
+        add_definitions(-DPMEM_NVMEMUL=1)
         ExternalProject_Add(quartz
                 PREFIX "${QUARTZ_PREFIX}"
                 GIT_REPOSITORY https://github.com/whupro2017/quartz

@@ -10,8 +10,6 @@
 #include <stdlib.h>
 
 #if linux
-#define PMEM_NVMEMUL 1
-
 #if PMEM_NVMEMUL == 1
 
 #include "pmalloc.h"
