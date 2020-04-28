@@ -76,7 +76,10 @@ void *ppmall(void *args) {
 
 void *pmmall(void *args) {
     int tid = *(int *) args;
-    ptrs[tid] = (void ***) malloc(sizeof(void **) * run_iteration);
+    if (numa_malloc and 0x2 == 0x2)
+        ptrs[tid] = (void ***) nmalloc(sizeof(void **) * run_iteration);
+    else
+        ptrs[tid] = (void ***) malloc(sizeof(void **) * run_iteration);
     for (size_t r = 0; r < run_iteration; r++) {
         if (numa_malloc and 0x2 == 0x2)
             ptrs[tid][r] = (void **) nmalloc(sizeof(void *) * (total_element / run_iteration));
