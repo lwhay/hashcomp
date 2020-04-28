@@ -106,7 +106,7 @@ void multiWorkers() {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
             CPU_SET(i % 8, &cpuset);
-            int rc = pthread_setaffinity_np(workers[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+            int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
             if (rc != 0) {
                 std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
             }
@@ -129,7 +129,7 @@ void multiWorkers() {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
             CPU_SET(i % 8, &cpuset);
-            int rc = pthread_setaffinity_np(workers[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+            int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
             if (rc != 0) {
                 std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
             }
@@ -151,7 +151,7 @@ void multiWorkers() {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
             CPU_SET(i % 8, &cpuset);
-            int rc = pthread_setaffinity_np(workers[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+            int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
             if (rc != 0) {
                 std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
             }
@@ -173,7 +173,7 @@ void multiWorkers() {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
             CPU_SET(i % 8, &cpuset);
-            int rc = pthread_setaffinity_np(workers[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+            int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
             if (rc != 0) {
                 std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
             }
