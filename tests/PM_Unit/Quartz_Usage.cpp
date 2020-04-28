@@ -224,8 +224,10 @@ int main(int argc, char **argv) {
         thread_number = atol(argv[1]);
         total_element = atol(argv[2]);
         run_iteration = atol(argv[3]);
-        numa_malloc = atol(argv[4]);
+        gran_perround = atol(argv[4]);
+        numa_malloc = atol(argv[5]);
     }
+    printf("%llu\t%llu\t%llu\t%llu\t%x\n", thread_number, total_element, run_iteration, gran_perround, numa_malloc);
     struct timeval begin;
     gettimeofday(&begin, NULL);
     int family, model;
