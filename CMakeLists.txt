@@ -657,26 +657,30 @@ if (WITH_QUARTZ)
     set(QUARTZ_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/quartz")
     message(STATUS "BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
     message(STATUS "QUARTZ_PREFIX: ${QUARTZ_PREFIX}")
-    ExternalProject_Add(quartz
-            PREFIX "${QUARTZ_PREFIX}"
-            GIT_REPOSITORY https://github.com/whupro2017/quartz
-            GIT_TAG master
-            UPDATE_COMMAND ""
-            INSTALL_COMMAND ""
-            BUILD_COMMAND $(MAKE) -j8
-            CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} #-DCMAKE_C_COMPILER=gcc -DPROGRAM_LANGUAGE=C
-            LOG_DOWNLOAD ON
-            LOG_CONFIGURE ON
-            LOG_BUILD ON
-            )
+    if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+        ExternalProject_Add(quartz
+                PREFIX "${QUARTZ_PREFIX}"
+                GIT_REPOSITORY https://github.com/whupro2017/quartz
+                GIT_TAG master
+                UPDATE_COMMAND ""
+                INSTALL_COMMAND ""
+                BUILD_COMMAND $(MAKE) -j8
+                CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} #-DCMAKE_C_COMPILER=gcc -DPROGRAM_LANGUAGE=C
+                LOG_DOWNLOAD ON
+                LOG_CONFIGURE ON
+                LOG_BUILD ON
+                )
 
-    link_directories(${QUARTZ_PREFIX}/src/quartz-build/src/lib)
+        link_directories(${QUARTZ_PREFIX}/src/quartz-build/src/lib)
 
-    add_custom_command(
-            TARGET quartz POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy
-            ${QUARTZ_PREFIX}/src/quartz/nvmemul.ini
-            ${CMAKE_CURRENT_BINARY_DIR}/nvmemul.ini)
+        add_custom_command(
+                TARGET quartz POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                ${QUARTZ_PREFIX}/src/quartz/nvmemul.ini
+                ${CMAKE_CURRENT_BINARY_DIR}/nvmemul.ini)
+
+        set(LIBNVMEMUL nvmemul)
+    endif ()
 
     set(QUARTZ_TEST
             tests/PM_Unit/Quartz_Usage.cpp)
@@ -695,8 +699,10 @@ if (WITH_QUARTZ)
                 ${QUARTZ_PREFIX}/src/quartz/src/lib
                 ${QUARTZ_PREFIX}/src/quartz-build
         )
-        add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} quartz)
-        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} nvmemul pthread)
+        if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+            add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} quartz)
+        endif ()
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${LIBNVMEMUL} pthread)
     endforeach (sourcefile ${QUARTZ_TEST})
 endif ()
 

@@ -8,9 +8,18 @@
 #include <cpuid.h>
 #include <sys/time.h>
 #include <stdlib.h>
+
+#if linux
+#define PMEM_NVMEMUL 1
+
+#if PMEM_NVMEMUL == 1
+
 #include "pmalloc.h"
 
 extern "C" void *pmalloc(size_t size);
+
+#endif
+#endif
 
 #define MASK(msb, lsb) (~((~0) << (msb + 1)) & ((~0) << lsb))
 #define EXTRACT(val, msb, lsb) ((MASK(msb, lsb) & val) >> lsb)
@@ -37,7 +46,7 @@ size_t total_element = (1llu << 20);
 size_t run_iteration = (1llu < 10);
 size_t gran_perround = (1llu << 4);
 size_t thread_number = 4;
-size_t memory_malloc = 1;
+size_t numa_malloc = 1;
 
 pthread_t *workers;
 void ****ptrs;
@@ -46,8 +55,11 @@ void *ppmall(void *args) {
     int tid = *(int *) args;
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
-            if (memory_malloc) ptrs[tid][r][i] = malloc(gran_perround);
-            else ptrs[tid][r][i] = pmalloc(gran_perround);
+#if PMEM_NVMEMUL == 1
+            ptrs[tid][r][i] = pmalloc(gran_perround);
+#else
+            ptrs[tid][r][i] = malloc(gran_perround);
+#endif
         }
     }
 }
@@ -64,8 +76,11 @@ void *ppfree(void *args) {
     int tid = *(int *) args;
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
-            if (memory_malloc) free(ptrs[tid][r][i]);
-            else pfree(ptrs[tid][r][i], gran_perround);
+#if PMEM_NVMEMUL == 1
+            pfree(ptrs[tid][r][i], gran_perround);
+#else
+            free(ptrs[tid][r][i]);
+#endif
         }
     }
 }
@@ -88,6 +103,17 @@ void multiWorkers() {
     for (int i = 0; i < thread_number; i++) {
         tids[i] = i;
         pthread_create(&workers[i], NULL, pmmall, tids + i);
+#if linux
+        if (numa_malloc and 0x1 == 0x1) {
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);
+            CPU_SET(i % 8, &cpuset);
+            int rc = pthread_setaffinity_np(threads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+            if (rc != 0) {
+                std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+            }
+        }
+#endif
     }
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], NULL);
@@ -100,6 +126,17 @@ void multiWorkers() {
     for (int i = 0; i < thread_number; i++) {
         tids[i] = i;
         pthread_create(&workers[i], NULL, ppmall, tids + i);
+#if linux
+        if (numa_malloc and 0x1 == 0x1) {
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);
+            CPU_SET(i % 8, &cpuset);
+            int rc = pthread_setaffinity_np(threads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+            if (rc != 0) {
+                std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+            }
+        }
+#endif
     }
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], NULL);
@@ -111,6 +148,17 @@ void multiWorkers() {
     gettimeofday(&begTime, NULL);
     for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], NULL, ppfree, tids + i);
+#if linux
+        if (numa_malloc and 0x1 == 0x1) {
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);
+            CPU_SET(i % 8, &cpuset);
+            int rc = pthread_setaffinity_np(threads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+            if (rc != 0) {
+                std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+            }
+        }
+#endif
     }
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], NULL);
@@ -122,6 +170,17 @@ void multiWorkers() {
     gettimeofday(&begTime, NULL);
     for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], NULL, pmfree, tids + i);
+#if linux
+        if (numa_malloc and 0x1 == 0x1) {
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);
+            CPU_SET(i % 8, &cpuset);
+            int rc = pthread_setaffinity_np(threads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+            if (rc != 0) {
+                std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+            }
+        }
+#endif
     }
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], NULL);
@@ -140,7 +199,7 @@ int main(int argc, char **argv) {
         thread_number = atol(argv[1]);
         total_element = atol(argv[2]);
         run_iteration = atol(argv[3]);
-        memory_malloc = atol(argv[4]);
+        numa_malloc = atol(argv[4]);
     }
     struct timeval begin;
     gettimeofday(&begin, NULL);
