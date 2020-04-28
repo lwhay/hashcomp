@@ -65,7 +65,7 @@ void *ppmall(void *args) {
 #if PMEM_NVMEMUL == 1
             ptrs[tid][r][i] = pmalloc(gran_perround);
 #else
-            if (numa_malloc and 0x2 == 0x2)
+            if (numa_malloc & 0x2 == 0x2)
                 ptrs[tid][r][i] = nmalloc(gran_perround);
             else
                 ptrs[tid][r][i] = malloc(gran_perround);
@@ -76,12 +76,12 @@ void *ppmall(void *args) {
 
 void *pmmall(void *args) {
     int tid = *(int *) args;
-    if (numa_malloc and 0x2 == 0x2)
+    if (numa_malloc & 0x2 == 0x2)
         ptrs[tid] = (void ***) nmalloc(sizeof(void **) * run_iteration);
     else
         ptrs[tid] = (void ***) malloc(sizeof(void **) * run_iteration);
     for (size_t r = 0; r < run_iteration; r++) {
-        if (numa_malloc and 0x2 == 0x2)
+        if (numa_malloc & 0x2 == 0x2)
             ptrs[tid][r] = (void **) nmalloc(sizeof(void *) * (total_element / run_iteration));
         else
             ptrs[tid][r] = (void **) malloc(sizeof(void *) * (total_element / run_iteration));
@@ -95,7 +95,7 @@ void *ppfree(void *args) {
 #if PMEM_NVMEMUL == 1
             pfree(ptrs[tid][r][i], gran_perround);
 #else
-            if (numa_malloc and 0x2 == 0x2)
+            if (numa_malloc & 0x2 == 0x2)
                 nfree(ptrs[tid][r][i], gran_perround);
             else
                 free(ptrs[tid][r][i]);
@@ -107,12 +107,12 @@ void *ppfree(void *args) {
 void *pmfree(void *args) {
     int tid = *(int *) args;
     for (size_t r = 0; r < run_iteration; r++) {
-        if (numa_malloc and 0x2 == 0x2)
+        if (numa_malloc & 0x2 == 0x2)
             nfree(ptrs[tid][r], sizeof(void *) * (total_element / run_iteration));
         else
             free(ptrs[tid][r]);
     }
-    if (numa_malloc and 0x2 == 0x2)
+    if (numa_malloc & 0x2 == 0x2)
         nfree(ptrs[tid], sizeof(void **) * run_iteration);
     else
         free(ptrs[tid]);
@@ -129,7 +129,7 @@ void multiWorkers() {
         tids[i] = i;
         pthread_create(&workers[i], NULL, pmmall, tids + i);
 #if linux
-        if (numa_malloc and 0x1 == 0x1) {
+        if (numa_malloc & 0x1 == 0x1) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
             CPU_SET(i, &cpuset);
@@ -152,7 +152,7 @@ void multiWorkers() {
         tids[i] = i;
         pthread_create(&workers[i], NULL, ppmall, tids + i);
 #if linux
-        if (numa_malloc and 0x1 == 0x1) {
+        if (numa_malloc & 0x1 == 0x1) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
             CPU_SET(i, &cpuset);
@@ -174,7 +174,7 @@ void multiWorkers() {
     for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], NULL, ppfree, tids + i);
 #if linux
-        if (numa_malloc and 0x1 == 0x1) {
+        if (numa_malloc & 0x1 == 0x1) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
             CPU_SET(i, &cpuset);
@@ -196,7 +196,7 @@ void multiWorkers() {
     for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], NULL, pmfree, tids + i);
 #if linux
-        if (numa_malloc and 0x1 == 0x1) {
+        if (numa_malloc & 0x1 == 0x1) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
             CPU_SET(i, &cpuset);
@@ -228,6 +228,7 @@ int main(int argc, char **argv) {
         numa_malloc = atol(argv[5]);
     }
     printf("%llu\t%llu\t%llu\t%llu\t%x\n", thread_number, total_element, run_iteration, gran_perround, numa_malloc);
+    printf("numa thread: %x, numa malloc: %x\n", numa_malloc & 0x1, numa_malloc & 0x2);
     struct timeval begin;
     gettimeofday(&begin, NULL);
     int family, model;
