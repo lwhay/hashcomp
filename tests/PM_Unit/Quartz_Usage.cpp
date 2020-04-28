@@ -2,12 +2,14 @@
 // Created by iclab on 1/23/20.
 //
 
+#include <atomic>
 #include <iostream>
 #include <pthread.h>
 #include <stdio.h>
 #include <cpuid.h>
 #include <sys/time.h>
 #include <stdlib.h>
+#include "tracer.h"
 
 #if linux
 #if PMEM_NVMEMUL == 1
@@ -55,10 +57,18 @@ size_t gran_perround = (1llu << 4);
 size_t thread_number = 4;
 size_t numa_malloc = 3;   // bit0: 0/1 non-numa/nua; bit1: non-local/numa-local
 
+std::atomic<uint64_t> total_time{0};
+
+std::atomic<uint64_t> total_count{0};
+
+bool first_round = true;
+
 pthread_t *workers;
 void ****ptrs;
 
 void *ppmall(void *args) {
+    Tracer tracer;
+    tracer.startTime();
     int tid = *(int *) args;
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
@@ -72,9 +82,13 @@ void *ppmall(void *args) {
 #endif
         }
     }
+    total_time.fetch_add(tracer.getRunTime());
+    total_count.fetch_add(run_iteration * total_element / run_iteration / thread_number);
 }
 
 void *pmmall(void *args) {
+    Tracer tracer;
+    tracer.startTime();
     int tid = *(int *) args;
     if (numa_malloc & 0x2 == 0x2)
         ptrs[tid] = (void ***) nmalloc(sizeof(void **) * run_iteration);
@@ -86,9 +100,49 @@ void *pmmall(void *args) {
         else
             ptrs[tid][r] = (void **) malloc(sizeof(void *) * (total_element / run_iteration));
     }
+    total_time.fetch_add(tracer.getRunTime());
+    total_count.fetch_add(run_iteration);
+}
+
+void *pmwriter(void *args) {
+    Tracer tracer;
+    tracer.startTime();
+    int tid = *(int *) args;
+    double total = .0f;
+    bool init = first_round;
+    for (size_t r = 0; r < run_iteration; r++) {
+        for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
+            for (size_t j = 0; j < gran_perround; j++) {
+                if (init)
+                    *(((char *) ptrs[tid][r][i]) + j) = 0;
+                else
+                    *(((char *) ptrs[tid][r][i]) + ((j * 1009) % gran_perround)) += 1;
+            }
+        }
+    }
+    total_time.fetch_add(tracer.getRunTime());
+    total_count.fetch_add(run_iteration * total_element * gran_perround / run_iteration / thread_number);
+}
+
+void *pmreader(void *args) {
+    Tracer tracer;
+    tracer.startTime();
+    int tid = *(int *) args;
+    double total = .0f;
+    for (size_t r = 0; r < run_iteration; r++) {
+        for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
+            for (size_t j = 0; j < gran_perround; j++) {
+                total += *(((char *) ptrs[tid][r][i]) + ((j * 1009) % gran_perround));
+            }
+        }
+    }
+    total_time.fetch_add(tracer.getRunTime());
+    total_count.fetch_add(run_iteration * total_element * gran_perround / run_iteration / thread_number);
 }
 
 void *ppfree(void *args) {
+    Tracer tracer;
+    tracer.startTime();
     int tid = *(int *) args;
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
@@ -102,9 +156,13 @@ void *ppfree(void *args) {
 #endif
         }
     }
+    total_time.fetch_add(tracer.getRunTime());
+    total_count.fetch_add(run_iteration * total_element / run_iteration / thread_number);
 }
 
 void *pmfree(void *args) {
+    Tracer tracer;
+    tracer.startTime();
     int tid = *(int *) args;
     for (size_t r = 0; r < run_iteration; r++) {
         if (numa_malloc & 0x2 == 0x2)
@@ -116,105 +174,83 @@ void *pmfree(void *args) {
         nfree(ptrs[tid], sizeof(void **) * run_iteration);
     else
         free(ptrs[tid]);
+    total_time.fetch_add(tracer.getRunTime());
+    total_count.fetch_add(run_iteration);
+}
+
+void runner(void *func(void *), const char *fname, int r = -1) {
+    int *tids = (int *) malloc(sizeof(int) * thread_number);
+    struct timeval begTime, endTime;
+    long duration;
+    total_count.store(0);
+    total_time.store(0);
+    gettimeofday(&begTime, NULL);
+    for (int i = 0; i < thread_number; i++) {
+        tids[i] = i;
+        pthread_create(&workers[i], NULL, func, tids + i);
+#if linux
+        if (numa_malloc & 0x1 == 0x1) {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(i, &cpuset);
+        int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
+        if (rc != 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+    }
+#endif
+    }
+    for (int i = 0; i < thread_number; i++) {
+        pthread_join(workers[i], NULL);
+    }
+    gettimeofday(&endTime, NULL);
+    duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
+    if (r == -1)
+        printf("%s: %lld %f\n", fname, duration, (double) total_count.load() * thread_number / total_time.load());
+    else
+        printf("%s%d: %lld %f MB\n", fname, r, duration,
+               (double) total_count.load() * thread_number / total_time.load() / (1llu << 20));
+
+    free(tids);
 }
 
 void multiWorkers() {
     ptrs = (void ****) malloc(sizeof(void ***) * thread_number);
     workers = (pthread_t *) malloc(sizeof(pthread_t) * thread_number);
-    struct timeval begTime, endTime;
 
-    int *tids = (int *) malloc(sizeof(int) * thread_number);
-    gettimeofday(&begTime, NULL);
-    for (int i = 0; i < thread_number; i++) {
-        tids[i] = i;
-        pthread_create(&workers[i], NULL, pmmall, tids + i);
-#if linux
-        if (numa_malloc & 0x1 == 0x1) {
-            cpu_set_t cpuset;
-            CPU_ZERO(&cpuset);
-            CPU_SET(i, &cpuset);
-            int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
-            if (rc != 0) {
-                std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
-            }
-        }
-#endif
+    for (int r = 0; r < 1; r++) {
+        runner(pmmall, "pmmall");
     }
-    for (int i = 0; i < thread_number; i++) {
-        pthread_join(workers[i], NULL);
-    }
-    gettimeofday(&endTime, NULL);
-    long duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
-    printf("malloc: %lld\n", duration);
 
-    gettimeofday(&begTime, NULL);
-    for (int i = 0; i < thread_number; i++) {
-        tids[i] = i;
-        pthread_create(&workers[i], NULL, ppmall, tids + i);
-#if linux
-        if (numa_malloc & 0x1 == 0x1) {
-            cpu_set_t cpuset;
-            CPU_ZERO(&cpuset);
-            CPU_SET(i, &cpuset);
-            int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
-            if (rc != 0) {
-                std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
-            }
-        }
-#endif
+    for (int r = 0; r < 1; r++) {
+        runner(ppmall, "ppmall");
     }
-    for (int i = 0; i < thread_number; i++) {
-        pthread_join(workers[i], NULL);
-    }
-    gettimeofday(&endTime, NULL);
-    duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
-    printf("pmalloc: %lld\n", duration);
 
-    gettimeofday(&begTime, NULL);
-    for (int i = 0; i < thread_number; i++) {
-        pthread_create(&workers[i], NULL, ppfree, tids + i);
-#if linux
-        if (numa_malloc & 0x1 == 0x1) {
-            cpu_set_t cpuset;
-            CPU_ZERO(&cpuset);
-            CPU_SET(i, &cpuset);
-            int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
-            if (rc != 0) {
-                std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
-            }
-        }
-#endif
+    for (int r = 0; r < 3; r++) {
+        runner(pmwriter, "pmwriter", r);
     }
-    for (int i = 0; i < thread_number; i++) {
-        pthread_join(workers[i], NULL);
-    }
-    gettimeofday(&endTime, NULL);
-    duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
-    printf("pfree: %lld\n", duration);
 
-    gettimeofday(&begTime, NULL);
-    for (int i = 0; i < thread_number; i++) {
-        pthread_create(&workers[i], NULL, pmfree, tids + i);
-#if linux
-        if (numa_malloc & 0x1 == 0x1) {
-            cpu_set_t cpuset;
-            CPU_ZERO(&cpuset);
-            CPU_SET(i, &cpuset);
-            int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
-            if (rc != 0) {
-                std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
-            }
-        }
-#endif
+    for (int r = 0; r < 3; r++) {
+        runner(pmreader, "pmreader", r);
     }
-    for (int i = 0; i < thread_number; i++) {
-        pthread_join(workers[i], NULL);
-    }
-    gettimeofday(&endTime, NULL);
-    duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
-    printf("free: %lld\n", duration);
 
-    free(tids);
+    first_round = false;
+    for (int r = 0; r < 3; r++) {
+        runner(pmwriter, "pmwriter", r);
+    }
+
+    for (int r = 0; r < 3; r++) {
+        runner(pmreader, "pmreader", r);
+    }
+
+    for (int r = 0; r < 1; r++) {
+        runner(ppfree, "ppfree");
+    }
+
+    for (int r = 0; r < 1; r++) {
+        runner(pmfree, "pmfree");
+    }
+
     free(workers);
     free(ptrs);
 }
