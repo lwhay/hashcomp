@@ -70,7 +70,7 @@ bool first_round = true;
 
 #define OPERATION_TYPE 0 // 0: char; 1: ushort; 2: uint; 3: ulong
 
-#define ROUND_ROBIN 1 // 0: 1-1; 1: 1-2, 2-3, ..., n-1; 2: 0:n, 1:n-1,...
+#define ROUND_ROBIN 2 // 0: 1-1; 1: 1-2, 2-3, ..., n-1; 2: 0:n, 1:n-1,...
 
 pthread_t *workers;
 void ****ptrs;
@@ -123,7 +123,7 @@ void *pmwriter(void *args) {
 #if ROUND_ROBIN == 1
     idx = (idx + 1) % thread_number;
 #elif ROUND_ROBIN == 2
-    idx = thread_number - idx;
+    idx = thread_number - 1 - idx;
 #endif
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
@@ -165,7 +165,7 @@ void *pmreader(void *args) {
 #if ROUND_ROBIN == 1
     idx = (idx + 1) % thread_number;
 #elif ROUND_ROBIN == 2
-    idx = thread_number - idx;
+    idx = thread_number - 1 - idx;
 #endif
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
