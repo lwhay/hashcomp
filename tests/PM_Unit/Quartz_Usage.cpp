@@ -105,7 +105,7 @@ void multiWorkers() {
         if (numa_malloc and 0x1 == 0x1) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
-            CPU_SET(i % 8, &cpuset);
+            CPU_SET(i, &cpuset);
             int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
             if (rc != 0) {
                 std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
@@ -128,7 +128,7 @@ void multiWorkers() {
         if (numa_malloc and 0x1 == 0x1) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
-            CPU_SET(i % 8, &cpuset);
+            CPU_SET(i, &cpuset);
             int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
             if (rc != 0) {
                 std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
@@ -150,7 +150,7 @@ void multiWorkers() {
         if (numa_malloc and 0x1 == 0x1) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
-            CPU_SET(i % 8, &cpuset);
+            CPU_SET(i, &cpuset);
             int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
             if (rc != 0) {
                 std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
@@ -172,7 +172,7 @@ void multiWorkers() {
         if (numa_malloc and 0x1 == 0x1) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
-            CPU_SET(i % 8, &cpuset);
+            CPU_SET(i, &cpuset);
             int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
             if (rc != 0) {
                 std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
