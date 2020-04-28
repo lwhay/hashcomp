@@ -67,6 +67,8 @@ bool first_round = true;
 
 #define ENFORCE_READING 1
 
+#define OPERATION_TYPE 0 // 0: char; 1: ushort; 2: uint; 3: ulong
+
 pthread_t *workers;
 void ****ptrs;
 
@@ -117,10 +119,27 @@ void *pmwriter(void *args) {
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
             for (size_t j = 0; j < gran_perround; j++) {
+#if OPERATION_TYPE == 0
                 if (init)
                     *(((char *) ptrs[tid][r][i]) + j) = 0;
                 else
                     *(((char *) ptrs[tid][r][i]) + ((j * 1009) % gran_perround)) += 1;
+#elif OPERATION_TYPE == 1
+                if (init)
+                    *(((unsigned short *) ptrs[tid][r][i]) + (j * 2) % (gran_perround / 2)) = 0;
+                else
+                    *(((unsigned short *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 2))) += 1;
+#elif OPERATION_TYPE == 2
+                if (init)
+                    *(((uint32_t *) ptrs[tid][r][i]) + (j * 4) % (gran_perround / 4)) = 0;
+                else
+                    *(((uint32_t *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 4))) += 1;
+#elif OPERATION_TYPE == 3
+                if (init)
+                    *(((uint64_t *) ptrs[tid][r][i]) + (j * 8) % (gran_perround / 8)) = 0;
+                else
+                    *(((uint64_t *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 8))) += 1;
+#endif
             }
         }
     }
@@ -136,7 +155,15 @@ void *pmreader(void *args) {
     for (size_t r = 0; r < run_iteration; r++) {
         for (size_t i = 0; i < (total_element / run_iteration / thread_number); i++) {
             for (size_t j = 0; j < gran_perround; j++) {
+#if OPERATION_TYPE == 0
                 total += *(((char *) ptrs[tid][r][i]) + ((j * 1009) % gran_perround));
+#elif OPERATION_TYPE == 1
+                total += *(((unsigned short *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 2)));
+#elif OPERATION_TYPE == 2
+                total += *(((uint32_t *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 4)));
+#elif OPERATION_TYPE == 3
+                total += *(((uint64_t *) ptrs[tid][r][i]) + ((j * 1009) % (gran_perround / 8)));
+#endif
             }
         }
     }
@@ -269,13 +296,14 @@ void multiWorkers() {
 }
 
 int main(int argc, char **argv) {
-    if (argc > 1) {
+    if (argc > 5) {
         thread_number = atol(argv[1]);
         total_element = atol(argv[2]);
         run_iteration = atol(argv[3]);
         gran_perround = atol(argv[4]);
         numa_malloc = atol(argv[5]);
     }
+    assert(gran_perround > 7);
     printf("%llu\t%llu\t%llu\t%llu\t%x\n", thread_number, total_element, run_iteration, gran_perround, numa_malloc);
     printf("numa thread: %x, numa malloc: %x\n", numa_malloc & 0x1, numa_malloc & 0x2);
     struct timeval begin;
