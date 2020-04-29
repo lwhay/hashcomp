@@ -47,7 +47,7 @@ double verify_read(void *x, size_t array_size, size_t ntrips, size_t operations)
     size_t step = array_size / operations;
 
     for (size_t i = 0; i < ntrips; ++i)
-        for (size_t j = 0; j < array_size; j += tick) {
+        for (size_t j = 0; j < array_size; j += step) {
             ret += *(((char *) x) + ((j * 1009) % array_size));
         }
 
