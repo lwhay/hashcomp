@@ -709,3 +709,6 @@ endif ()
 
 add_subdirectory(tests/MicroBench)
 add_subdirectory(tests/YCSBBench)
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    add_subdirectory(utils/numaopm)
+endif ()
