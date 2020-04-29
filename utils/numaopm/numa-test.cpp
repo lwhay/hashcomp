@@ -27,12 +27,12 @@ void print_bitmask(const struct bitmask *bm) {
         printf("%d", numa_bitmask_isbitset(bm, i));
 }
 
-double measure_access(void *x, size_t array_size, size_t ntrips) {
+double measure_access(void *x, size_t array_size, size_t ntrips, size_t operations) {
     timestamp_type t1;
     get_timestamp(&t1);
-
+    size_t step = array_size / operations;
     for (size_t i = 0; i < ntrips; ++i)
-        for (size_t j = 0; j < array_size; ++j) {
+        for (size_t j = 0; j < array_size; j += step) {
             *(((char *) x) + ((j * 1009) % array_size)) += 1;
         }
 
@@ -42,11 +42,12 @@ double measure_access(void *x, size_t array_size, size_t ntrips) {
     return timestamp_diff_in_seconds(t1, t2);
 }
 
-double verify_read(void *x, size_t array_size, size_t ntrips) {
+double verify_read(void *x, size_t array_size, size_t ntrips, size_t operations) {
     double ret = .0f;
+    size_t step = array_size / operations;
 
     for (size_t i = 0; i < ntrips; ++i)
-        for (size_t j = 0; j < array_size; ++j) {
+        for (size_t j = 0; j < array_size; j += tick) {
             ret += *(((char *) x) + ((j * 1009) % array_size));
         }
 
@@ -73,8 +74,15 @@ int main(int argc, const char **argv) {
 
     char *x;
     const size_t cache_line_size = 64;
-    const size_t array_size = 100 * 1000 * 1000;
+    size_t array_size = 100 * 1000 * 1000;
+    size_t operations = 100 * 1000 * 1000;
     size_t ntrips = 2;
+
+    if (argc > 4) {
+        array_size = std::atol(argv[1]);
+        array_size = std::atol(argv[2]);
+        operations = std::atol(argv[3]);
+    }
 
 #pragma omp parallel
     {
@@ -89,9 +97,9 @@ int main(int argc, const char **argv) {
 #pragma omp barrier
         for (size_t i = 0; i < num_cpus; ++i) {
             if (tid == i) {
-                double t = measure_access(x, array_size, ntrips);
+                double t = measure_access(x, array_size, ntrips, operations);
                 printf("sequential core %d -> core 0 : BW %g MB/s\n", i,
-                       array_size * ntrips * cache_line_size / t / 1e6);
+                       operations * ntrips * cache_line_size / t / 1e6);
             }
 #pragma omp barrier
         }
@@ -103,12 +111,12 @@ int main(int argc, const char **argv) {
             if (tid == 0) puts("");
 
 #pragma omp barrier
-            double t = measure_access(x, array_size, ntrips);
+            double t = measure_access(x, array_size, ntrips, operations);
 #pragma omp barrier
             for (size_t i = 0; i < num_cpus; ++i) {
                 if (tid == i)
                     printf("all-contention core %d -> core 0 : BW %g MB/s\n", tid,
-                           array_size * ntrips * cache_line_size / t / 1e6);
+                           operations * ntrips * cache_line_size / t / 1e6);
 #pragma omp barrier
             }
         }
@@ -123,22 +131,22 @@ int main(int argc, const char **argv) {
         for (size_t i = 1; i < num_cpus; ++i) {
             double t;
             if (tid == i || tid == 0)
-                t = measure_access(x, array_size, ntrips);
+                t = measure_access(x, array_size, ntrips, operations);
 
 #pragma omp barrier
             if (tid == 0) {
                 printf("two-contention core %d -> core 0 : BW %g MB/s\n", tid,
-                       array_size * ntrips * cache_line_size / t / 1e6);
+                       operations * ntrips * cache_line_size / t / 1e6);
             }
 #pragma omp barrier
             if (tid == i) {
                 printf("two-contention core %d -> core 0 : BW %g MB/s\n\n", tid,
-                       array_size * ntrips * cache_line_size / t / 1e6);
+                       operations * ntrips * cache_line_size / t / 1e6);
             }
 #pragma omp barrier
         }
     }
-    printf("%g\n", verify_read(x, array_size, ntrips));
+    printf("%g\n", verify_read(x, array_size, ntrips, operations));
     numa_free(x, array_size);
 
     return 0;
