@@ -74,16 +74,16 @@ int main(int argc, const char **argv) {
 
     char *x;
     const size_t cache_line_size = 64;
-    size_t array_size = 100 * 1000 * 1000;
+    // Here, the storage type of array_size significantly impacts the total performance on g++
+    const size_t array_size = 100 * 1000 * 1000;
     size_t operations = 100 * 1000 * 1000;
     size_t ntrips = 2;
 
-    if (argc > 4) {
-        array_size = std::atol(argv[1]);
-        array_size = std::atol(argv[2]);
-        operations = std::atol(argv[3]);
-        ntrips = std::atol(argv[4]);
+    if (argc > 2) {
+        operations = std::atol(argv[1]);
+        ntrips = std::atol(argv[2]);
     }
+    printf("array_size: %llu, operations: %llu, ntrips: %llu\n", array_size, operations, ntrips);
 
 #pragma omp parallel
     {
