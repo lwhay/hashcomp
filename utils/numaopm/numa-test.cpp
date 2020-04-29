@@ -82,6 +82,7 @@ int main(int argc, const char **argv) {
         array_size = std::atol(argv[1]);
         array_size = std::atol(argv[2]);
         operations = std::atol(argv[3]);
+        ntrips = std::atol(argv[4]);
     }
 
 #pragma omp parallel
