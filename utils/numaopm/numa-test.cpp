@@ -42,7 +42,7 @@ double measure_access(void *x, int tid, size_t array_size, size_t ntrips, size_t
     for (size_t i = 0; i < ntrips; ++i)
         for (size_t j = 0; j < array_size; j += step) {
 #if READ_OPERATION == 1
-            out += *(((char *) x) + ((j * 1009 + offset) % array_size));
+            *out += *(((char *) x) + ((j * 1009 + offset) % array_size));
 #else
             *(((char *) x) + ((j * 1009 + offset) % array_size)) += 1;
 #endif
@@ -110,7 +110,7 @@ int main(int argc, const char **argv) {
         pin_to_core(tid);
         if (tid == 0) {
             x = (char *) numa_alloc_local(array_size);
-            memset(x, tid, array_size);
+            memset(x, 0xf, array_size);
         }
 
         xs[tid] = (char *) numa_alloc_local(array_size);
