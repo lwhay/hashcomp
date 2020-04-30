@@ -327,7 +327,7 @@ void multiWorkers() {
 #if INIT_SEPARATE == 1
         srunner(pmwriter, "pmwriter", r);
 #else
-        prunner(pmwriter, "pmwriter");
+        prunner(pmwriter, "pmwriter", r);
 #endif
     }
 
