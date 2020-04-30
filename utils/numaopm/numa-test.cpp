@@ -15,6 +15,8 @@
 #include <assert.h>
 #include "timing.h"
 
+#define READ_OPERATION 1
+
 void pin_to_core(size_t core) {
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -31,9 +33,16 @@ double measure_access(void *x, size_t array_size, size_t ntrips, size_t operatio
     timestamp_type t1;
     get_timestamp(&t1);
     size_t step = array_size / operations;
+#if READ_OPERATION == 1
+    char one;
+#endif
     for (size_t i = 0; i < ntrips; ++i)
         for (size_t j = 0; j < array_size; j += step) {
+#if READ_OPERATION == 1
+            one = *(((char *) x) + ((j * 1009) % array_size));
+#else
             *(((char *) x) + ((j * 1009) % array_size)) += 1;
+#endif
         }
 
     timestamp_type t2;
