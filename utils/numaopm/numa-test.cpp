@@ -213,12 +213,12 @@ int main(int argc, const char **argv) {
     }
 
     if ((marker & 0x4) == 0x4) {
-        printf("------------------------------------ int %llu-----------------------------------\n", (marker & 0x2));
+        printf("------------------------------------ int %llu-----------------------------------\n", (marker & 0x4));
         run<int>(operations, ntrips);
     }
 
     if ((marker & 0x8) == 0x8) {
-        printf("------------------------------------ long %llu----------------------------------\n", (marker & 0x2));
+        printf("------------------------------------ long %llu----------------------------------\n", (marker & 0x8));
         run<long>(operations, ntrips);
     }
 
