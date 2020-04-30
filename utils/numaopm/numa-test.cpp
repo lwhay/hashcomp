@@ -173,7 +173,8 @@ void run(size_t operations, size_t ntrips) {
     }
 
     printf("%g\n", verify_read(x, array_size, ntrips, operations));
-    numa_free(x, array_size);
+    numa_free(x, array_size * sizeof(T));
+    for (size_t i = 0; i < num_cpus; ++i) numa_free(xs[i], array_size * sizeof(T));
 }
 
 int main(int argc, const char **argv) {
