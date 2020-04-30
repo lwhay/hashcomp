@@ -37,21 +37,20 @@ double measure_access(T *x, int tid, size_t array_size, size_t ntrips, size_t op
     timestamp_type t1;
     get_timestamp(&t1);
     size_t step = array_size / operations;
-    int offset = tid * 1048573;
+    size_t offset = tid * 1048573;
 #if READ_OPERATION == 1
-    *out = .0f;
-    //char one;
+    double one = .0f;
 #endif
     for (size_t i = 0; i < ntrips; ++i)
         for (size_t j = 0; j < array_size; j += step) {
 #if READ_OPERATION == 1
-            for (size_t k = 0; k < batch_size; ++k) *out += *(((T *) x) + ((j * 127 + offset + k) % array_size));
+            for (size_t k = 0; k < batch_size; ++k) one += *(((T *) x) + ((offset + j * 127 + k) % array_size));
 #else
-            for (size_t k = 0; k < batch_size; ++k) *(((T *) x) + ((j * 127 + offset + k) % array_size)) += 1;
+            for (size_t k = 0; k < batch_size; ++k) *(((T *) x) + ((offset + j * 127 + k) % array_size)) += 1;
 #endif
         }
 #if READ_OPERATION
-    //*out = one;
+    *out = one;
 #endif
 
     timestamp_type t2;
@@ -182,11 +181,13 @@ void run(size_t operations, size_t ntrips) {
 int main(int argc, const char **argv) {
     size_t operations = 100 * 1000 * 1000;
     size_t ntrips = 2;
+    size_t marker = 0xffff;
 
-    if (argc > 3) {
+    if (argc > 4) {
         operations = std::atol(argv[1]);
         ntrips = std::atol(argv[2]);
         batch_size = std::atol(argv[3]);
+        marker = std::atol(argv[4]);
     }
 
     int num_cpus = numa_num_task_cpus();
@@ -201,17 +202,25 @@ int main(int argc, const char **argv) {
     }
     numa_bitmask_free(bm);
 
-    printf("------------------------------------ char ------------------------------------\n");
-    run<char>(operations, ntrips);
+    if (marker & 0x1 == 0x1) {
+        printf("------------------------------------ char ------------------------------------\n");
+        run<char>(operations, ntrips);
+    }
 
-    printf("------------------------------------ short -----------------------------------\n");
-    run<short>(operations, ntrips);
+    if (marker & 0x2 == 0x2) {
+        printf("------------------------------------ short -----------------------------------\n");
+        run<short>(operations, ntrips);
+    }
 
-    printf("------------------------------------ int -------------------------------------\n");
-    run<int>(operations, ntrips);
+    if (marker & 0x4 == 0x4) {
+        printf("------------------------------------ int -------------------------------------\n");
+        run<int>(operations, ntrips);
+    }
 
-    printf("------------------------------------ long ------------------------------------\n");
-    run<long>(operations, ntrips);
+    if (marker & 0x8 == 0x8) {
+        printf("------------------------------------ long ------------------------------------\n");
+        run<long>(operations, ntrips);
+    }
 
     return 0;
 }
