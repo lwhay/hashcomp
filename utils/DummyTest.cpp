@@ -3,7 +3,7 @@
 //
 
 #include <stdatomic.h>
-//#include <atomic>
+#include <atomic>
 #include <bitset>
 #include <cassert>
 #include <cstring>
@@ -12,7 +12,7 @@
 #include <vector>
 #include "tracer.h"
 
-//using namespace std;
+using namespace std;
 
 uint64_t *loads;
 
@@ -22,7 +22,7 @@ uint64_t total_count = (1llu << 20);
 
 uint64_t thread_number = 4;
 
-#define OPERATION_TYPE 2 // 0: READ; 1: WRITE; 2: ATOMIC_READ; 3: ATOMIC_WRITE; 4: ATOMIC_CAS
+#define OPERATION_TYPE 1 // 0: READ; 1: WRITE; 2: ATOMIC_READ; 3: ATOMIC_WRITE; 4: ATOMIC_CAS
 
 #define VALUE_SIZE 8
 
@@ -72,6 +72,7 @@ void RecordTest() {
                 for (uint64_t i = start; i < start + card; i++) {
                     for (int j = 0; j < VALUE_SIZE; j++) {
                         uint64_t tmp = j;
+#ifndef linux
 #if OPERATION_TYPE == 1
                         records[loads[i] % total_count].value[j] = j;
 #elif OPERATION_TYPE == 2
@@ -85,6 +86,13 @@ void RecordTest() {
                                                   __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
                         value += records[loads[i] % total_count].value[j];
+#endif
+#else
+#if OPERATION_TYPE == 1
+                        records[loads[i] % total_count].value[j] = j;
+#else
+                        value += records[loads[i] % total_count].value[j];
+#endif
 #endif
                     }
                     tick++;
@@ -130,6 +138,7 @@ void RecordPtrTest() {
                 for (uint64_t i = start; i < start + card; i++) {
                     for (int j = 0; j < VALUE_SIZE; j++) {
                         uint64_t tmp = j;
+#ifndef linux
 #if OPERATION_TYPE == 1
                         records[loads[i] % total_count]->value[j] = j;
 #elif OPERATION_TYPE == 2
@@ -143,6 +152,13 @@ void RecordPtrTest() {
                                                   __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
                         value += records[loads[i] % total_count]->value[j];
+#endif
+#else
+#if OPERATION_TYPE == 1
+                        records[loads[i] % total_count]->value[j] = j;
+#else
+                        value += records[loads[i] % total_count]->value[j];
+#endif
 #endif
                     }
                     tick++;
@@ -191,6 +207,7 @@ void RecordScanTest() {
                 for (uint64_t i = start; i < start + card; i++) {
                     for (int j = 0; j < VALUE_SIZE; j++) {
                         uint64_t tmp = j;
+#ifndef linux
 #if OPERATION_TYPE == 1
                         records[loads[i] % total_count]->value[j] = j;
 #elif OPERATION_TYPE == 2
@@ -204,6 +221,13 @@ void RecordScanTest() {
                                                   __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
                         value += records[loads[i] % total_count]->value[j];
+#endif
+#else
+#if OPERATION_TYPE == 1
+                        records[loads[i] % total_count]->value[j] = j;
+#else
+                        value += records[loads[i] % total_count]->value[j];
+#endif
 #endif
                     }
                     tick++;
@@ -307,6 +331,7 @@ void RecordHashTest() {
                     uint64_t mark = records[hash]->header1.load();
                     for (int j = 0; j < VALUE_SIZE; j++) {
                         uint64_t tmp = j;
+#ifndef linux
 #if OPERATION_TYPE == 1
                         records[hash]->value[j] = j;
 #elif OPERATION_TYPE == 2
@@ -319,6 +344,13 @@ void RecordHashTest() {
                         __atomic_compare_exchange(&(records[hash]->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
                         value += records[hash]->value[j];
+#endif
+#else
+#if OPERATION_TYPE == 1
+                        records[hash]->value[j] = j;
+#else
+                        value += records[hash]->value[j];
+#endif
 #endif
                     }
                     tick++;
@@ -379,6 +411,7 @@ void RecordBlockHashTest() {
                     uint64_t mark = records[hash]->header1.load();
                     for (int j = 0; j < VALUE_SIZE; j++) {
                         uint64_t tmp = j;
+#ifndef linux
 #if OPERATION_TYPE == 1
                         records[hash]->value[j] = j;
 #elif OPERATION_TYPE == 2
@@ -391,6 +424,13 @@ void RecordBlockHashTest() {
                         __atomic_compare_exchange(&(records[hash]->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
                         value += records[hash]->value[j];
+#endif
+#else
+#if OPERATION_TYPE == 1
+                        records[hash]->value[j] = j;
+#else
+                        value += records[hash]->value[j];
+#endif
 #endif
                     }
                     tick++;
@@ -458,14 +498,14 @@ void RecordNumaBlockHashTest() {
                         uint64_t tmp = j;
 #if OPERATION_TYPE == 1
                         records[hash]->value[j] = j;
-#elif OPERATION_TYPE == 2
+/*#elif OPERATION_TYPE == 2
                         __atomic_load(&(records[hash]->value[j]), &tmp, __ATOMIC_RELAXED);
                         value += tmp;
 #elif OPERATION_TYPE == 3
                         __atomic_store(&(records[hash]->value[j]), &tmp, __ATOMIC_RELAXED);
 #elif OPERATION_TYPE == 4
                         uint64_t old = records[hash]->value[j];
-                        __atomic_compare_exchange(&(records[hash]->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+                        __atomic_compare_exchange(&(records[hash]->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);*/
 #else
                         value += records[hash]->value[j];
 #endif
@@ -714,6 +754,7 @@ void RecordPageHashTest() {
                     ptr->header1.load();
                     for (int j = 0; j < VALUE_SIZE; j++) {
                         uint64_t tmp = j;
+#ifndef linux
 #if OPERATION_TYPE == 1
                         ptr->value[j] = j;
 #elif OPERATION_TYPE == 2
@@ -726,6 +767,13 @@ void RecordPageHashTest() {
                         __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
                         value += ptr->value[j];
+#endif
+#else
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#else
+                        value += ptr->value[j];
+#endif
 #endif
                     }
                     tick++;
@@ -896,6 +944,7 @@ void RecordPageLocalTest() {
                     ptr->header1.load();
                     for (int j = 0; j < VALUE_SIZE; j++) {
                         uint64_t tmp = j;
+#ifndef linux
 #if OPERATION_TYPE == 1
                         ptr->value[j] = j;
 #elif OPERATION_TYPE == 2
@@ -908,6 +957,13 @@ void RecordPageLocalTest() {
                         __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
                         value += ptr->value[j];
+#endif
+#else
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#else
+                        value += ptr->value[j];
+#endif
 #endif
                     }
                     /*if (tid == 0)
@@ -1028,6 +1084,7 @@ void RecordPageLocal1Test() {
                     ptr->header1.load();
                     for (int j = 0; j < VALUE_SIZE; j++) {
                         uint64_t tmp = j;
+#ifndef linux
 #if OPERATION_TYPE == 1
                         ptr->value[j] = j;
 #elif OPERATION_TYPE == 2
@@ -1040,6 +1097,13 @@ void RecordPageLocal1Test() {
                         __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
                         value += ptr->value[j];
+#endif
+#else
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#else
+                        value += ptr->value[j];
+#endif
 #endif
                     }
                     /*if (tid == 0)
@@ -1163,6 +1227,7 @@ void RecordPageLocal2Test() {
                     ptr->header1.load();
                     for (int j = 0; j < VALUE_SIZE; j++) {
                         uint64_t tmp = j;
+#ifndef linux
 #if OPERATION_TYPE == 1
                         ptr->value[j] = j;
 #elif OPERATION_TYPE == 2
@@ -1175,6 +1240,13 @@ void RecordPageLocal2Test() {
                         __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
                         value += ptr->value[j];
+#endif
+#else
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#else
+                        value += ptr->value[j];
+#endif
 #endif
                     }
                     /*if (tid == 0)
@@ -1301,6 +1373,7 @@ void RecordPageLocal3Test() {
                     ptr->header1.load();
                     for (int j = 0; j < VALUE_SIZE; j++) {
                         uint64_t tmp = j;
+#ifndef linux
 #if OPERATION_TYPE == 1
                         ptr->value[j] = j;
 #elif OPERATION_TYPE == 2
@@ -1313,6 +1386,13 @@ void RecordPageLocal3Test() {
                         __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
                         value += ptr->value[j];
+#endif
+#else
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#else
+                        value += ptr->value[j];
+#endif
 #endif
                     }
                     /*if (tid == 0)
@@ -1534,14 +1614,14 @@ void RecordPageLocal4Test() {
                         uint64_t tmp = j;
 #if OPERATION_TYPE == 1
                         ptr->value[j] = j;
-#elif OPERATION_TYPE == 2
+/*#elif OPERATION_TYPE == 2
                         __atomic_load(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
                         value += tmp;
 #elif OPERATION_TYPE == 3
                         __atomic_store(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
 #elif OPERATION_TYPE == 4
                         uint64_t old = ptr->value[j];
-                        __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+                        __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);*/
 #else
                         value += ptr->value[j];
 #endif
