@@ -85,7 +85,7 @@ void *ppmall(void *args) {
 #if PMEM_NVMEMUL == 1
             ptrs[tid][r][i] = pmalloc(gran_perround);
 #else
-            if (numa_malloc & 0x2 == 0x2)
+            if ((numa_malloc & 0x2) == 0x2)
                 ptrs[tid][r][i] = nmalloc(gran_perround);
             else
                 ptrs[tid][r][i] = malloc(gran_perround);
@@ -100,12 +100,12 @@ void *pmmall(void *args) {
     Tracer tracer;
     tracer.startTime();
     int tid = *(int *) args;
-    if (numa_malloc & 0x2 == 0x2)
+    if ((numa_malloc & 0x2) == 0x2)
         ptrs[tid] = (void ***) nmalloc(sizeof(void **) * run_iteration);
     else
         ptrs[tid] = (void ***) malloc(sizeof(void **) * run_iteration);
     for (size_t r = 0; r < run_iteration; r++) {
-        if (numa_malloc & 0x2 == 0x2)
+        if ((numa_malloc & 0x2) == 0x2)
             ptrs[tid][r] = (void **) nmalloc(sizeof(void *) * (total_element / run_iteration));
         else
             ptrs[tid][r] = (void **) malloc(sizeof(void *) * (total_element / run_iteration));
@@ -204,7 +204,7 @@ void *ppfree(void *args) {
 #if PMEM_NVMEMUL == 1
             pfree(ptrs[tid][r][i], gran_perround);
 #else
-            if (numa_malloc & 0x2 == 0x2)
+            if ((numa_malloc & 0x2) == 0x2)
                 nfree(ptrs[tid][r][i], gran_perround);
             else
                 free(ptrs[tid][r][i]);
@@ -220,12 +220,12 @@ void *pmfree(void *args) {
     tracer.startTime();
     int tid = *(int *) args;
     for (size_t r = 0; r < run_iteration; r++) {
-        if (numa_malloc & 0x2 == 0x2)
+        if ((numa_malloc & 0x2) == 0x2)
             nfree(ptrs[tid][r], sizeof(void *) * (total_element / run_iteration));
         else
             free(ptrs[tid][r]);
     }
-    if (numa_malloc & 0x2 == 0x2)
+    if ((numa_malloc & 0x2) == 0x2)
         nfree(ptrs[tid], sizeof(void **) * run_iteration);
     else
         free(ptrs[tid]);
@@ -244,7 +244,7 @@ void srunner(void *func(void *), const char *fname, int r = -1) {
         tids[i] = i;
         func(tids + i);
 #if linux
-        if (numa_malloc & 0x1 == 0x1) {
+        if ((numa_malloc & 0x1) == 0x1) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
         CPU_SET(i, &cpuset);
@@ -277,7 +277,7 @@ void prunner(void *func(void *), const char *fname, int r = -1) {
         tids[i] = i;
         pthread_create(&workers[i], NULL, func, tids + i);
 #if linux
-        if (numa_malloc & 0x1 == 0x1) {
+        if ((numa_malloc & 0x1) == 0x1) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
         CPU_SET(i, &cpuset);

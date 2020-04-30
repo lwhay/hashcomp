@@ -202,22 +202,22 @@ int main(int argc, const char **argv) {
     }
     numa_bitmask_free(bm);
 
-    if (marker & 0x1 == 0x1) {
+    if ((marker & 0x1) == 0x1) {
         printf("------------------------------------ char %llu----------------------------------\n", (marker & 0x1));
         run<char>(operations, ntrips);
     }
 
-    if (marker & 0x2 == 0x2) {
+    if ((marker & 0x2) == 0x2) {
         printf("------------------------------------ short %llu---------------------------------\n", (marker & 0x2));
         run<short>(operations, ntrips);
     }
 
-    if (marker & 0x4 == 0x4) {
+    if ((marker & 0x4) == 0x4) {
         printf("------------------------------------ int %llu-----------------------------------\n", (marker & 0x2));
         run<int>(operations, ntrips);
     }
 
-    if (marker & 0x8 == 0x8) {
+    if ((marker & 0x8) == 0x8) {
         printf("------------------------------------ long %llu----------------------------------\n", (marker & 0x2));
         run<long>(operations, ntrips);
     }
