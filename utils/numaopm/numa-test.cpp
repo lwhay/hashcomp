@@ -29,23 +29,24 @@ void print_bitmask(const struct bitmask *bm) {
         printf("%d", numa_bitmask_isbitset(bm, i));
 }
 
-double measure_access(void *x, size_t array_size, size_t ntrips, size_t operations, char *out = nullptr) {
+double measure_access(void *x, size_t array_size, size_t ntrips, size_t operations, double *out = nullptr) {
     timestamp_type t1;
     get_timestamp(&t1);
     size_t step = array_size / operations;
 #if READ_OPERATION == 1
-    char one;
+    *out = .0f;
+    //char one;
 #endif
     for (size_t i = 0; i < ntrips; ++i)
         for (size_t j = 0; j < array_size; j += step) {
 #if READ_OPERATION == 1
-            one = *(((char *) x) + ((j * 1009) % array_size));
+            out += *(((char *) x) + ((j * 1009) % array_size));
 #else
             *(((char *) x) + ((j * 1009) % array_size)) += 1;
 #endif
         }
 #if READ_OPERATION
-    *out = one;
+    //*out = one;
 #endif
 
     timestamp_type t2;
@@ -85,7 +86,7 @@ int main(int argc, const char **argv) {
     puts("");
 
     char *xs[num_cpus];
-    char outs[num_cpus];
+    double outs[num_cpus];
     char *x;
     const size_t cache_line_size = 64;
     // Here, the storage type of array_size significantly impacts the total performance on g++
@@ -115,7 +116,7 @@ int main(int argc, const char **argv) {
         for (size_t i = 0; i < num_cpus; ++i) {
             if (tid == i) {
                 double t = measure_access(x, array_size, ntrips, operations, &outs[tid]);
-                printf("sequential core %d -> core 0 : BW %g MB/s %c\n", i,
+                printf("sequential core %d -> core 0 : BW %g MB/s %g\n", i,
                        operations * ntrips * cache_line_size / t / 1e6, outs[tid]);
             }
 #pragma omp barrier
@@ -132,7 +133,7 @@ int main(int argc, const char **argv) {
 #pragma omp barrier
             for (size_t i = 0; i < num_cpus; ++i) {
                 if (tid == i)
-                    printf("all-contention core %d -> core 0 : BW %g MB/s %c\n", tid,
+                    printf("all-contention core %d -> core 0 : BW %g MB/s %g\n", tid,
                            operations * ntrips * cache_line_size / t / 1e6, outs[tid]);
 #pragma omp barrier
             }
@@ -150,7 +151,7 @@ int main(int argc, const char **argv) {
 #pragma omp barrier
             for (size_t i = 0; i < num_cpus; ++i) {
                 if (tid == i)
-                    printf("all-localization core %d -> core 0 : BW %g MB/s %c\n", tid,
+                    printf("all-localization core %d -> core %d : BW %g MB/s %g\n", tid, tid,
                            operations * ntrips * cache_line_size / t / 1e6, outs[tid]);
 #pragma omp barrier
             }
@@ -170,12 +171,12 @@ int main(int argc, const char **argv) {
 
 #pragma omp barrier
             if (tid == 0) {
-                printf("two-contention core %d -> core 0 : BW %g MB/s %c\n", tid,
+                printf("two-contention core %d -> core 0 : BW %g MB/s %g\n", tid,
                        operations * ntrips * cache_line_size / t / 1e6, outs[tid]);
             }
 #pragma omp barrier
             if (tid == i) {
-                printf("two-contention core %d -> core 0 : BW %g MB/s %c\n\n", tid,
+                printf("two-contention core %d -> core 0 : BW %g MB/s %g\n\n", tid,
                        operations * ntrips * cache_line_size / t / 1e6, outs[tid]);
             }
 #pragma omp barrier
