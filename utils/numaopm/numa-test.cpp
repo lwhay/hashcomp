@@ -18,6 +18,8 @@
 
 #define READ_OPERATION 1
 
+size_t batch_size = 1llu << 2;
+
 void pin_to_core(size_t core) {
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -43,9 +45,9 @@ double measure_access(T *x, int tid, size_t array_size, size_t ntrips, size_t op
     for (size_t i = 0; i < ntrips; ++i)
         for (size_t j = 0; j < array_size; j += step) {
 #if READ_OPERATION == 1
-            *out += *(((T *) x) + ((j * 1009 + offset) % array_size));
+            for (size_t k = 0; k < batch_size; k++) *out += *(((T *) x) + ((j * 1009 + offset + k) % array_size));
 #else
-            *(((T *) x) + ((j * 1009 + offset) % array_size)) += 1;
+            for (size_t k = 0; k < batch_size; k++) *(((T *) x) + ((j * 1009 + offset + k) % array_size)) += 1;
 #endif
         }
 #if READ_OPERATION
@@ -181,9 +183,10 @@ int main(int argc, const char **argv) {
     size_t operations = 100 * 1000 * 1000;
     size_t ntrips = 2;
 
-    if (argc > 2) {
+    if (argc > 3) {
         operations = std::atol(argv[1]);
         ntrips = std::atol(argv[2]);
+        batch_size = std::atol(argv[3]);
     }
 
     int num_cpus = numa_num_task_cpus();
