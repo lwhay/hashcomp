@@ -258,10 +258,10 @@ void srunner(void *func(void *), const char *fname, int r = -1) {
     gettimeofday(&endTime, NULL);
     duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
     if (r == -1)
-        printf("%s: %lld %f\n", fname, duration, (double) total_count.load() / total_time.load());
+        printf("in-order %s: %lld %f\n", fname, duration, (double) total_count.load() / total_time.load());
     else
-        printf("%s%d: %lld %f mops %f\n", fname, r, duration,
-               (double) total_count.load() * 1000000 / total_time.load() / (1llu << 30), total_summation.load());
+        printf("in-order %s%d: %lld %f mops %g\n", fname, r, duration, (double) total_count.load() / total_time.load(),
+               total_summation.load());
 
     free(tids);
 }
@@ -294,11 +294,11 @@ void prunner(void *func(void *), const char *fname, int r = -1) {
     gettimeofday(&endTime, NULL);
     duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
     if (r == -1)
-        printf("%s: %lld %f\n", fname, duration, (double) total_count.load() * thread_number / total_time.load());
+        printf("parallel %s: %lld %f\n", fname, duration,
+               (double) total_count.load() * thread_number / total_time.load());
     else
-        printf("%s%d: %lld %f mops %f\n", fname, r, duration,
-               (double) total_count.load() * thread_number * 1000000 / total_time.load() / (1llu << 30),
-               total_summation.load());
+        printf("parallel %s%d: %lld %f mops %g\n", fname, r, duration,
+               (double) total_count.load() * thread_number / total_time.load(), total_summation.load());
 
     free(tids);
 }
