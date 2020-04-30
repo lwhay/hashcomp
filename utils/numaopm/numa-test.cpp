@@ -72,6 +72,7 @@ int main(int argc, const char **argv) {
 
     puts("");
 
+    char *xs[num_cpus];
     char *x;
     const size_t cache_line_size = 64;
     // Here, the storage type of array_size significantly impacts the total performance on g++
@@ -93,6 +94,8 @@ int main(int argc, const char **argv) {
         pin_to_core(tid);
         if (tid == 0)
             x = (char *) numa_alloc_local(array_size);
+
+        xs[tid] = (char *) numa_alloc_local(array_size);
 
         // {{{ single access
 #pragma omp barrier
@@ -124,6 +127,24 @@ int main(int argc, const char **argv) {
 
         // }}}
 
+        // {{{ everybody localization without contending
+
+        {
+            if (tid == 0) puts("");
+
+#pragma omp barrier
+            double t = measure_access(&x[tid], array_size, ntrips, operations);
+#pragma omp barrier
+            for (size_t i = 0; i < num_cpus; ++i) {
+                if (tid == i)
+                    printf("all-localization core %d -> core 0 : BW %g MB/s\n", tid,
+                           operations * ntrips * cache_line_size / t / 1e6);
+#pragma omp barrier
+            }
+        }
+
+        // }}}
+
         // {{{ zero and someone else contending
 
         if (tid == 0) puts("");
@@ -147,6 +168,7 @@ int main(int argc, const char **argv) {
 #pragma omp barrier
         }
     }
+
     printf("%g\n", verify_read(x, array_size, ntrips, operations));
     numa_free(x, array_size);
 
