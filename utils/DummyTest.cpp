@@ -2,7 +2,6 @@
 // Created by iclab on 10/7/19.
 //
 
-#include <stdatomic.h>
 #include <atomic>
 #include <bitset>
 #include <cassert>
@@ -11,6 +10,12 @@
 #include <thread>
 #include <vector>
 #include "tracer.h"
+
+#ifndef linux
+
+#include <stdatomic.h>
+
+#endif
 
 using namespace std;
 
