@@ -21,6 +21,8 @@ uint64_t total_count = (1llu << 20);
 
 uint64_t thread_number = 4;
 
+#define ENFORCE_WRITE 1
+
 #define VALUE_SIZE 8
 
 char *switcher = "1111111111111";
@@ -67,7 +69,11 @@ void RecordTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) records[loads[i] % total_count].value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += records[loads[i] % total_count].value[j];
+#endif
                     tick++;
                 }
             }
@@ -109,7 +115,11 @@ void RecordPtrTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) records[loads[i] % total_count]->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += records[loads[i] % total_count]->value[j];
+#endif
                     tick++;
                 }
             }
@@ -154,7 +164,11 @@ void RecordScanTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) records[loads[i] % total_count]->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += records[loads[i] % total_count]->value[j];
+#endif
                     tick++;
                 }
             }
@@ -254,7 +268,11 @@ void RecordHashTest() {
                     uint64_t hash =
                             MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                     uint64_t mark = records[hash]->header1.load();
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) records[hash]->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += records[hash]->value[j];
+#endif
                     tick++;
                 }
             }
@@ -311,7 +329,11 @@ void RecordBlockHashTest() {
                     uint64_t hash =
                             MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                     uint64_t mark = records[hash]->header1.load();
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) records[hash]->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += records[hash]->value[j];
+#endif
                     tick++;
                 }
             }
@@ -373,7 +395,11 @@ void RecordNumaBlockHashTest() {
                     uint64_t hash =
                             MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                     uint64_t mark = records[hash]->header1.load();
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) records[hash]->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += records[hash]->value[j];
+#endif
                     tick++;
                 }
             }
@@ -616,7 +642,11 @@ void RecordPageHashTest() {
 #endif
                     record *ptr = (record *) (pages[address.page()] + address.offset());
                     ptr->header1.load();
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+#endif
                     tick++;
                 }
             }
@@ -783,7 +813,11 @@ void RecordPageLocalTest() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+#endif
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -900,7 +934,11 @@ void RecordPageLocal1Test() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+#endif
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -1020,7 +1058,11 @@ void RecordPageLocal2Test() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+#endif
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -1143,7 +1185,11 @@ void RecordPageLocal3Test() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+#endif
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -1359,7 +1405,11 @@ void RecordPageLocal4Test() {
 
                     register record *ptr = (record *) (heap[thrd_id][address.page()] + address.offset());
                     ptr->header1.load();
+#if ENFORCE_WRITE == 1
+                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+#else
                     for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+#endif
                     /*if (tid == 1)
                         std::cout << "\t*" << thrd_id << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
