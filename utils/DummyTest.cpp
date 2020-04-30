@@ -2,17 +2,17 @@
 // Created by iclab on 10/7/19.
 //
 
-#include <atomic>
+#include <stdatomic.h>
+//#include <atomic>
 #include <bitset>
 #include <cassert>
 #include <cstring>
 #include <iostream>
-#include <stdatomic.h>
 #include <thread>
 #include <vector>
 #include "tracer.h"
 
-using namespace std;
+//using namespace std;
 
 uint64_t *loads;
 
@@ -22,7 +22,7 @@ uint64_t total_count = (1llu << 20);
 
 uint64_t thread_number = 4;
 
-#define OPERATION_TYPE 0 // 0: READ; 1: WRITE; 2: ATOMIC_READ; 3: ATOMIC_WRITE; 4: ATOMIC_CAS
+#define OPERATION_TYPE 2 // 0: READ; 1: WRITE; 2: ATOMIC_READ; 3: ATOMIC_WRITE; 4: ATOMIC_CAS
 
 #define VALUE_SIZE 8
 
@@ -44,7 +44,7 @@ std::atomic<uint64_t> total_time{0};
 
 std::atomic<uint64_t> total_tick{0};
 
-atomic<int> stopMeasure(0);
+std::atomic<int> stopMeasure(0);
 
 uint64_t timer_range = 30;
 
