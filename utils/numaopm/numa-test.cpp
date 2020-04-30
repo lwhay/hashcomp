@@ -205,6 +205,9 @@ int main(int argc, const char **argv) {
     run<char>(operations, ntrips);
 
     printf("------------------------------------ int -------------------------------------\n");
+    run<short>(operations, ntrips);
+
+    printf("------------------------------------ int -------------------------------------\n");
     run<int>(operations, ntrips);
 
     printf("------------------------------------ long ------------------------------------\n");
