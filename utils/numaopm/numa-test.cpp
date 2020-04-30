@@ -37,7 +37,7 @@ double measure_access(T *x, int tid, size_t array_size, size_t ntrips, size_t op
     timestamp_type t1;
     get_timestamp(&t1);
     size_t step = array_size / operations;
-    int offset = tid * 31;
+    int offset = tid * 1048573;
 #if READ_OPERATION == 1
     *out = .0f;
     //char one;
@@ -45,9 +45,9 @@ double measure_access(T *x, int tid, size_t array_size, size_t ntrips, size_t op
     for (size_t i = 0; i < ntrips; ++i)
         for (size_t j = 0; j < array_size; j += step) {
 #if READ_OPERATION == 1
-            for (size_t k = 0; k < batch_size; ++k) *out += *(((T *) x) + ((j * 1009 + offset + k) % array_size));
+            for (size_t k = 0; k < batch_size; ++k) *out += *(((T *) x) + ((j * 127 + offset + k) % array_size));
 #else
-            for (size_t k = 0; k < batch_size; ++k) *(((T *) x) + ((j * 1009 + offset + k) % array_size)) += 1;
+            for (size_t k = 0; k < batch_size; ++k) *(((T *) x) + ((j * 127 + offset + k) % array_size)) += 1;
 #endif
         }
 #if READ_OPERATION
