@@ -7,15 +7,16 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
-#include <thread>
-#include <vector>
-#include "tracer.h"
 
 #ifndef linux
 
 #include <stdatomic.h>
 
 #endif
+
+#include <thread>
+#include <vector>
+#include "tracer.h"
 
 using namespace std;
 
