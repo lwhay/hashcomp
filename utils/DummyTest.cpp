@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <stdatomic.h>
 #include <thread>
 #include <vector>
 #include "tracer.h"
@@ -21,7 +22,7 @@ uint64_t total_count = (1llu << 20);
 
 uint64_t thread_number = 4;
 
-#define ENFORCE_WRITE 1
+#define OPERATION_TYPE 0 // 0: READ; 1: WRITE; 2: ATOMIC_READ; 3: ATOMIC_WRITE; 4: ATOMIC_CAS
 
 #define VALUE_SIZE 8
 
@@ -69,11 +70,23 @@ void RecordTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) records[loads[i] % total_count].value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        records[loads[i] % total_count].value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(records[loads[i] % total_count].value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(records[loads[i] % total_count].value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = records[loads[i] % total_count].value[j];
+                        __atomic_compare_exchange(&(records[loads[i] % total_count].value[j]), &old, &tmp, true,
+                                                  __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += records[loads[i] % total_count].value[j];
+                        value += records[loads[i] % total_count].value[j];
 #endif
+                    }
                     tick++;
                 }
             }
@@ -84,7 +97,7 @@ void RecordTest() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
@@ -115,11 +128,23 @@ void RecordPtrTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) records[loads[i] % total_count]->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        records[loads[i] % total_count]->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(records[loads[i] % total_count]->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(records[loads[i] % total_count]->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = records[loads[i] % total_count]->value[j];
+                        __atomic_compare_exchange(&(records[loads[i] % total_count]->value[j]), &old, &tmp, true,
+                                                  __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += records[loads[i] % total_count]->value[j];
+                        value += records[loads[i] % total_count]->value[j];
 #endif
+                    }
                     tick++;
                 }
             }
@@ -130,7 +155,7 @@ void RecordPtrTest() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
@@ -164,11 +189,23 @@ void RecordScanTest() {
             uint64_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (uint64_t i = start; i < start + card; i++) {
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) records[loads[i] % total_count]->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        records[loads[i] % total_count]->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(records[loads[i] % total_count]->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(records[loads[i] % total_count]->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = records[loads[i] % total_count]->value[j];
+                        __atomic_compare_exchange(&(records[loads[i] % total_count]->value[j]), &old, &tmp, true,
+                                                  __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += records[loads[i] % total_count]->value[j];
+                        value += records[loads[i] % total_count]->value[j];
 #endif
+                    }
                     tick++;
                 }
             }
@@ -179,7 +216,7 @@ void RecordScanTest() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
@@ -268,11 +305,22 @@ void RecordHashTest() {
                     uint64_t hash =
                             MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                     uint64_t mark = records[hash]->header1.load();
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) records[hash]->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        records[hash]->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(records[hash]->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(records[hash]->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = records[hash]->value[j];
+                        __atomic_compare_exchange(&(records[hash]->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += records[hash]->value[j];
+                        value += records[hash]->value[j];
 #endif
+                    }
                     tick++;
                 }
             }
@@ -283,7 +331,7 @@ void RecordHashTest() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
@@ -329,11 +377,22 @@ void RecordBlockHashTest() {
                     uint64_t hash =
                             MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                     uint64_t mark = records[hash]->header1.load();
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) records[hash]->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        records[hash]->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(records[hash]->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(records[hash]->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = records[hash]->value[j];
+                        __atomic_compare_exchange(&(records[hash]->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += records[hash]->value[j];
+                        value += records[hash]->value[j];
 #endif
+                    }
                     tick++;
                 }
             }
@@ -344,7 +403,7 @@ void RecordBlockHashTest() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
@@ -395,11 +454,22 @@ void RecordNumaBlockHashTest() {
                     uint64_t hash =
                             MurmurHash64A((void *) &loads[i], sizeof(uint64_t), 0x234233242324323) % total_count;
                     uint64_t mark = records[hash]->header1.load();
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) records[hash]->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        records[hash]->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(records[hash]->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(records[hash]->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = records[hash]->value[j];
+                        __atomic_compare_exchange(&(records[hash]->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += records[hash]->value[j];
+                        value += records[hash]->value[j];
 #endif
+                    }
                     tick++;
                 }
             }
@@ -419,7 +489,7 @@ void RecordNumaBlockHashTest() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
@@ -642,11 +712,22 @@ void RecordPageHashTest() {
 #endif
                     record *ptr = (record *) (pages[address.page()] + address.offset());
                     ptr->header1.load();
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = ptr->value[j];
+                        __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+                        value += ptr->value[j];
 #endif
+                    }
                     tick++;
                 }
             }
@@ -657,7 +738,7 @@ void RecordPageHashTest() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
@@ -813,11 +894,22 @@ void RecordPageLocalTest() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = ptr->value[j];
+                        __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+                        value += ptr->value[j];
 #endif
+                    }
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -845,7 +937,7 @@ void RecordPageLocalTest() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++)
         workers[t].join();
@@ -934,11 +1026,22 @@ void RecordPageLocal1Test() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = ptr->value[j];
+                        __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+                        value += ptr->value[j];
 #endif
+                    }
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -962,7 +1065,7 @@ void RecordPageLocal1Test() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++)
         workers[t].join();
@@ -1058,11 +1161,22 @@ void RecordPageLocal2Test() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = ptr->value[j];
+                        __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+                        value += ptr->value[j];
 #endif
+                    }
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -1086,7 +1200,7 @@ void RecordPageLocal2Test() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++)
         workers[t].join();
@@ -1185,11 +1299,22 @@ void RecordPageLocal3Test() {
 #endif
                     record *ptr = (record *) (heap[tid][address.page()] + address.offset());
                     ptr->header1.load();
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = ptr->value[j];
+                        __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+                        value += ptr->value[j];
 #endif
+                    }
                     /*if (tid == 0)
                         std::cout << "\t" << tid << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -1213,7 +1338,7 @@ void RecordPageLocal3Test() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++)
         workers[t].join();
@@ -1405,11 +1530,22 @@ void RecordPageLocal4Test() {
 
                     register record *ptr = (record *) (heap[thrd_id][address.page()] + address.offset());
                     ptr->header1.load();
-#if ENFORCE_WRITE == 1
-                    for (int j = 0; j < VALUE_SIZE; j++) ptr->value[j] = j;
+                    for (int j = 0; j < VALUE_SIZE; j++) {
+                        uint64_t tmp = j;
+#if OPERATION_TYPE == 1
+                        ptr->value[j] = j;
+#elif OPERATION_TYPE == 2
+                        __atomic_load(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+                        value += tmp;
+#elif OPERATION_TYPE == 3
+                        __atomic_store(&(ptr->value[j]), &tmp, __ATOMIC_RELAXED);
+#elif OPERATION_TYPE == 4
+                        uint64_t old = ptr->value[j];
+                        __atomic_compare_exchange(&(ptr->value[j]), &old, &tmp, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #else
-                    for (int j = 0; j < VALUE_SIZE; j++) value += ptr->value[j];
+                        value += ptr->value[j];
 #endif
+                    }
                     /*if (tid == 1)
                         std::cout << "\t*" << thrd_id << " " << tick << " " << address.page() << " " << address.offset()
                                   << " " << ptr->key << " " << hash << " " << hash % thread_number << std::endl;*/
@@ -1437,7 +1573,7 @@ void RecordPageLocal4Test() {
     while (timer.elapsedSeconds() < timer_range) {
         sleep(1);
     }
-    stopMeasure.store(1, memory_order_relaxed);
+    stopMeasure.store(1, std::memory_order_relaxed);
 
     for (uint64_t t = 0; t < thread_number; t++) workers[t].join();
 
