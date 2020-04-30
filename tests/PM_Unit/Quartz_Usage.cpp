@@ -258,11 +258,10 @@ void srunner(void *func(void *), const char *fname, int r = -1) {
     gettimeofday(&endTime, NULL);
     duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
     if (r == -1)
-        printf("%s: %lld %f\n", fname, duration, (double) total_count.load() * thread_number / total_time.load());
+        printf("%s: %lld %f\n", fname, duration, (double) total_count.load() / total_time.load());
     else
-        printf("%s%d: %lld %f GB/s %f\n", fname, r, duration,
-               (double) total_count.load() * thread_number * 1000000 / total_time.load() / (1llu << 30),
-               total_summation.load());
+        printf("%s%d: %lld %f mops %f\n", fname, r, duration,
+               (double) total_count.load() * 1000000 / total_time.load() / (1llu << 30), total_summation.load());
 
     free(tids);
 }
@@ -297,7 +296,7 @@ void prunner(void *func(void *), const char *fname, int r = -1) {
     if (r == -1)
         printf("%s: %lld %f\n", fname, duration, (double) total_count.load() * thread_number / total_time.load());
     else
-        printf("%s%d: %lld %f GB/s %f\n", fname, r, duration,
+        printf("%s%d: %lld %f mops %f\n", fname, r, duration,
                (double) total_count.load() * thread_number * 1000000 / total_time.load() / (1llu << 30),
                total_summation.load());
 
