@@ -4,7 +4,6 @@
 
 #include <cassert>
 #include <atomic>
-#include <iostream>
 #include <pthread.h>
 #include <stdio.h>
 #include <cpuid.h>
@@ -71,6 +70,8 @@ bool first_round = true;
 #define OPERATION_TYPE 0 // 0: char; 1: ushort; 2: uint; 3: ulong
 
 #define ROUND_ROBIN 2 // 0: 1-1; 1: 1-2, 2-3, ..., n-1; 2: 0:n, 1:n-1,...
+
+#define INIT_SEPARATE 1
 
 pthread_t *workers;
 void ****ptrs;
@@ -232,7 +233,41 @@ void *pmfree(void *args) {
     total_count.fetch_add(run_iteration);
 }
 
-void runner(void *func(void *), const char *fname, int r = -1) {
+void srunner(void *func(void *), const char *fname, int r = -1) {
+    int *tids = (int *) malloc(sizeof(int) * thread_number);
+    struct timeval begTime, endTime;
+    long duration;
+    total_count.store(0);
+    total_time.store(0);
+    gettimeofday(&begTime, NULL);
+    for (int i = 0; i < thread_number; i++) {
+        tids[i] = i;
+        func(tids + i);
+#if linux
+        if (numa_malloc & 0x1 == 0x1) {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(i, &cpuset);
+        int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+        if (rc != 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+    }
+#endif
+    }
+    gettimeofday(&endTime, NULL);
+    duration = (endTime.tv_sec - begTime.tv_sec) * 1000000 + endTime.tv_usec - begTime.tv_usec;
+    if (r == -1)
+        printf("%s: %lld %f\n", fname, duration, (double) total_count.load() * thread_number / total_time.load());
+    else
+        printf("%s%d: %lld %f GB/s %f\n", fname, r, duration,
+               (double) total_count.load() * thread_number * 1000000 / total_time.load() / (1llu << 30),
+               total_summation.load());
+
+    free(tids);
+}
+
+void prunner(void *func(void *), const char *fname, int r = -1) {
     int *tids = (int *) malloc(sizeof(int) * thread_number);
     struct timeval begTime, endTime;
     long duration;
@@ -274,36 +309,48 @@ void multiWorkers() {
     workers = (pthread_t *) malloc(sizeof(pthread_t) * thread_number);
 
     for (int r = 0; r < 1; r++) {
-        runner(pmmall, "pmmall");
+#if INIT_SEPARATE == 1
+        srunner(pmmall, "pmmall");
+#else
+        prunner(pmmall, "pmmall");
+#endif
     }
 
     for (int r = 0; r < 1; r++) {
-        runner(ppmall, "ppmall");
+#if INIT_SEPARATE == 1
+        srunner(ppmall, "ppmall");
+#else
+        prunner(ppmall, "ppmall");
+#endif
     }
 
     for (int r = 0; r < 3; r++) {
-        runner(pmwriter, "pmwriter", r);
+#if INIT_SEPARATE == 1
+        srunner(pmwriter, "pmwriter", r);
+#else
+        prunner(ppmall, "ppmall");
+#endif
     }
 
     for (int r = 0; r < 3; r++) {
-        runner(pmreader, "pmreader", r);
+        prunner(pmreader, "pmreader", r);
     }
 
     first_round = false;
     for (int r = 0; r < 3; r++) {
-        runner(pmwriter, "pmwriter", r);
+        prunner(pmwriter, "pmwriter", r);
     }
 
     for (int r = 0; r < 3; r++) {
-        runner(pmreader, "pmreader", r);
+        prunner(pmreader, "pmreader", r);
     }
 
     for (int r = 0; r < 1; r++) {
-        runner(ppfree, "ppfree");
+        prunner(ppfree, "ppfree");
     }
 
     for (int r = 0; r < 1; r++) {
-        runner(pmfree, "pmfree");
+        prunner(pmfree, "pmfree");
     }
 
     free(workers);
