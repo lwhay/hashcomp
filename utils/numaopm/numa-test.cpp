@@ -30,7 +30,8 @@ void print_bitmask(const struct bitmask *bm) {
         printf("%d", numa_bitmask_isbitset(bm, i));
 }
 
-double measure_access(void *x, int tid, size_t array_size, size_t ntrips, size_t operations, double *out = nullptr) {
+template<typename T>
+double measure_access(T *x, int tid, size_t array_size, size_t ntrips, size_t operations, double *out = nullptr) {
     timestamp_type t1;
     get_timestamp(&t1);
     size_t step = array_size / operations;
@@ -42,9 +43,9 @@ double measure_access(void *x, int tid, size_t array_size, size_t ntrips, size_t
     for (size_t i = 0; i < ntrips; ++i)
         for (size_t j = 0; j < array_size; j += step) {
 #if READ_OPERATION == 1
-            *out += *(((char *) x) + ((j * 1009 + offset) % array_size));
+            *out += *(((T *) x) + ((j * 1009 + offset) % array_size));
 #else
-            *(((char *) x) + ((j * 1009 + offset) % array_size)) += 1;
+            *(((T *) x) + ((j * 1009 + offset) % array_size)) += 1;
 #endif
         }
 #if READ_OPERATION
@@ -57,19 +58,21 @@ double measure_access(void *x, int tid, size_t array_size, size_t ntrips, size_t
     return timestamp_diff_in_seconds(t1, t2);
 }
 
-double verify_read(void *x, size_t array_size, size_t ntrips, size_t operations) {
+template<typename T>
+double verify_read(T *x, size_t array_size, size_t ntrips, size_t operations) {
     double ret = .0f;
     size_t step = array_size / operations;
 
     for (size_t i = 0; i < ntrips; ++i)
         for (size_t j = 0; j < array_size; j += step) {
-            ret += *(((char *) x) + ((j * 1009) % array_size));
+            ret += *(((T *) x) + ((j * 1009) % array_size));
         }
 
     return ret;
 }
 
-int main(int argc, const char **argv) {
+template<typename T>
+void run(size_t operations, size_t ntrips) {
     int num_cpus = numa_num_task_cpus();
     printf("num cpus: %d\n", num_cpus);
 
@@ -87,19 +90,12 @@ int main(int argc, const char **argv) {
 
     puts("");
 
-    char *xs[num_cpus];
+    T *xs[num_cpus];
     double outs[num_cpus];
-    char *x;
+    T *x;
     const size_t cache_line_size = 64;
     // Here, the storage type of array_size significantly impacts the total performance on g++
     const size_t array_size = 100 * 1000 * 1000;
-    size_t operations = 100 * 1000 * 1000;
-    size_t ntrips = 2;
-
-    if (argc > 2) {
-        operations = std::atol(argv[1]);
-        ntrips = std::atol(argv[2]);
-    }
     printf("array_size: %llu, operations: %llu, ntrips: %llu\n", array_size, operations, ntrips);
 
 #pragma omp parallel
@@ -109,12 +105,12 @@ int main(int argc, const char **argv) {
 
         pin_to_core(tid);
         if (tid == 0) {
-            x = (char *) numa_alloc_local(array_size);
-            memset(x, 0xf, array_size);
+            x = (T *) numa_alloc_local(array_size * sizeof(T));
+            memset(x, 0xf, array_size * sizeof(T));
         }
 
-        xs[tid] = (char *) numa_alloc_local(array_size);
-        memset(xs[tid], tid, array_size);
+        xs[tid] = (T *) numa_alloc_local(array_size * sizeof(T));
+        memset(xs[tid], tid, array_size * sizeof(T));
 
         // {{{ single access
 #pragma omp barrier
@@ -190,6 +186,25 @@ int main(int argc, const char **argv) {
 
     printf("%g\n", verify_read(x, array_size, ntrips, operations));
     numa_free(x, array_size);
+}
+
+int main(int argc, const char **argv) {
+    size_t operations = 100 * 1000 * 1000;
+    size_t ntrips = 2;
+
+    if (argc > 2) {
+        operations = std::atol(argv[1]);
+        ntrips = std::atol(argv[2]);
+    }
+
+    printf("------------------------------------ char ------------------------------------\n");
+    run<char>(operations, ntrips);
+
+    printf("------------------------------------ int -------------------------------------\n");
+    run<int>(operations, ntrips);
+
+    printf("------------------------------------ long ------------------------------------\n");
+    run<long>(operations, ntrips);
 
     return 0;
 }
