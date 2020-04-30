@@ -74,19 +74,7 @@ double verify_read(T *x, size_t array_size, size_t ntrips, size_t operations) {
 template<typename T>
 void run(size_t operations, size_t ntrips) {
     int num_cpus = numa_num_task_cpus();
-    printf("num cpus: %d\n", num_cpus);
-
-    printf("numa available: %d\n", numa_available());
     numa_set_localalloc();
-
-    struct bitmask *bm = numa_bitmask_alloc(num_cpus);
-    for (int i = 0; i <= numa_max_node(); ++i) {
-        numa_node_to_cpus(i, bm);
-        printf("numa node %d ", i);
-        print_bitmask(bm);
-        printf(" - %g GiB\n", numa_node_size(i, 0) / (1024. * 1024 * 1024.));
-    }
-    numa_bitmask_free(bm);
 
     puts("");
 
@@ -196,6 +184,18 @@ int main(int argc, const char **argv) {
         operations = std::atol(argv[1]);
         ntrips = std::atol(argv[2]);
     }
+
+    int num_cpus = numa_num_task_cpus();
+    printf("num cpus: %d\n", num_cpus);
+    printf("numa available: %d\n", numa_available());
+    struct bitmask *bm = numa_bitmask_alloc(num_cpus);
+    for (int i = 0; i <= numa_max_node(); ++i) {
+        numa_node_to_cpus(i, bm);
+        printf("numa node %d ", i);
+        print_bitmask(bm);
+        printf(" - %g GiB\n", numa_node_size(i, 0) / (1024. * 1024 * 1024.));
+    }
+    numa_bitmask_free(bm);
 
     printf("------------------------------------ char ------------------------------------\n");
     run<char>(operations, ntrips);
