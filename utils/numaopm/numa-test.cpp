@@ -114,7 +114,7 @@ int main(int argc, const char **argv) {
         }
 
         xs[tid] = (char *) numa_alloc_local(array_size);
-        memset(&xs[tid], tid, array_size);
+        memset(xs[tid], tid, array_size);
 
         // {{{ single access
 #pragma omp barrier
@@ -152,7 +152,7 @@ int main(int argc, const char **argv) {
             if (tid == 0) puts("");
 
 #pragma omp barrier
-            double t = measure_access(&x[tid], tid, array_size, ntrips, operations, &outs[tid]);
+            double t = measure_access(xs[tid], tid, array_size, ntrips, operations, &outs[tid]);
 #pragma omp barrier
             for (size_t i = 0; i < num_cpus; ++i) {
                 if (tid == i)
