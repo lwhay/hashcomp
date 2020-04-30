@@ -10,6 +10,7 @@
 #include <numa.h>
 #include <sched.h>
 #include <stdio.h>
+#include <string.h>
 #include <pthread.h>
 #include <omp.h>
 #include <assert.h>
@@ -107,10 +108,13 @@ int main(int argc, const char **argv) {
         int tid = omp_get_thread_num();
 
         pin_to_core(tid);
-        if (tid == 0)
+        if (tid == 0) {
             x = (char *) numa_alloc_local(array_size);
+            memset(x, tid, array_size);
+        }
 
         xs[tid] = (char *) numa_alloc_local(array_size);
+        memset(&xs[tid], tid, array_size);
 
         // {{{ single access
 #pragma omp barrier
