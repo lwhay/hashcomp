@@ -29,10 +29,11 @@ void print_bitmask(const struct bitmask *bm) {
         printf("%d", numa_bitmask_isbitset(bm, i));
 }
 
-double measure_access(void *x, size_t array_size, size_t ntrips, size_t operations, double *out = nullptr) {
+double measure_access(void *x, int tid, size_t array_size, size_t ntrips, size_t operations, double *out = nullptr) {
     timestamp_type t1;
     get_timestamp(&t1);
     size_t step = array_size / operations;
+    int offset = tid * 31;
 #if READ_OPERATION == 1
     *out = .0f;
     //char one;
@@ -40,9 +41,9 @@ double measure_access(void *x, size_t array_size, size_t ntrips, size_t operatio
     for (size_t i = 0; i < ntrips; ++i)
         for (size_t j = 0; j < array_size; j += step) {
 #if READ_OPERATION == 1
-            out += *(((char *) x) + ((j * 1009) % array_size));
+            out += *(((char *) x) + ((j * 1009 + offset) % array_size));
 #else
-            *(((char *) x) + ((j * 1009) % array_size)) += 1;
+            *(((char *) x) + ((j * 1009 + offset) % array_size)) += 1;
 #endif
         }
 #if READ_OPERATION
@@ -115,7 +116,7 @@ int main(int argc, const char **argv) {
 #pragma omp barrier
         for (size_t i = 0; i < num_cpus; ++i) {
             if (tid == i) {
-                double t = measure_access(x, array_size, ntrips, operations, &outs[tid]);
+                double t = measure_access(x, tid, array_size, ntrips, operations, &outs[tid]);
                 printf("sequential core %d -> core 0 : BW %g MB/s %g\n", i,
                        operations * ntrips * cache_line_size / t / 1e6, outs[tid]);
             }
@@ -129,7 +130,7 @@ int main(int argc, const char **argv) {
             if (tid == 0) puts("");
 
 #pragma omp barrier
-            double t = measure_access(x, array_size, ntrips, operations, &outs[tid]);
+            double t = measure_access(x, tid, array_size, ntrips, operations, &outs[tid]);
 #pragma omp barrier
             for (size_t i = 0; i < num_cpus; ++i) {
                 if (tid == i)
@@ -147,7 +148,7 @@ int main(int argc, const char **argv) {
             if (tid == 0) puts("");
 
 #pragma omp barrier
-            double t = measure_access(&x[tid], array_size, ntrips, operations, &outs[tid]);
+            double t = measure_access(&x[tid], tid, array_size, ntrips, operations, &outs[tid]);
 #pragma omp barrier
             for (size_t i = 0; i < num_cpus; ++i) {
                 if (tid == i)
@@ -167,7 +168,7 @@ int main(int argc, const char **argv) {
         for (size_t i = 1; i < num_cpus; ++i) {
             double t;
             if (tid == i || tid == 0)
-                t = measure_access(x, array_size, ntrips, operations, &outs[tid]);
+                t = measure_access(x, tid, array_size, ntrips, operations, &outs[tid]);
 
 #pragma omp barrier
             if (tid == 0) {
