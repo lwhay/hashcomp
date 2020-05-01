@@ -21,7 +21,7 @@ private:
         T *Pop() { return vect.erase(vect.front()); }
     };*/
 
-    using DataNodeQueue = std::queue<T>;
+    using DataNodeQueue = std::queue<T *>;
     using Pool = std::vector<DataNodeQueue>;
 
     class Delete_Context : public FASTER::core::IAsyncContext {
@@ -45,7 +45,7 @@ private:
         uint32_t tid = FASTER::core::Thread::id();
         assert(tid <= context->pool->size());
         auto history = context->pool->operator[](tid);
-        history.push(*context->ptr);
+        history.push(context->ptr);
     }
 
 public:
