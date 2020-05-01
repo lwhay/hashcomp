@@ -42,22 +42,22 @@ public:
 
 #include "junction/ConcurrentMap_Leapfrog.h"
 
-typedef junction::ConcurrentMap_Leapfrog<uint64_t, Foo *> maptype;
+typedef junction::ConcurrentMap_Leapfrog<uint64_t, uint64_t> maptype;
 #elif JTYPE == 1
 
 #include "junction/ConcurrentMap_Grampa.h"
 
-typedef junction::ConcurrentMap_Grampa<uint64_t, Foo *> maptype;
+typedef junction::ConcurrentMap_Grampa<uint64_t, uint64_t> maptype;
 #elif JTYPE == 2
 
 #include "junction/ConcurrentMap_Crude.h"
 
-typedef junction::ConcurrentMap_Crude<uint64_t, Foo *> maptype;
+typedef junction::ConcurrentMap_Crude<uint64_t, uint64_t> maptype;
 #else
 
 #include "junction/ConcurrentMap_Linear.h"
 
-typedef junction::ConcurrentMap_Linear<uint64_t, Foo *> maptype;
+typedef junction::ConcurrentMap_Linear<uint64_t, uint64_t> maptype;
 #endif
 
 maptype *store;
@@ -112,7 +112,7 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        store->exchange(loads[i], (Foo *) &loads[i]);
+        store->exchange(loads[i], loads[i]);
         set.insert(loads[i]);
         inserted++;
     }
@@ -124,7 +124,7 @@ void *insertWorker(void *args) {
     uint64_t inserted = 0;
     for (int i = 0; i < total_count; i++) {
         bool ret = false;
-        while (!ret) ret = store->exchange(loads[i], (Foo *) &loads[i]);
+        while (!ret) ret = store->exchange(loads[i], loads[i]);
         inserted++;
     }
     __sync_fetch_and_add(&exists, inserted);
@@ -151,7 +151,7 @@ void *measureWorker(void *args) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
                     bool ret = false;
-                    while (!ret) ret = store->exchange(loads[i], (Foo *) &loads[i]);
+                    while (!ret) ret = store->exchange(loads[i], loads[i]);
                     if (ret) mhit++;
                     else mfail++;
                 } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
@@ -159,7 +159,7 @@ void *measureWorker(void *args) {
                     if (evenRound % 2 == 0) {
                         uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
                         ret = false;
-                        while (!ret) ret = store->assign(key, (Foo *) &key);
+                        while (!ret) ret = store->assign(key, key);
                     } else {
                         uint64_t key = thread_number * ereased++ + work->tid + (evenRound / 2 + 1) * key_range;
                         ret = false;
@@ -168,8 +168,8 @@ void *measureWorker(void *args) {
                     if (ret) mhit++;
                     else mfail++;
                 } else {
-                    Foo *value = store->get(loads[i]);
-                    if (value->get() == loads[i]) rhit++;
+                    uint64_t value = store->get(loads[i]);
+                    if (value == loads[i]) rhit++;
                     else rfail++;
                 }
             }
