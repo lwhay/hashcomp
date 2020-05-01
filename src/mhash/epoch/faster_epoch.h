@@ -78,7 +78,7 @@ public:
     uint64_t allocate(size_t tid) { return -1; }
 
     T *allocate() {
-        return -1;
+        return nullptr;
         /*T *e;
         if (!cache<T>.empty()) {
             e = cache<T>.front();
