@@ -11,7 +11,18 @@
 #include "faster/light_epoch.h"
 
 template<typename T, typename D = T>
+static thread_local std::queue<T *> cache;
+
+template<typename T, typename D = T>
 class faster_epoch : public ihazard<T, D> {
+    class SelfCleanQueue;
+
+    using DataNodeQueue = SelfCleanQueue;
+    using Pool = std::vector<DataNodeQueue>;
+
+private:
+    Pool data_pool;
+    FASTER::core::LightEpoch epoch;
 private:
     class SelfCleanQueue {
     private:
@@ -22,14 +33,12 @@ private:
                 T *e = history.front();
                 history.pop();
                 delete e;
+                //cache<T>.push(e);
             }
         }
 
         void Push(T *t) { history.push(t); }
     };
-
-    using DataNodeQueue = SelfCleanQueue;
-    using Pool = std::vector<DataNodeQueue>;
 
     class Delete_Context : public FASTER::core::IAsyncContext {
     public:
@@ -69,7 +78,15 @@ public:
     uint64_t allocate(size_t tid) { return -1; }
 
     T *allocate() {
-        //return (T *) allocator.Allocate().control();
+        return -1;
+        /*T *e;
+        if (!cache<T>.empty()) {
+            e = cache<T>.front();
+            cache<T>.pop();
+        } else {
+            e = new T;
+        }
+        return e;*/
     }
 
     template<typename IS_SAFE, typename FILTER>
@@ -95,10 +112,6 @@ public:
     }
 
     const char *info() { return "faster_epoch"; }
-
-private:
-    Pool data_pool;
-    FASTER::core::LightEpoch epoch;
 };
 
 #endif //HASHCOMP_FASTER_EPOCH_H

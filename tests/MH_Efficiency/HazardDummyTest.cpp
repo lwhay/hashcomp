@@ -192,7 +192,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr, std::memory_order_relaxed));
             node *oldptr = (node *) old;
             if (hash_freent == 2 || hash_freent == 4 ||
-                hash_freent >= 5 /*&& hash_freent < 14*/) { // mshp etc maintains caches inside each hp.
+                hash_freent >= 5 && hash_freent < 14) { // mshp etc maintains caches inside each hp.
                 assert(oldptr->value == 1);
                 deallocator->free(old);
 #if uselocal == 1
