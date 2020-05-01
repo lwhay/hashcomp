@@ -40,9 +40,7 @@ private:
         static constexpr uint64_t kFree = UINT64_MAX;
         static constexpr uint64_t kLocked = UINT64_MAX - 1;
 
-        EpochAction()
-                : epoch{kFree}, callback{nullptr}, context{nullptr} {
-        }
+        EpochAction() : epoch{kFree}, callback{nullptr}, context{nullptr} {}
 
         void Initialize() {
             callback = nullptr;
@@ -81,8 +79,8 @@ private:
             return retval;
         }
 
-        bool TrySwap(uint64_t expected_epoch, uint64_t prior_epoch, callback_t new_callback,
-                     IAsyncContext *new_context) {
+        bool
+        TrySwap(uint64_t expected_epoch, uint64_t prior_epoch, callback_t new_callback, IAsyncContext *new_context) {
             bool retval = epoch.compare_exchange_strong(expected_epoch, kLocked);
             if (retval) {
                 callback_t existing_callback = callback;
@@ -121,8 +119,7 @@ private:
     /// Number of entries in epoch table.
     uint32_t num_entries_;
 
-    /// List of action, epoch pairs containing actions to performed when an epoch becomes
-    /// safe to reclaim.
+    /// List of action, epoch pairs containing actions to performed when an epoch becomes safe to reclaim.
     EpochAction drain_list_[kDrainListSize];
     /// Count of drain actions
     std::atomic<uint32_t> drain_count_;
@@ -133,8 +130,7 @@ public:
     /// Cached value of epoch that is safe to reclaim
     std::atomic<uint64_t> safe_to_reclaim_epoch;
 
-    LightEpoch(uint32_t size = kTableSize)
-            : table_{nullptr}, num_entries_{0}, drain_count_{0}, drain_list_{} {
+    LightEpoch(uint32_t size = kTableSize) : table_{nullptr}, num_entries_{0}, drain_count_{0}, drain_list_{} {
         Initialize(size);
     }
 

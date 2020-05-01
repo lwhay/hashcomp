@@ -103,8 +103,7 @@ typedef void(*AsyncCallback)(IAsyncContext *ctxt, Status result);
 template<class C>
 class CallbackContext {
 public:
-    CallbackContext(IAsyncContext *context)
-            : async{false} {
+    CallbackContext(IAsyncContext *context) : async{false} {
         context_ = make_context_unique_ptr(static_cast<C *>(context));
     }
 
