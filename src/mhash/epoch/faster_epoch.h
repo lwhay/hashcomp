@@ -13,15 +13,22 @@
 template<typename T, typename D = T>
 class faster_epoch : public ihazard<T, D> {
 private:
-    /*class NodeQueue {
-        std::vector<T> vect;
+    class SelfCleanQueue {
+    private:
+        std::queue<T *> history;
     public:
-        void Push(T t) { vect.push_back(t); }
+        ~SelfCleanQueue() {
+            while (!history.empty()) {
+                T *e = history.front();
+                history.pop();
+                delete e;
+            }
+        }
 
-        T *Pop() { return vect.erase(vect.front()); }
-    };*/
+        void Push(T *t) { history.push(t); }
+    };
 
-    using DataNodeQueue = std::queue<T *>;
+    using DataNodeQueue = SelfCleanQueue;
     using Pool = std::vector<DataNodeQueue>;
 
     class Delete_Context : public FASTER::core::IAsyncContext {
@@ -45,7 +52,7 @@ private:
         uint32_t tid = FASTER::core::Thread::id();
         assert(tid <= context->pool->size());
         auto history = context->pool->operator[](tid);
-        history.push(context->ptr);
+        history.Push(context->ptr);
     }
 
 public:
