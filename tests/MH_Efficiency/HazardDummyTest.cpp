@@ -130,14 +130,13 @@ void init(std::atomic<uint64_t> *bucket) {
     tracer.startTime();
     deallocator->initThread(thrd_number);
     for (size_t i = 0; i < list_volume; i++) {
-#if defined(linux) && ENABLE_NUMA
+#if defined(linux) && ENABLE_NUMA == 1
         if (i % (list_volume / thrd_number) == 0) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
             CPU_SET(i / (list_volume / thrd_number), &cpuset);
             pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
         }
-    }
 #endif
         node *ptr;
 #if uselocal == 0
@@ -246,6 +245,13 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
     conflict[tid] = hitting;
 }
 
+#if defined(linux) && ENABLE_NUMA == 1
+void print_bitmask(const struct bitmask *bm) {
+    for (size_t i = 0; i < bm->size; ++i)
+        printf("%d", numa_bitmask_isbitset(bm, i));
+}
+#endif
+
 int main(int argc, char **argv) {
     if (argc >= 8) {
         align_width = std::atol(argv[1]);
@@ -341,7 +347,7 @@ int main(int argc, char **argv) {
             break;
         }
     }
-#if defined(linux) && ENABLE_NUMA
+#if defined(linux) && ENABLE_NUMA == 1
     int num_cpus = numa_num_task_cpus();
     printf("num cpus: %d\n", num_cpus);
     printf("numa available: %d\n", numa_available());
