@@ -18,8 +18,10 @@
 #include "opthazard_pointer.h"
 #include "tracer.h"
 
-#if linux
+#ifdef linux
+
 #include <numa.h>
+
 #define ENABLE_NUMA 1
 #endif
 
