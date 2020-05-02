@@ -305,7 +305,7 @@ foreach (sourcefile ${MF_TESTS_EXES})
             EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
             OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
             )
-    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${ATOMIC})
+    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${ATOMIC} ${NUMA})
 endforeach (sourcefile ${MF_TESTS_EXES})
 
 set(UTILS_EXES ${UTILS})

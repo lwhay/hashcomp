@@ -18,7 +18,12 @@
 #include "opthazard_pointer.h"
 #include "tracer.h"
 
-#define high_intensive 1
+#if linux
+#include <numa.h>
+#define ENABLE_NUMA 1
+#endif
+
+#define high_intensive 2 // 0: duplicated; 1: skipping; 2: thread_local
 
 #define permutate_keys 1
 
@@ -96,10 +101,14 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
     Tracer tracer;
     tracer.startTime();
     while (stopMeasure.load() == 0) {
-#if high_intensive
+#if high_intensive == 1
         for (size_t i = 0; i < total_count; i++) {
+#elif high_intensive == 0
+        for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
 #else
-            for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
+        size_t start = tid * list_volume / thrd_number;
+        size_t end = (tid + 1) * list_volume / thrd_number;
+        for (size_t i = start; i < end; i += thrd_number) {
 #endif
             size_t idx = loads[i] * align_width % (list_volume);
             assert(idx >= 0 && idx < list_volume);
@@ -121,6 +130,15 @@ void init(std::atomic<uint64_t> *bucket) {
     tracer.startTime();
     deallocator->initThread(thrd_number);
     for (size_t i = 0; i < list_volume; i++) {
+#if defined(linux) && ENABLE_NUMA
+        if (i % (list_volume / thrd_number) == 0) {
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);
+            CPU_SET(i / (list_volume / thrd_number), &cpuset);
+            pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+        }
+    }
+#endif
         node *ptr;
 #if uselocal == 0
         if (hash_freent == 4)
@@ -168,10 +186,14 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
     Tracer tracer;
     tracer.startTime();
     while (stopMeasure.load() == 0) {
-#if high_intensive
+#if high_intensive == 1
         for (size_t i = 0; i < total_count; i++) {
+#elif high_intensive == 0
+        for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
 #else
-            for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
+        size_t start = tid * list_volume / thrd_number;
+        size_t end = (tid + 1) * list_volume / thrd_number;
+        for (size_t i = start; i < end; i += align_width) {
 #endif
             node *ptr;
 #if uselocal == 0
@@ -319,6 +341,20 @@ int main(int argc, char **argv) {
             break;
         }
     }
+#if defined(linux) && ENABLE_NUMA
+    int num_cpus = numa_num_task_cpus();
+    printf("num cpus: %d\n", num_cpus);
+    printf("numa available: %d\n", numa_available());
+    struct bitmask *bm = numa_bitmask_alloc(num_cpus);
+    for (int i = 0; i <= numa_max_node(); ++i) {
+        numa_node_to_cpus(i, bm);
+        printf("numa node %d ", i);
+        print_bitmask(bm);
+        printf(" - %g GiB\n", numa_node_size(i, 0) / (1024. * 1024 * 1024.));
+    }
+    numa_bitmask_free(bm);
+    numa_set_localalloc();
+#endif
     init(bucket);
     //print(bucket);
     Timer timer;
@@ -327,10 +363,22 @@ int main(int argc, char **argv) {
     for (; t < worker_gran; t++) {
         deallocator->registerThread();
         workers.push_back(std::thread(reader, bucket, t));
+#if defined(linux) && ENABLE_NUMA == 1
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(t, &cpuset);
+        int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
+#endif
     }
     for (; t < thrd_number; t++) {
         if (hash_freent == 6) deallocator->registerThread();
         workers.push_back(std::thread(writer, bucket, t));
+#if defined(linux) && ENABLE_NUMA == 1
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(t, &cpuset);
+        int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
+#endif
     }
     while (timer.elapsedSeconds() < timer_limit) {
         sleep(1);
