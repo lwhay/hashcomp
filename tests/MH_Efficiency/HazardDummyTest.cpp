@@ -106,8 +106,8 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
 #elif high_intensive == 0
         for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
 #else
-        size_t start = tid * list_volume / thrd_number;
-        size_t end = (tid + 1) * list_volume / thrd_number;
+        size_t start = tid * total_count / thrd_number;
+        size_t end = (tid + 1) * total_count / thrd_number;
         for (size_t i = start; i < end; i += thrd_number) {
 #endif
             size_t idx = loads[i] * align_width % (list_volume);
@@ -190,8 +190,8 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
 #elif high_intensive == 0
         for (size_t i = (tid * align_width); i < total_count; i += (thrd_number * align_width)) {
 #else
-        size_t start = tid * list_volume / thrd_number;
-        size_t end = (tid + 1) * list_volume / thrd_number;
+        size_t start = tid * total_count / thrd_number;
+        size_t end = (tid + 1) * total_count / thrd_number;
         for (size_t i = start; i < end; i += align_width) {
 #endif
             node *ptr;
@@ -271,10 +271,10 @@ int main(int argc, char **argv) {
               << " " << queue_limit << " " << timer_limit << " " << hash_freent << std::endl;
     std::atomic<uint64_t> *bucket = new std::atomic<uint64_t>[list_volume];
     loads = new uint64_t[total_count];
+    for (uint64_t i = 0; i < total_count; i++) loads[i] = i;
 #if permutate_keys == 1
     std::random_shuffle(loads, loads + total_count);
 #endif
-    for (uint64_t i = 0; i < total_count; i++) loads[i] = i;
     runtime = new long[thrd_number];
     operations = new uint64_t[thrd_number];
     conflict = new uint64_t[thrd_number];
