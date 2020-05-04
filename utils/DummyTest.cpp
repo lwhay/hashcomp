@@ -1583,7 +1583,7 @@ void RecordPageLocal4Test() {
             uint64_t cpus = num_cpus / num_sock;
             //uint64_t skid = mapping[tid];//tid / cpus;
             uint64_t startpos = 0;
-            for (int i = 0; i < tid; i++) if (mapping.set(i)) startpos++;
+            for (int i = 0; i < tid; i++) if (mapping.test(i)) startpos++;
             uint64_t begin = (startpos % cpus) * (total_count / cpus);
             uint64_t end = (startpos % cpus + 1) * (total_count / cpus);
             Tracer tracer;
