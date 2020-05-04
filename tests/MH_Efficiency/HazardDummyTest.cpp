@@ -117,7 +117,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
             assert(idx >= 0 && idx < list_volume);
             node *ptr = (node *) deallocator->load(tid, std::ref(bucket[idx]));
             //assert(ptr->value == 1);
-            if (ptr->value != 1) {
+            if (detail_print && ptr->value != 1) {
                 exception++;
                 /*std::cout << i << "*" << loads[i] << " " << loads[i] * align_width % (list_volume) << " " << ptr->key
                           << " " << ptr->value << std::endl;*/
@@ -129,7 +129,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
             //std::cout << "r" << tid << i << std::endl;
         }
     }
-    std::cout << "Exceptions: " << exception << std::endl;
+    if (detail_print) std::cout << "Tid: " << tid << " exception: " << exception << std::endl;
     runtime[tid] = tracer.getRunTime();
     operations[tid] = total;
 }
@@ -189,7 +189,7 @@ void print(std::atomic<uint64_t> *bucket) {
 void writer(std::atomic<uint64_t> *bucket, size_t tid) {
     if (hash_freent >= 5 && hash_freent <= 14) deallocator->initThread(tid);
     else if (hash_freent == 2) ftid = tid;
-    uint64_t total = 0, hitting = 0;
+    uint64_t total = 0, hitting = 0, exception = 0;
     std::queue<uint64_t> oldqueue;
     Tracer tracer;
     tracer.startTime();
@@ -224,9 +224,10 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             if (hash_freent == 2 || hash_freent == 4 ||
                 hash_freent >= 5 && hash_freent <= 15) { // mshp etc maintains caches inside each hp.
                 //assert(oldptr->value == 1);
-                if (oldptr->value != 1) {
-                    std::cout << i << " " << loads[i] << " " << loads[i] * align_width % (list_volume) << " "
-                              << oldptr->key << " " << oldptr->value << std::endl;
+                if (detail_print && oldptr->value != 1) {
+                    exception++;
+                    /*std::cout << i << " " << loads[i] << " " << loads[i] * align_width % (list_volume) << " "
+                              << oldptr->key << " " << oldptr->value << std::endl;*/
                 }
                 deallocator->free(old);
 #if uselocal == 1
@@ -253,6 +254,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             //if (tid % worker_gran == 0 && total % 100000 == 0) std::cout << "w" << tid << i << std::endl;
         }
     }
+    if (detail_print) std::cout << "Tid: " << tid << " exception: " << exception << std::endl;
     runtime[tid] = tracer.getRunTime();
     operations[tid] = total;
     conflict[tid] = hitting;
