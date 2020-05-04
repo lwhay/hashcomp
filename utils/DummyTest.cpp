@@ -1454,6 +1454,7 @@ std::bitset<MAX_HARD_THREAD_NUMBER> map[MAX_HARD_THREAD_NUMBER];
 
 void RecordPageLocal4Test() {
 #ifdef linux
+    int numcpus = numa_num_task_cpus();
     bitmask *bm = numa_bitmask_alloc(numcpus);
     std::cout << numa_available() << " " << numa_num_task_cpus() << " " << numa_max_node() << std::endl;
 
@@ -1468,7 +1469,6 @@ void RecordPageLocal4Test() {
     numa_bitmask_free(bm);
     std::vector<std::thread> workers;
 #if NUMA_ISOLATE == 1
-    int numcpus = numa_num_task_cpus();
     std::cout << "numa_available() " << numa_available() << std::endl;
     numa_set_localalloc();
 
