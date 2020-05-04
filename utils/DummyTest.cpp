@@ -1582,8 +1582,10 @@ void RecordPageLocal4Test() {
             unsigned char thrd = thread_number;
             uint64_t cpus = num_cpus / num_sock;
             //uint64_t skid = mapping[tid];//tid / cpus;
-            uint64_t begin = (tid % cpus) * (total_count / cpus);
-            uint64_t end = (tid % cpus + 1) * (total_count / cpus);
+            uint64_t startpos = 0;
+            for (int i = 0; i < tid; i++) if (mapping.set(i)) startpos++;
+            uint64_t begin = (startpos % cpus) * (total_count / cpus);
+            uint64_t end = (startpos % cpus + 1) * (total_count / cpus);
             Tracer tracer;
             tracer.startTime();
             uint64_t tick = 0;
