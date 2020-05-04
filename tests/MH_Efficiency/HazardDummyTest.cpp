@@ -100,6 +100,7 @@ int detail_print = 0;
 void reader(std::atomic<uint64_t> *bucket, size_t tid) {
     deallocator->initThread(tid);
     uint64_t total = 0;
+    size_t exception = 0;
     Tracer tracer;
     tracer.startTime();
     while (stopMeasure.load() == 0) {
@@ -115,7 +116,12 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
             size_t idx = loads[i] * align_width % (list_volume);
             assert(idx >= 0 && idx < list_volume);
             node *ptr = (node *) deallocator->load(tid, std::ref(bucket[idx]));
-            assert(ptr->value == 1);
+            //assert(ptr->value == 1);
+            if (ptr->value != 1) {
+                exception++;
+                /*std::cout << i << "*" << loads[i] << " " << loads[i] * align_width % (list_volume) << " " << ptr->key
+                          << " " << ptr->value << std::endl;*/
+            }
             unsigned count = 0;
             for (; count < read_factor; count++) count += ptr->value;
             total += count / read_factor;
@@ -123,6 +129,7 @@ void reader(std::atomic<uint64_t> *bucket, size_t tid) {
             //std::cout << "r" << tid << i << std::endl;
         }
     }
+    std::cout << "Exceptions: " << exception << std::endl;
     runtime[tid] = tracer.getRunTime();
     operations[tid] = total;
 }
@@ -180,7 +187,7 @@ void print(std::atomic<uint64_t> *bucket) {
 }
 
 void writer(std::atomic<uint64_t> *bucket, size_t tid) {
-    if (hash_freent >= 5 && hash_freent <= 13) deallocator->initThread(tid);
+    if (hash_freent >= 5 && hash_freent <= 14) deallocator->initThread(tid);
     else if (hash_freent == 2) ftid = tid;
     uint64_t total = 0, hitting = 0;
     std::queue<uint64_t> oldqueue;
@@ -215,8 +222,12 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr, std::memory_order_relaxed));
             node *oldptr = (node *) old;
             if (hash_freent == 2 || hash_freent == 4 ||
-                hash_freent >= 5 && hash_freent < 14) { // mshp etc maintains caches inside each hp.
-                assert(oldptr->value == 1);
+                hash_freent >= 5 && hash_freent <= 15) { // mshp etc maintains caches inside each hp.
+                //assert(oldptr->value == 1);
+                if (oldptr->value != 1) {
+                    std::cout << i << " " << loads[i] << " " << loads[i] * align_width % (list_volume) << " "
+                              << oldptr->key << " " << oldptr->value << std::endl;
+                }
                 deallocator->free(old);
 #if uselocal == 1
                 if (hash_freent == 4) {

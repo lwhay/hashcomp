@@ -174,6 +174,7 @@ public:
         uint32_t entry = Thread::id();
         table_[entry].local_current_epoch = current_epoch.load();
         if (drain_count_.load() > 0) {
+            //std::cout << entry << " " << drain_count_.load() << std::endl;
             Drain(table_[entry].local_current_epoch);
         }
         return table_[entry].local_current_epoch;
@@ -231,6 +232,7 @@ public:
     /// Increment the current epoch (global system state) and register
     /// a trigger action for when older epoch becomes safe to reclaim
     uint64_t BumpCurrentEpoch(EpochAction::callback_t callback, IAsyncContext *context) {
+        retry:
         uint64_t prior_epoch = BumpCurrentEpoch() - 1;
         uint32_t i = 0, j = 0;
         uint32_t entry = Thread::id();
@@ -248,11 +250,17 @@ public:
                 }
             }
             if (++i == kDrainListSize) {
+                /*std::cout << entry << ":" << trigger_epoch << ":" << safe_to_reclaim_epoch.load() << " " << i << " "
+                          << j << std::endl;*/
                 i = 0;
                 if (++j == 500) {
+                    //prior_epoch = BumpCurrentEpoch() - 1;
+                    /*std::cout << entry << ":" << trigger_epoch << ":" << safe_to_reclaim_epoch.load() << " " << i << " "
+                              << j << std::endl;*/
                     j = 0;
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                    fprintf(stderr, "Slowdown: Unable to add trigger to epoch\n");
+                    /*std::this_thread::sleep_for(std::chrono::seconds(1));*/
+                    //fprintf(stderr, "Slowdown: Unable to add trigger to epoch\n");
+                    goto retry;
                 }
             }
         }

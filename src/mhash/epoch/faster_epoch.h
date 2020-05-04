@@ -29,6 +29,7 @@ private:
         std::queue<T *> history;
     public:
         ~SelfCleanQueue() {
+            //std::cout << history.size() << std::endl;
             while (!history.empty()) {
                 T *e = history.front();
                 history.pop();
@@ -37,7 +38,10 @@ private:
             }
         }
 
-        void Push(T *t) { history.push(t); }
+        void Push(T *t) {
+            history.push(t);
+            //std::cout << "*" << history.size() << std::endl;
+        }
     };
 
     class Delete_Context : public FASTER::core::IAsyncContext {
@@ -65,7 +69,7 @@ private:
     }
 
 public:
-    faster_epoch(uint64_t thread_count) : epoch(thread_count), data_pool{thread_count + 2} {}
+    faster_epoch(uint64_t thread_count) : epoch(thread_count), data_pool{thread_count/* + 2*/} {}
 
     ~faster_epoch() {
         epoch.Unprotect();
@@ -95,15 +99,19 @@ public:
     }
 
     uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
+        //epoch.BumpCurrentEpoch();
         epoch.ReentrantProtect();
+        //epoch.ProtectAndDrain();
         return ptr.load();
     }
 
     void read(size_t tid) {
+        //epoch.Unprotect();
         epoch.ReentrantUnprotect();
     }
 
     bool free(uint64_t ptr) {
+        //epoch.BumpCurrentEpoch();
         Delete_Context deleteContext(reinterpret_cast<T *>(ptr), &data_pool);
         FASTER::core::IAsyncContext *contextCopy;
         deleteContext.DeepCopy(contextCopy);

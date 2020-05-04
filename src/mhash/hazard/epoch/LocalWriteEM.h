@@ -407,7 +407,7 @@ public:
      *                       times FreeGarbageNode() has been called
      */
     inline uint64_t GetNodeFreedCount() const {
-      return node_freed_count;
+        return node_freed_count;
     }
 
     /*
@@ -418,7 +418,7 @@ public:
      * is returned
      */
     inline uint64_t GetNodeLeftCount() const {
-      return node_left_count;
+        return node_left_count;
     }
 
 #endif
@@ -543,7 +543,6 @@ public:
         }
 
         GarbageNode *next_node_p = current_node_p->next_p;
-
         while (next_node_p != nullptr) {
             CounterType next_counter = next_node_p->deleted_epoch;
 
