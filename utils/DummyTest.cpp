@@ -1748,6 +1748,10 @@ int main(int argc, char **argv) {
         c = (a and b);
         cout << "0x3 and= 0x6: " << (0xff & c) << endl;
         c = (a or b);
-        cout << "0x3 and= 0x6: " << (0xff & c) << endl;
+        cout << "0x3 and= 0x6: " << (0xff & c) << " c: " << (int) c << endl;
+        cout << "0xfffe & 1 = " << (0xfffe & 1) << " i.e., " << 0xfffe << " & " << 1 << std::endl;
+        cout << "0xfff5 & 1 = " << (0xfff5 & 1) << " i.e., " << 0xfff5 << " & " << 1 << std::endl;
+        cout << "0xfffe | 1 = " << (0xfffe | 1) << " i.e., " << 0xfffe << " | " << 1 << std::endl;
+        cout << "0xfff5 | 1 = " << (0xfff5 | 1) << " i.e., " << 0xfff5 << " | " << 1 << std::endl;
     }
 }

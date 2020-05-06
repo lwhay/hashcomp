@@ -21,7 +21,7 @@
 #include "reclaimer_debracap.h"
 
 thread_local uint64_t brown_tid;
-thread_local uint64_t holder;
+thread_local uint64_t holder{0};
 static int free_type = -1; // 0: hazard; 1: debraplus; 2: others
 
 template<typename T, class N, class P, class R, typename D = T>
@@ -81,8 +81,9 @@ public:
             holder = address;
             return address;
         } else {
-            uint64_t address = ptr.load(std::memory_order_relaxed);
-            if (address == 0) return holder = address;
+            holder = ptr.load(std::memory_order_relaxed);
+            if (holder == 0) return holder;
+            //std::cout << "start: " << tid << " " << address << std::endl;
             reclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
             return ptr.load(std::memory_order_relaxed);
         }
