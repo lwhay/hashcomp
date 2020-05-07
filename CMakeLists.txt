@@ -225,7 +225,8 @@ if (WITH_STRUCT)
             utils/CacheSteppingAtomicTest.cpp
             utils/MallocTest.cpp
             utils/GeneralMapTest.cpp
-            tests/NUMA_Unit/BST_UsageTest.cpp)
+            tests/NUMA_Unit/BST_UsageTest.cpp
+            tests/NUMA_Unit/BST_MicroTest.cpp)
 endif ()
 
 find_package(Threads)

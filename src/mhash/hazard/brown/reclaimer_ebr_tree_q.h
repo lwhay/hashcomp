@@ -304,7 +304,8 @@ public:
     }
 
     template<typename First, typename... Rest>
-    inline bool startOp(const int tid, void *const *const reclaimers, const int numReclaimers) {
+    inline bool
+    startOp(const int tid, void *const *const reclaimers, const int numReclaimers, const bool readOnly = false) {
         SOFTWARE_BARRIER; // prevent any bookkeeping from being moved after this point by the compiler.
 //        GSTATS_TIMER_RESET(tid, timersplit_guard);
 //        GSTATS_ADD(tid, num_getguard, 1);
