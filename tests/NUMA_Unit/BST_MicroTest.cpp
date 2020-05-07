@@ -68,7 +68,7 @@ void multiTest() {
     //typedef typename reclaimer::template rebind2<NodeType, Pool> Reclaimer;
     typedef record_manager<reclaimer, Allocator, Pool, NodeType> RManager;
     typedef bst_ns::bst<uint64_t, uint64_t, std::less<uint64_t>, RManager> BinaryTree;
-    BinaryTree *bt = new BinaryTree(-1, -1, thread_number, NEUTRLIZE_SIGNAL);
+    BinaryTree *bt = new BinaryTree(-1, -1, thread_number + 1, NEUTRLIZE_SIGNAL);
     std::vector<std::thread> workers;
 #if defined(linux) && ENABLE_NUMA == 1
     int num_cpus = numa_num_task_cpus();
@@ -86,18 +86,19 @@ void multiTest() {
 #endif
     Tracer tracer;
     tracer.startTime();
-    for (size_t t = 0; t < thread_number; ++t) {
+    for (size_t t = 1; t < thread_number + 1; ++t) {
         workers.push_back(std::thread([](BinaryTree *bt, size_t tid) {
             bt->initThread(tid);
-            size_t start = tid * total_count / thread_number;
-            size_t end = (tid + 1) * total_count / thread_number;
+            size_t start = (tid - 1) * total_count / thread_number;
+            size_t end = tid * total_count / thread_number;
             for (size_t i = start; i < end; ++i) bt->insert(tid, loads[i], loads[i]);
+            bt->deinitThread(tid);
         }, bt, t));
 #if defined(linux) && ENABLE_NUMA == 1
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET(t, &cpuset);
-        int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
+        CPU_SET(t - 1, &cpuset);
+        int rc = pthread_setaffinity_np(workers[t - 1].native_handle(), sizeof(cpu_set_t), &cpuset);
 #endif
     }
     for (size_t t = 0; t < thread_number; ++t) {
@@ -113,13 +114,13 @@ void multiTest() {
     timer.start();
     std::cout << "Operation start." << std::endl;
     tracer.startTime();
-    for (size_t t = 0; t < thread_number; ++t) {
+    for (size_t t = 1; t < thread_number + 1; ++t) {
         workers.push_back(std::thread([](BinaryTree *bt, size_t tid, std::atomic<uint64_t> &indicator) {
             bt->initThread(tid);
             Tracer tracer;
             tracer.startTime();
-            size_t start = tid * total_count / thread_number;
-            size_t end = (tid + 1) * total_count / thread_number;
+            size_t start = (tid - 1) * total_count / thread_number;
+            size_t end = tid * total_count / thread_number;
             while (indicator.load() == 0) {
                 uint64_t counter = 0, hit = 0;
                 size_t even = 0;
@@ -170,12 +171,13 @@ void multiTest() {
                 total_hit.fetch_add(hit);
             }
             total_time.fetch_add(tracer.getRunTime());
+            bt->deinitThread(tid);
         }, bt, t, std::ref(indicator)));
 #if defined(linux) && ENABLE_NUMA == 1
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET(t, &cpuset);
-        int rc = pthread_setaffinity_np(workers[t].native_handle(), sizeof(cpu_set_t), &cpuset);
+        CPU_SET(t - 1, &cpuset);
+        int rc = pthread_setaffinity_np(workers[t - 1].native_handle(), sizeof(cpu_set_t), &cpuset);
 #endif
     }
 

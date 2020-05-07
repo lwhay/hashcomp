@@ -214,7 +214,8 @@ public:
 
         const int tid = 0;
         initThread(tid);
-
+        // tunnable for ebr_tree_q and debraplus
+        recmgr->startOp(tid);
         DESC1_INIT_ALL(numProcesses);
         SCXRecord<K, V> *dummy = TAGPTR1_UNPACK_PTR(DUMMY_SCXRECORD);
         dummy->c.mutables = MUTABLES_INIT_DUMMY;
@@ -829,6 +830,8 @@ void bst_ns::bst<K, V, Compare, RecManager>::reclaimMemoryAfterSCX(
         assert(state == state_aborted || state == state_inprogress);
         return;
     } else {
+        // tunnable for testing purposes
+        // std::cout << tid << "?" << recmgr->isQuiescent(tid) << std::endl;
         assert(!recmgr->supportsCrashRecovery() || recmgr->isQuiescent(tid));
         // if the state was COMMITTED, then we cannot reuse the nodes the we
         // took from allocatedNodes[], either, so we must replace these nodes.

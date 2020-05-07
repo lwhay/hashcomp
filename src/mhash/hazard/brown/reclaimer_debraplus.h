@@ -144,9 +144,12 @@ public:
 
     inline static bool quiescenceIsPerRecordType() { return false; }
 
-    inline static bool supportsCrashRecovery() { return true; }
+    // tunnable for testing purposes
+    inline static bool supportsCrashRecovery() { return false; }
 
     inline bool isQuiescent(const int tid) {
+        // tunnable for testing purposes
+        // std::cout << tid << "/" << announcedEpoch[tid * PREFETCH_SIZE_WORDS].load() << std::endl;
         //COUTATOMICTID("IS QUIESCENT EXECUTED"<<std::endl);
         return QUIESCENT(announcedEpoch[tid * PREFETCH_SIZE_WORDS].load(std::memory_order_relaxed));
     }
@@ -269,6 +272,7 @@ public:
     // (and reclaimed any objects retired two epochs ago).
     // otherwise, the call returns false.
     // IMPLIES A FULL MEMORY BARRIER
+    // tunnable for uniform tests
     template<typename First, typename... Rest>
     inline bool
     startOp(const int tid, void *const *const reclaimers, const int numReclaimers, const bool readOnly = false) {
@@ -322,6 +326,8 @@ public:
         assert(isQuiescent(tid));
         SOFTWARE_BARRIER;
         announcedEpoch[tid * PREFETCH_SIZE_WORDS].store(readEpoch, std::memory_order_relaxed);
+        // tunnable for testing purposes
+        // std::cout << tid << ":" << announcedEpoch[tid * PREFETCH_SIZE_WORDS].load() << std::endl;
         return result;
     }
 
@@ -329,6 +335,8 @@ public:
     inline void endOp(const int tid) {
         const long ann = announcedEpoch[tid * PREFETCH_SIZE_WORDS].load(std::memory_order_relaxed);
         announcedEpoch[tid * PREFETCH_SIZE_WORDS].store(GET_WITH_QUIESCENT(ann), std::memory_order_relaxed);
+        // tunnable for testing purposes
+        // std::cout << tid << "=" << announcedEpoch[tid * PREFETCH_SIZE_WORDS].load() << std::endl;
         assert(isQuiescent(tid));
     }
 
