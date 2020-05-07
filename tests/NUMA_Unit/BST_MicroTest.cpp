@@ -56,6 +56,13 @@ typedef bst_ns::Node<uint64_t, uint64_t> NodeType;
 typedef allocator_new<NodeType> Allocator;
 typedef pool_perthread_and_shared<NodeType, Allocator> Pool;
 
+#if defined(linux) && ENABLE_NUMA == 1
+void print_bitmask(const struct bitmask *bm) {
+    for (size_t i = 0; i < bm->size; ++i)
+        printf("%d", numa_bitmask_isbitset(bm, i));
+}
+#endif
+
 template<class reclaimer>
 void multiTest() {
     //typedef typename reclaimer::template rebind2<NodeType, Pool> Reclaimer;
