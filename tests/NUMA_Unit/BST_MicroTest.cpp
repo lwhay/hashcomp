@@ -109,10 +109,10 @@ void multiTest() {
 #endif
     workers.clear();
     std::atomic<uint64_t> indicator{0};
-    tracer.startTime();
     Timer timer;
     timer.start();
-
+    std::cout << "Operation start." << std::endl;
+    tracer.startTime();
     for (size_t t = 0; t < thread_number; ++t) {
         workers.push_back(std::thread([](BinaryTree *bt, size_t tid, std::atomic<uint64_t> &indicator) {
             bt->initThread(tid);
@@ -204,6 +204,13 @@ int main(int argc, char **argv) {
         operation_type = std::atoi(argv[5]);
         update_ratio = std::atoi(argv[6]);
     }
+    const char *rnames[8] = {
+            "reclaimer_hazardptr", "reclaimer_ebr_token", "reclaimer_ebr_tree", "reclaimer_ebr_tree_q",
+            "reclaimer_debra", "reclaimer_debraplus", "reclaimer_debracap", "reclaimer_none"
+    };
+
+    std::cout << "thd: " << thread_number << " cnt: " << total_count << " time: " << timer_limit << " rlm: "
+              << rnames[reclaimer_type] << " opt: " << operation_type << " urato: " << update_ratio << std::endl;
 
     loads = (uint64_t *) std::calloc(total_count, sizeof(uint64_t));
     for (int i = 0; i < total_count; i++) loads[i] = i;
