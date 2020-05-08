@@ -830,8 +830,6 @@ void bst_ns::bst<K, V, Compare, RecManager>::reclaimMemoryAfterSCX(
         assert(state == state_aborted || state == state_inprogress);
         return;
     } else {
-        // tunnable for testing purposes
-        // std::cout << tid << "?" << recmgr->isQuiescent(tid) << std::endl;
         assert(!recmgr->supportsCrashRecovery() || recmgr->isQuiescent(tid));
         // if the state was COMMITTED, then we cannot reuse the nodes the we
         // took from allocatedNodes[], either, so we must replace these nodes.
@@ -886,9 +884,12 @@ bool bst_ns::bst<K, V, Compare, RecManager>::scx(
     DESC1_INITIALIZED(tid); // mark descriptor as being in a consistent state
 
     SOFTWARE_BARRIER;
+    // tunnable marks for debraplus
+    if (recmgr->supportsCrashRecovery()) recmgr->endOp(tid);
     int state = help(tid, TAGPTR1_NEW(tid, newdesc->c.mutables), newdesc, false);
     info->state = state; // rec->state.load(std::memory_order_relaxed);
     reclaimMemoryAfterSCX(tid, info);
+    if (recmgr->supportsCrashRecovery()) recmgr->qUnprotectAll(tid);
     return state & SCXRecord<K, V>::STATE_COMMITTED;
 }
 
