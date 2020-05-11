@@ -128,7 +128,7 @@ constexpr size_t lru_volume = batch_size + reservior;
 
 thread_local uint64_t lrulist[lru_volume];
 
-thread_local size_t start = 0, finish = 0;
+thread_local size_t startPos = 0, endPos = 0;
 
 thread_local uint64_t thread_id = 0;
 
@@ -357,23 +357,23 @@ public:
         }
 #elif strategy == 3
         assert(ptr != 0);
-        lrulist[finish] = ptr;
-        finish = ++finish % lru_volume;
-        if (finish == start) {
+        lrulist[endPos] = ptr;
+        endPos = ++endPos % lru_volume;
+        if (endPos == startPos) {
             std::bitset<batch_size> bs(0);
             for (size_t t = 0; t < thread_number; t++) {
                 if (t == thread_id) continue;
                 const uint64_t target = holders[t].load();
                 if (target != 0) {
                     for (size_t i = 0; i < batch_size; ++i) {
-                        if (lrulist[(start + i) % lru_volume] == target)
+                        if (lrulist[(startPos + i) % lru_volume] == target)
                             bs.set(i);
                     }
                 }
             }
             for (size_t i = 0; i < batch_size; i++) {
                 if ((bs.test(i)) == 0) {
-                    uint64_t element = lrulist[(start + i) % lru_volume];
+                    uint64_t element = lrulist[(startPos + i) % lru_volume];
 #if with_cache == 0
                     std::free((void *) element);
 #else
@@ -383,11 +383,11 @@ public:
 #if TRACE_CONFLICTS == 1
                     conflicts++;
 #endif
-                    lrulist[finish] = lrulist[i];
-                    finish = ++finish % lru_volume;
+                    lrulist[endPos] = lrulist[i];
+                    endPos = ++endPos % lru_volume;
                 }
             }
-            start = (start + batch_size) % lru_volume;
+            startPos = (startPos + batch_size) % lru_volume;
         }
 #endif
         return true;
