@@ -526,6 +526,7 @@ if (WITH_LIBCUCKOO)
     set(CUKOO_TEST
             tests/CF2_Unit/CUCKOO_Intention.cpp
             tests/CF2_Unit/CUCKOO_Usage.cpp
+            tests/CF2_Unit/CUCKOO_EffTest.cpp
             tests/Pure/CH_MicroTest.cpp)
 
     foreach (sourcefile ${CUKOO_TEST})
