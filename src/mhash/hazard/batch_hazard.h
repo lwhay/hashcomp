@@ -128,7 +128,7 @@ constexpr size_t lru_volume = batch_size + reservior;
 
 thread_local uint64_t lrulist[lru_volume];
 
-thread_local size_t start = 0, end = 0;
+thread_local size_t start = 0, finish = 0;
 
 thread_local uint64_t thread_id = 0;
 
@@ -357,9 +357,9 @@ public:
         }
 #elif strategy == 3
         assert(ptr != 0);
-        lrulist[end] = ptr;
-        end = ++end % lru_volume;
-        if (end == start) {
+        lrulist[finish] = ptr;
+        finish = ++finish % lru_volume;
+        if (finish == start) {
             std::bitset<batch_size> bs(0);
             for (size_t t = 0; t < thread_number; t++) {
                 if (t == thread_id) continue;
@@ -383,8 +383,8 @@ public:
 #if TRACE_CONFLICTS == 1
                     conflicts++;
 #endif
-                    lrulist[end] = lrulist[i];
-                    end = ++end % lru_volume;
+                    lrulist[finish] = lrulist[i];
+                    finish = ++finish % lru_volume;
                 }
             }
             start = (start + batch_size) % lru_volume;
