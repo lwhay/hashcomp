@@ -128,7 +128,7 @@ constexpr size_t lru_volume = batch_size + reservior;
 
 thread_local uint64_t lrulist[lru_volume];
 
-thread_local size_t begin = 0, end = 0;
+thread_local size_t start = 0, end = 0;
 
 thread_local uint64_t thread_id = 0;
 
@@ -359,21 +359,21 @@ public:
         assert(ptr != 0);
         lrulist[end] = ptr;
         end = ++end % lru_volume;
-        if (end == begin) {
+        if (end == start) {
             std::bitset<batch_size> bs(0);
             for (size_t t = 0; t < thread_number; t++) {
                 if (t == thread_id) continue;
                 const uint64_t target = holders[t].load();
                 if (target != 0) {
                     for (size_t i = 0; i < batch_size; ++i) {
-                        if (lrulist[(begin + i) % lru_volume] == target)
+                        if (lrulist[(start + i) % lru_volume] == target)
                             bs.set(i);
                     }
                 }
             }
             for (size_t i = 0; i < batch_size; i++) {
                 if ((bs.test(i)) == 0) {
-                    uint64_t element = lrulist[(begin + i) % lru_volume];
+                    uint64_t element = lrulist[(start + i) % lru_volume];
 #if with_cache == 0
                     std::free((void *) element);
 #else
@@ -387,7 +387,7 @@ public:
                     end = ++end % lru_volume;
                 }
             }
-            begin = (begin + batch_size) % lru_volume;
+            start = (start + batch_size) % lru_volume;
         }
 #endif
         return true;
