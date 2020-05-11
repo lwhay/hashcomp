@@ -60,7 +60,7 @@ uint64_t HashFunc(const void *key, int len, uint64_t seed) {
     return h;
 }
 
-#define strategy 2 // 0: batch in/out; 1: hash batch in/out; 2: half batch in/out; 3: half one out.
+#define strategy 3 // 0: batch in/out; 1: hash batch in/out; 2: half batch in/out; 3: half one out.
 
 #define with_cache 1
 
@@ -117,6 +117,29 @@ thread_local size_t idx = 0;
 thread_local uint64_t thread_id = 0;
 
 thread_local uint64_t recent_address = 0;
+
+#elif strategy == 3
+// Carefully choose reservior to be between thread_number and batch_size, and cache by batch_size * 2;
+constexpr size_t batch_size = (1llu << 8);
+
+constexpr size_t reservior = (1llu << 6);
+
+constexpr size_t lru_volume = batch_size + reservior;
+
+thread_local uint64_t lrulist[lru_volume];
+
+thread_local size_t begin = 0, end = 0;
+
+thread_local uint64_t thread_id = 0;
+
+thread_local uint64_t recent_address = 0;
+
+#define TRACE_CONFLICTS 1
+
+#if TRACE_CONFLICTS == 1
+uint64_t conflicts = 0;
+char outstr[255];
+#endif
 
 #endif
 
@@ -332,12 +355,53 @@ public:
                 } else lrulist[idx++] = lrulist[i];
             }
         }
+#elif strategy == 3
+        assert(ptr != 0);
+        lrulist[end] = ptr;
+        end = ++end % lru_volume;
+        if (end == begin) {
+            std::bitset<batch_size> bs(0);
+            for (size_t t = 0; t < thread_number; t++) {
+                if (t == thread_id) continue;
+                const uint64_t target = holders[t].load();
+                if (target != 0) {
+                    for (size_t i = 0; i < batch_size; ++i) {
+                        if (lrulist[(begin + i) % lru_volume] == target)
+                            bs.set(i);
+                    }
+                }
+            }
+            for (size_t i = 0; i < batch_size; i++) {
+                if ((bs.test(i)) == 0) {
+                    uint64_t element = lrulist[(begin + i) % lru_volume];
+#if with_cache == 0
+                    std::free((void *) element);
 #else
+                    if (!cache[thread_id].push(element)) std::free((void *) element);
+#endif
+                } else {
+#if TRACE_CONFLICTS == 1
+                    conflicts++;
+#endif
+                    lrulist[end] = lrulist[i];
+                    end = ++end % lru_volume;
+                }
+            }
+            begin = (begin + batch_size) % lru_volume;
+        }
 #endif
         return true;
     }
 
-    const char *info() { return "batch_hazard"; }
+    const char *info() {
+#if TRACE_CONFLICTS == 1
+        std::memset(outstr, 0, 255);
+        std::sprintf(outstr, "%s %llu", "batch_hazard", conflicts);
+        return outstr;
+#else
+        return "batch_hazard";
+#endif
+    }
 
 };
 
