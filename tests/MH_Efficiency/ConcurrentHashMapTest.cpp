@@ -43,12 +43,12 @@ typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debraplus<
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debracap<>, node> brown12;
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_none<>, node> brown13;
 
-template<typename maptype>
-void multiTrickTest() {
+void multiAWLTest() {
+    typedef ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>> maptype;
     maptype map(total_count, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
-    std::cout << "TrickMultiInsert: " << typeid(maptype).name() << std::endl;
+    std::cout << "AWLMultiInsert: " << typeid(maptype).name() << std::endl;
     std::vector<std::thread> threads;
     int i = 0;
     for (; i < thread_number; i++) {
@@ -62,7 +62,42 @@ void multiTrickTest() {
     for (int i = 0; i < thread_number; i++) {
         threads[i].join();
     }
+    std::cout << "AWLMultiInsert: " << tracer.getRunTime() << std::endl;
+    for (int i = 0; i < total_count; i++) {
+        uint64_t value;
+        bool ret = map.Find(i, value);
+        assert(ret && value == i);
+    }
+    std::cout << "Verified: " << tracer.getRunTime() << std::endl;
+}
+
+template<typename maptype>
+void multiTrickTest() {
+    maptype map(total_count, 10, thread_number);
+    Tracer tracer;
+    tracer.startTime();
+    std::cout << "TrickMultiInsert: " << typeid(maptype).name() << std::endl;
+    std::vector<std::thread> threads;
+    int i = 0;
+    for (; i < thread_number; i++) {
+        threads.push_back(std::thread([](maptype &map, uint64_t tid) {
+            map.initThread(tid);
+            for (uint64_t i = tid; i < total_count; i++) {
+                map.Insert(i, i);
+                if (tid == 0 && i % (total_count / 4) == 0) std::cout << i << std::endl;
+            }
+        }, std::ref(map), i));
+    }
+    for (int i = 0; i < thread_number; i++) {
+        threads[i].join();
+    }
     std::cout << "TrickMultiInsert: " << tracer.getRunTime() << std::endl;
+    for (int i = 0; i < total_count; i++) {
+        uint64_t value;
+        bool ret = map.Find(i, value);
+        assert(ret && value == i);
+    }
+    std::cout << "Verified: " << tracer.getRunTime() << std::endl;
 }
 
 void brownTest() {
@@ -250,7 +285,8 @@ int main(int argc, char **argv) {
         total_count = std::atol(argv[2]);
     }
     std::cout << thread_number << " " << total_count << std::endl;
-    multiTrickTest<ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>>>();
+    multiAWLTest();
+    multiTrickTest<trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, brown7>>();
     multiTrickTest<trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>>>();
     brownTest();
     //deleteTest();
