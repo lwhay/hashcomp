@@ -51,6 +51,16 @@ public:
         else free_type = 2;
     }
 
+    ~brown_reclaim() {
+        for (int tid = 0; tid < thread_number - 1; tid++) {
+            reclaimer->deinitThread(tid);
+            alloc->deinitThread(tid);
+        }
+        delete reclaimer;
+        //delete pool;
+        delete alloc;
+    }
+
     void registerThread() {}
 
     void initThread(size_t tid = 0) {

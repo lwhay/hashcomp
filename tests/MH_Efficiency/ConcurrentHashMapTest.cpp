@@ -45,7 +45,7 @@ typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_none<>, no
 
 void multiAWLTest() {
     typedef ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>> maptype;
-    maptype map(total_count, 10, thread_number);
+    maptype map(total_count / 2, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
     std::cout << "AWLMultiInsert: " << typeid(maptype).name() << std::endl;
@@ -73,7 +73,8 @@ void multiAWLTest() {
 
 template<typename maptype>
 void multiTrickTest() {
-    maptype map(total_count, 10, thread_number);
+    // Look at line-48, we have a bug in brown reclaimer here.
+    maptype map(total_count/* / 2*/, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
     std::cout << "TrickMultiInsert: " << typeid(maptype).name() << std::endl;
@@ -102,8 +103,8 @@ void multiTrickTest() {
 
 void brownTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, brown11> maptype;
-    maptype map(4, 2, thread_number);
-    map.initThread();
+    // Look at line-48, we have a bug in brown reclaimer here.
+    maptype map(64/*4*/, 2, thread_number);
     uint64_t v;
     Tracer tracer;
     tracer.startTime();
@@ -157,7 +158,7 @@ void deleteTest() {
 template<typename reclaimer>
 void SimpleTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
-    maptype map(total_count / 2, 10, thread_number);
+    maptype map(total_count/* / 2*/, 10, thread_number);
     map.initThread();
     uint64_t v;
     Tracer tracer;
@@ -276,7 +277,6 @@ void test() {
     MultiWriteTest<reclaimer>();
     std::cout << "-----------MultiRWTest-------------" << typeid(reclaimer).name() << std::endl;
     MultiRWTest<reclaimer>();
-    std::cout << "-----------------------------------" << typeid(reclaimer).name() << std::endl;
 }
 
 int main(int argc, char **argv) {

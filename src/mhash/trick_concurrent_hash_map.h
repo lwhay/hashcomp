@@ -231,9 +231,11 @@ public:
             stat_.push_back(new ThreadHashMapStat);
         }
 #endif
+        initThread(thread_cnt);
     }
 
     ~ConcurrentHashMap() {
+        Deallocate(root_);
         delete ptrmgr;
     }
 
@@ -412,6 +414,32 @@ private:
 
     static TreeNode *MarkArrayNode(ArrayNodeT *anp) {
         return (TreeNode *) (((uintptr_t) anp) | kHighestBit);
+    }
+
+    void Deallocate(atomic<TreeNode *> *nodes) {
+        if (nodes->load(std::memory_order_relaxed) == nullptr) return;
+
+        size_t size_limit;
+        if (nodes->load(std::memory_order_relaxed) == root_->load(std::memory_order_relaxed)) size_limit = root_size_;
+        else size_limit = kArrayNodeSize;
+
+        for (size_t i = 0; i < size_limit; i++) {
+            TreeNode *node = nodes[i].load(std::memory_order_relaxed);
+            if (node == nullptr) continue;
+            switch (node->Type()) {
+                case TreeNodeType::DATA_NODE: {
+                    Delete(dynamic_cast<DataNodeT *>(node)->GetValue().first);
+                    break;
+                }
+                case TreeNodeType::ARRAY_NODE: {
+                    Deallocate(dynamic_cast<ArrayNodeT *>(node)->array_.__elems_);
+                    break;
+                }
+                case TreeNodeType::BUCKETS_NODE:
+                    break;
+            }
+        }
+        delete[] nodes;
     }
 
     /*DataNodeT *FindByHash(size_t h, HazPtrHolder &holder, Atom<TreeNode *> *&locate) {
