@@ -58,6 +58,7 @@ public:
         while (!lock.compare_exchange_strong(expect, true));
         thread_number++;
         brown_tid = tid;
+        //std::cout << "initThread: " << brown_tid << std::endl;
         alloc->initThread(brown_tid);
         reclaimer->initThread(brown_tid);
         lock.store(false);
@@ -91,34 +92,26 @@ public:
 
     template<typename IS_SAFE, typename FILTER>
     T *Repin(size_t tid, std::atomic<T *> &res, IS_SAFE is_safe, FILTER filter) {
-        if (free_type == 0) {
-            uint64_t address = 0;
-            do {
-                if (address != 0) reclaimer->unprotect(brown_tid, (D *) address);
-                address = (uint64_t) res.load(std::memory_order_relaxed);
-                if (!address) {
-                    return nullptr;
-                }
+        uint64_t address = 0;
+        do {
+            if (address != 0)
+                if (free_type == 0) reclaimer->unprotect(brown_tid, (D *) address);
+                else reclaimer->endOp(brown_tid);
 
-                if (is_safe((T *) address)) {
-                    return filter((T *) address);
-                }
-                reclaimer->protect(brown_tid, (D *) address, callbackReturnTrue, nullptr, false);
-            } while (address != (uint64_t) res.load(std::memory_order_relaxed));
-            holder = address;
-            return (T *) address;
-        } else {
-            uint64_t address = (uint64_t) res.load(std::memory_order_relaxed);
-            if (address == 0) {
-                holder = address;
+            address = (uint64_t) res.load(std::memory_order_relaxed);
+            if (!address) {
                 return nullptr;
             }
+
             if (is_safe((T *) address)) {
                 return filter((T *) address);
             }
-            reclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
-            return res.load(std::memory_order_relaxed);
-        }
+            if (free_type == 0) reclaimer->protect(brown_tid, (D *) address, callbackReturnTrue, nullptr, false);
+            else reclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
+        } while (address != (uint64_t) res.load(std::memory_order_relaxed));
+        holder = address;
+        //std::cout << "beginOp" << std::endl;
+        return (T *) address;
     }
 
     void read(size_t tid) {
@@ -127,6 +120,8 @@ public:
                 reclaimer->unprotect(brown_tid, (D *) holder);
             } else {
                 reclaimer->endOp(brown_tid);
+                holder = 0;
+                //std::cout << "endOp" << std::endl;
                 //reclaimer->rotateEpochBags(ftid);
             }
         }

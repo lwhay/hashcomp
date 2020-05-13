@@ -525,8 +525,10 @@ private:
                                 continue;
                             }
                             ptr.release();
+                            ptrmgr->read(Thread::id());
                             //HazPtrRetire(d_node);
                             ptrmgr->free((uint64_t) d_node);
+                            return true;
                         } else {
 #ifndef DISABLE_INPLACE_UPDATE
                             bool hold = false;
