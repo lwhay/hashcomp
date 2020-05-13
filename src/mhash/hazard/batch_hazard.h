@@ -275,7 +275,7 @@ public:
             idx = 0;
             for (size_t i = 0; i < batch_size; i++) {
 #if with_stdbs
-                if ((bs.test(i)) == 0) {
+                if (!bs.test(i)) {
 #else
                 if ((freebit[i / 64] & (1llu << (i % 64))) == 0) {
 #endif
@@ -343,7 +343,7 @@ public:
             uint64_t start = idx;
             for (size_t i = start; i < (start + batch_size); i++) {
 #if with_stdbs
-                if ((bs.test(i)) == 0) {
+                if (!bs.test(i)) {
 #else
                 if ((freebit[i % batch_size / 64] & (1llu << (i % batch_size % 64))) == 0) {
 #endif
@@ -372,7 +372,7 @@ public:
                 }
             }
             for (size_t i = 0; i < batch_size; i++) {
-                if ((bs.test(i)) == 0) {
+                if (!bs.test(i)) {
                     uint64_t element = lrulist[(startPos + i) % lru_volume];
 #if with_cache == 0
                     std::free((void *) element);
@@ -387,7 +387,7 @@ public:
                     endPos = ++endPos % lru_volume;
                 }
             }
-            startPos = (startPos + batch_size) % lru_volume;
+            startPos = endPos;
         }
 #endif
         return true;
