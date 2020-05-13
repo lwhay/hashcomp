@@ -74,7 +74,7 @@ void multiAWLTest() {
 template<typename maptype>
 void multiTrickTest() {
     // Look at line-48, we have a bug in brown reclaimer here.
-    maptype map(total_count/* / 2*/, 10, thread_number);
+    maptype map(total_count / 2, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
     std::cout << "TrickMultiInsert: " << typeid(maptype).name() << std::endl;
@@ -104,7 +104,7 @@ void multiTrickTest() {
 void brownTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, brown11> maptype;
     // Look at line-48, we have a bug in brown reclaimer here.
-    maptype map(64/*4*/, 2, thread_number);
+    maptype map(4, 2, thread_number);
     uint64_t v;
     Tracer tracer;
     tracer.startTime();
@@ -158,7 +158,7 @@ void deleteTest() {
 template<typename reclaimer>
 void SimpleTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
-    maptype map(total_count/* / 2*/, 10, thread_number);
+    maptype map(total_count / 2, 10, thread_number);
     map.initThread();
     uint64_t v;
     Tracer tracer;
@@ -179,7 +179,7 @@ void SimpleTest() {
 template<typename reclaimer>
 void MultiWriteTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
-    maptype map(total_count, 10, thread_number);
+    maptype map(total_count / 2, 10, thread_number);
     Tracer tracer;
     map.initThread(thread_number);
     tracer.startTime();
@@ -202,7 +202,7 @@ void MultiWriteTest() {
 template<typename reclaimer>
 void MultiReadTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
-    maptype map(total_count, 10, thread_number);
+    maptype map(total_count / 2, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
     map.initThread(thread_number);
@@ -232,7 +232,7 @@ void MultiReadTest() {
 template<typename reclaimer>
 void MultiRWTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, reclaimer> maptype;
-    maptype map(total_count, 10, thread_number);
+    maptype map(total_count / 2, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
     std::cout << "MultiInsert: " << tracer.getRunTime() << std::endl;
@@ -285,11 +285,11 @@ int main(int argc, char **argv) {
         total_count = std::atol(argv[2]);
     }
     std::cout << thread_number << " " << total_count << std::endl;
+    //deleteTest();
+    brownTest();
     multiAWLTest();
     multiTrickTest<trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, brown7>>();
     multiTrickTest<trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>>>();
-    brownTest();
-    //deleteTest();
     test<batch>();
     test<brown6>();
     test<brown7>();

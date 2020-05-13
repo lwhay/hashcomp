@@ -417,29 +417,20 @@ private:
     }
 
     void Deallocate(atomic<TreeNode *> *nodes) {
-        if (nodes->load(std::memory_order_relaxed) == nullptr) return;
-
         size_t size_limit;
-        if (nodes->load(std::memory_order_relaxed) == root_->load(std::memory_order_relaxed)) size_limit = root_size_;
+        if (nodes == root_) size_limit = root_size_;
         else size_limit = kArrayNodeSize;
 
         for (size_t i = 0; i < size_limit; i++) {
             TreeNode *node = nodes[i].load(std::memory_order_relaxed);
             if (node == nullptr) continue;
-            switch (node->Type()) {
-                case TreeNodeType::DATA_NODE: {
-                    Delete(dynamic_cast<DataNodeT *>(node)->GetValue().first);
-                    break;
-                }
-                case TreeNodeType::ARRAY_NODE: {
-                    Deallocate(dynamic_cast<ArrayNodeT *>(node)->array_.data());
-                    break;
-                }
-                case TreeNodeType::BUCKETS_NODE:
-                    break;
-            }
+
+            if (IsArrayNode(node)) {
+                Deallocate(dynamic_cast<ArrayNodeT *>(FilterValidPtr(node))->array_.data());
+                delete FilterValidPtr(node);
+            } else Delete(dynamic_cast<DataNodeT *>(FilterValidPtr(node))->GetValue().first);
         }
-        delete[] nodes;
+        if (nodes == root_) delete[] nodes;
     }
 
     /*DataNodeT *FindByHash(size_t h, HazPtrHolder &holder, Atom<TreeNode *> *&locate) {
