@@ -158,6 +158,9 @@ private:
         volatile uint64_t queue[limit];
     public:
         inline bool push(uint64_t e) {
+            /*if (thread_id == 2)
+                std::cout << (head + limit - tail) << ":" << (head + limit - tail) % limit << ":" << head << ":" << tail
+                          << ":" << limit << std::endl;*/
             if ((head + limit - tail) % limit == 1) return false;
             queue[tail] = e;
             tail = (tail + 1) % limit;
@@ -165,6 +168,9 @@ private:
         }
 
         inline uint64_t pop() {
+            /*if (thread_id == 2)
+                std::cout << (head + limit - tail) << "-" << (head + limit - tail) % limit << "-" << head << "-" << tail
+                          << "-" << limit << std::endl;*/
             if (head == tail) return 0;
             else {
                 uint64_t now = queue[head];
@@ -387,7 +393,7 @@ public:
                     endPos = ++endPos % lru_volume;
                 }
             }
-            startPos = endPos;
+            startPos = (startPos + batch_size) % lru_volume;
         }
 #endif
         return true;

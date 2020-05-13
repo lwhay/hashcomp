@@ -153,7 +153,7 @@ void init(std::atomic<uint64_t> *bucket) {
             ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
         else
 #endif
-        if (hash_freent >= 6 && hash_freent <= 13) ptr = (node *) deallocator->allocate(0); // 5: ignored cache.
+        if (hash_freent >= 5 && hash_freent <= 13) ptr = (node *) deallocator->allocate(0); // 5: ignored cache.
         else ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i;
         assert(idx >= 0 && idx < list_volume);
@@ -173,7 +173,7 @@ void deinit(std::atomic<uint64_t> *bucket) {
     for (size_t i = 0; i < list_volume; i++) {
         size_t idx = i;
         assert(idx >= 0 && idx < list_volume);
-        if (hash_freent >= 6 && hash_freent <= 13) deallocator->free(bucket[idx]);
+        if (hash_freent >= 5 && hash_freent <= 13) deallocator->free(bucket[idx].load());
         else std::free((void *) bucket[idx].load());
     }
 }
