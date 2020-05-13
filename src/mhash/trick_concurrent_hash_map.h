@@ -432,7 +432,7 @@ private:
                     break;
                 }
                 case TreeNodeType::ARRAY_NODE: {
-                    Deallocate(dynamic_cast<ArrayNodeT *>(node)->array_.__elems_);
+                    Deallocate(dynamic_cast<ArrayNodeT *>(node)->array_.data());
                     break;
                 }
                 case TreeNodeType::BUCKETS_NODE:
