@@ -43,12 +43,12 @@ typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debraplus<
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debracap<>, node> brown12;
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_none<>, node> brown13;
 
-void multiAWLTest() {
-    typedef ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>> maptype;
+template<typename maptype>
+void multiTrickTest() {
     maptype map(total_count, 10, thread_number);
     Tracer tracer;
     tracer.startTime();
-    std::cout << "AWLMultiInsert: " << tracer.getRunTime() << std::endl;
+    std::cout << "TrickMultiInsert: " << typeid(maptype).name() << std::endl;
     std::vector<std::thread> threads;
     int i = 0;
     for (; i < thread_number; i++) {
@@ -62,7 +62,7 @@ void multiAWLTest() {
     for (int i = 0; i < thread_number; i++) {
         threads[i].join();
     }
-    std::cout << "AWLMultiInsert: " << tracer.getRunTime() << std::endl;
+    std::cout << "TrickMultiInsert: " << tracer.getRunTime() << std::endl;
 }
 
 void brownTest() {
@@ -250,7 +250,8 @@ int main(int argc, char **argv) {
         total_count = std::atol(argv[2]);
     }
     std::cout << thread_number << " " << total_count << std::endl;
-    multiAWLTest();
+    multiTrickTest<ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>>>();
+    multiTrickTest<trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>>>();
     brownTest();
     //deleteTest();
     test<batch>();
