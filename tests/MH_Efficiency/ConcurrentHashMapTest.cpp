@@ -8,6 +8,7 @@
 #include "brown_reclaim.h"
 #include "hash_hazard.h"
 #include "tracer.h"
+#include "concurrent_hash_map.h"
 #include "trick_concurrent_hash_map.h"
 
 uint64_t thread_number = 4;
@@ -41,6 +42,28 @@ typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debra<>, n
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debraplus<>, node> brown11;
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debracap<>, node> brown12;
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_none<>, node> brown13;
+
+void multiAWLTest() {
+    typedef ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>> maptype;
+    maptype map(total_count, 10, thread_number);
+    Tracer tracer;
+    tracer.startTime();
+    std::cout << "AWLMultiInsert: " << tracer.getRunTime() << std::endl;
+    std::vector<std::thread> threads;
+    int i = 0;
+    for (; i < thread_number; i++) {
+        threads.push_back(std::thread([](maptype &map, uint64_t tid) {
+            for (uint64_t i = tid; i < total_count; i++) {
+                map.Insert(i, i);
+                if (tid == 0 && i % (total_count / 4) == 0) std::cout << i << std::endl;
+            }
+        }, std::ref(map), i));
+    }
+    for (int i = 0; i < thread_number; i++) {
+        threads[i].join();
+    }
+    std::cout << "AWLMultiInsert: " << tracer.getRunTime() << std::endl;
+}
 
 void brownTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, brown11> maptype;
@@ -227,6 +250,7 @@ int main(int argc, char **argv) {
         total_count = std::atol(argv[2]);
     }
     std::cout << thread_number << " " << total_count << std::endl;
+    multiAWLTest();
     brownTest();
     //deleteTest();
     test<batch>();

@@ -210,8 +210,7 @@ if (WITH_UTILS)
             utils/DistributionTool.cpp
             utils/MicroDistTool.cpp
             utils/UH_UnitTest.cpp
-            utils/UH_HashTest.cpp
-            tests/MH_Efficiency/ConcurrentHashMapTest.cpp)
+            utils/UH_HashTest.cpp)
 endif ()
 
 option(WITH_STRUCT "build with structs" ON)
@@ -581,6 +580,7 @@ if (WITH_AWLMAP)
             )
 
     set(AWLMAP_TEST
+            tests/MH_Efficiency/ConcurrentHashMapTest.cpp
             tests/AWL_Unit/awlmap_Usage.cpp
             tests/Pure/AH_MicroTest.cpp
             tests/Pure/AA_MicroTest.cpp
