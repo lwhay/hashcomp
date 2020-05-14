@@ -120,7 +120,7 @@ thread_local uint64_t recent_address = 0;
 
 #elif strategy == 3
 // Carefully choose reservior to be between thread_number and batch_size, and cache by batch_size * 2;
-constexpr size_t batch_size = (1llu << 8);
+constexpr size_t batch_size = (1llu << 9);
 
 constexpr size_t reservior = (1llu << 6);
 
