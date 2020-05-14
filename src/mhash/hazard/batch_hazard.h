@@ -198,7 +198,7 @@ public:
 #if with_cache == 0
         return (uint64_t) std::malloc(sizeof(T));
 #else
-        uint64_t e = cache[tid].pop();
+        uint64_t e = cache[thread_id].pop();
         if (e == 0) return (uint64_t) std::malloc(sizeof(D)); else return e;
 #endif
     }
@@ -210,7 +210,7 @@ public:
             address = (uint64_t) res.load(std::memory_order_relaxed);
 #if strategy == 1
             recent_hash = hash_idx((const void *) address);
-            cells[recent_hash][tid].store(address);
+            cells[recent_hash][thread_id].store(address);
 #else
             if (!address) {
                 return nullptr;
@@ -220,7 +220,7 @@ public:
                 return filter((T *) address);
             }
 
-            holders[tid].store(address);
+            holders[thread_id].store(address);
 #endif
         } while (address != (uint64_t) res.load(std::memory_order_relaxed));
         //std::cout << "<" << address << std::endl;
@@ -235,9 +235,9 @@ public:
             if (address == 0) break;
 #if strategy == 1
             recent_hash = hash_idx((const void *) address);
-            cells[recent_hash][tid].store(address);
+            cells[recent_hash][thread_id].store(address);
 #else
-            holders[tid].store(address);
+            holders[thread_id].store(address);
 #endif
         } while (address != ptr.load(std::memory_order_relaxed));
         //std::cout << "<." << address << std::endl;
@@ -247,10 +247,10 @@ public:
 
     inline void read(size_t tid) {
 #if strategy == 1
-        cells[recent_hash][tid].store(0);
+        cells[recent_hash][thread_id].store(0);
 #else
-        //std::cout << ">" << holders[tid].load() << std::endl;
-        if (recent_address != 0) holders[tid].store(0);
+        //std::cout << ">" << holders[thread_id].load() << std::endl;
+        if (recent_address != 0) holders[thread_id].store(0);
 #endif
     }
 
@@ -371,15 +371,16 @@ public:
                 if (t == thread_id) continue;
                 const uint64_t target = holders[t].load();
                 if (target != 0) {
-                    for (size_t i = 0; i < batch_size; ++i) {
+                    for (size_t i = 0; i < batch_size; i++) {
                         if (lrulist[(startPos + i) % lru_volume] == target)
                             bs.set(i);
                     }
                 }
             }
             for (size_t i = 0; i < batch_size; i++) {
+                size_t idx = (startPos + i) % lru_volume;
                 if (!bs.test(i)) {
-                    uint64_t element = lrulist[(startPos + i) % lru_volume];
+                    uint64_t element = lrulist[idx];
 #if with_cache == 0
                     std::free((void *) element);
 #else
@@ -389,7 +390,7 @@ public:
 #if TRACE_CONFLICTS == 1
                     conflicts++;
 #endif
-                    lrulist[endPos] = lrulist[i];
+                    lrulist[endPos] = lrulist[idx];
                     endPos = ++endPos % lru_volume;
                 }
             }
