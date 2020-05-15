@@ -129,10 +129,10 @@ private:
 };
 
 char *cm[4] = {
-        "\033[0;30m%llu\n",
-        "\033[0;31m%llu\n",
-        "\033[0;32m%llu\n",
-        "\033[0;33m%llu\n"
+        "\033[0;30m0x%lx\n",
+        "\033[0;31m0x%lx\n",
+        "\033[0;32m0x%lx\n",
+        "\033[0;33m0x%lx\n"
 };
 
 const char *existingFilePath = "./testfile.dat";

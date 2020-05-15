@@ -393,6 +393,30 @@ public:
         }
     }
 
+    void Printer(atomic<TreeNode *> *nodes = (atomic<TreeNode *> *) -1, std::string prefix = "") {
+        if (nodes == (atomic<TreeNode *> *) -1)nodes = root_;
+        size_t size_limit;
+        if (nodes == root_) size_limit = root_size_;
+        else size_limit = kArrayNodeSize;
+        std::cerr << prefix << std::hex << nodes << "|-------------------" << std::endl;
+        std::string head = prefix;
+        head.append("|-");
+        for (int i = 0; i < 12; i++) head = head.append(" ");
+        for (size_t i = 0; i < size_limit; i++) {
+            TreeNode *node = nodes[i].load(std::memory_order_relaxed);
+            if (node == nullptr) {
+                std::cerr << head << "|-" << i << ":" << std::hex << node << ":nullptr" << std::endl;
+                continue;
+            }
+            if (IsArrayNode(node)) {
+                Printer(dynamic_cast<ArrayNodeT *>(FilterValidPtr(node))->array_.data(), head);
+            } else {
+                std::cerr << head << "|-" << i << ":" << std::hex << node << ":"
+                          << dynamic_cast<DataNodeT *>(node)->GetValue().first << std::endl;
+            }
+        }
+    }
+
 private:
     size_t GetRootIdx(size_t h) const {
         return (h & (root_size_ - 1));
@@ -604,8 +628,12 @@ private:
                             ptrmgr->read(Thread::id());
                             continue;
                         } else {
-                            std::cerr << "Insert not Implemented Yet? " << cm[Thread::id()] << n << ":" << max_depth_
-                                      << std::endl;
+                            if (Thread::id() % 1 == 0) {
+                                size_t depth = max_depth_;
+                                key_t ok = d_node->GetValue().first, nk = *k, ho = GetRootIdx(ok), hn = GetRootIdx(nk);
+                                std::cerr << "Insert not Implemented Yet? " << Thread::id() << ":" << n << ":" << depth
+                                          << ":" << std::hex << ok << ":" << nk << ":" << ho << ":" << hn << std::endl;
+                            }
                             exit(1);
                         }
                     }

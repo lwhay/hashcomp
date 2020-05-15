@@ -125,26 +125,29 @@ void deleteTest() {
     typedef trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, batch> maptype;
     maptype map(4, 1, thread_number);
     map.initThread();
+    /*for (uint64_t i = 0; i < 64; i++) map.Insert(i, i);
+    map.Printer();*/
     std::vector<std::thread> threads;
     for (int i = 0; i < thread_number; i++) {
         threads.push_back(std::thread([](maptype &map, uint64_t tid) {
             map.initThread(tid);
-            for (uint64_t r = 0; r < (1llu << 14); r++) {
-                for (uint64_t i = 0; i < 4; i += thread_number) {
-                    uint64_t k = (uint64_t) -1 - (r * 4 + i);
-                    map.Insert(k, k);
+            for (uint64_t r = 0; r < (1llu << 24); r++) {
+                for (uint64_t i = 0; i < 4; i++) {
+                    uint64_t k = (uint64_t) -1 - (/*r * 4 +*/ i);
                     //printf(cm[tid], k);
+                    map.Insert(k, k);
                     //std::cout << k << std::endl;
                 }
-                for (uint64_t i = 0; i < 4; i += thread_number) {
-                    uint64_t k = (uint64_t) -1 - (r * 4 + i);
+                //if (tid == 0) map.Printer();
+                for (uint64_t i = 0; i < 4; i++) {
+                    uint64_t k = (uint64_t) -1 - (/*r * 4 +*/ i);
                     map.Delete(k);
                 }
                 for (uint64_t i = 0; i < 4; i += thread_number) {
                     uint64_t v;
-                    uint64_t k = (uint64_t) -1 - (r * 4 + i);
+                    uint64_t k = (uint64_t) -1 - (/*r * 4 +*/ i);
                     bool ret = map.Find(k, v);
-                    if (ret) printf(cm[tid], k);//std::cout << tid << ":" << k << std::endl;
+                    //if (ret) printf(cm[tid], k);//std::cout << tid << ":" << k << std::endl;
                 }
             }
         }, std::ref(map), i));
@@ -285,7 +288,7 @@ int main(int argc, char **argv) {
         total_count = std::atol(argv[2]);
     }
     std::cout << thread_number << " " << total_count << std::endl;
-    //deleteTest();
+    deleteTest();
     brownTest();
     multiAWLTest();
     multiTrickTest<trick::ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, brown7>>();
