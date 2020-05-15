@@ -325,9 +325,11 @@ void *measureWorker(void *args) {
                         map.find(hk)->second++;
 #endif
                         ret = store->Insert(key, key);
+                        //if (work->tid < 2) printf(cm[work->tid], key);
                     } else {
                         uint64_t key = thread_number * ereased++ + work->tid + (evenRound / 2 + 1) * key_range;
                         ret = store->Delete(key);
+                        //if (work->tid < 2) printf(cm[work->tid], key);
                     }
                     if (ret) mhit++;
                     else mfail++;
@@ -342,6 +344,8 @@ void *measureWorker(void *args) {
             }
             if (evenRound++ % 2 == 0) ereased = 0;
             else inserts = 0;
+            /*if (work->tid < 2) std::cout << "********************" << std::endl;
+            if (evenRound == 4) break;*/
         }
     } catch (exception e) {
         cout << work->tid << endl;
