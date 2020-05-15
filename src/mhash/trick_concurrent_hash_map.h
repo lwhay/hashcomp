@@ -532,18 +532,18 @@ private:
                     return false;
                 }
 
-                if (v && !ptr.get()) {
+                if (!ptr.get()) {
                     ptr = AllocateDataNodePtr(k, v);
                 }
 
-                bool result = node_ptr->compare_exchange_strong(node, v ? (TreeNode *) ptr.get() : nullptr,
+                bool result = node_ptr->compare_exchange_strong(node, (TreeNode *) ptr.get(),
                                                                 std::memory_order_relaxed);
                 if (!result) {
                     ptrmgr->read(Thread::id());
                     continue;
                 }
                 assert(ptr != nullptr);
-                if (v) ptr.release();
+                ptr.release();
                 ptrmgr->read(Thread::id());
                 return true;
             }
@@ -559,16 +559,15 @@ private:
                         }
 
                         if (!ipu) {
-                            if (v && !ptr.get()) {
+                            if (!ptr.get()) {
                                 ptr = AllocateDataNodePtr(k, v);
                             }
-                            bool result = node_ptr->compare_exchange_strong(node, v ? ptr.get() : nullptr,
-                                                                            std::memory_order_relaxed);
+                            bool result = node_ptr->compare_exchange_strong(node, ptr.get(), std::memory_order_relaxed);
                             if (!result) {
                                 ptrmgr->read(Thread::id());
                                 continue;
                             }
-                            if (v) ptr.release();
+                            ptr.release();
                             ptrmgr->read(Thread::id());
                             //HazPtrRetire(d_node);
                             ptrmgr->free((uint64_t) d_node);
@@ -602,20 +601,19 @@ private:
 
                             tmp_arr_ptr->array_[tmp_idx].store(node, std::memory_order_relaxed);
 
-                            if (v && !ptr.get()) {
+                            if (!ptr.get()) {
                                 ptr = AllocateDataNodePtr(k, v);
                             }
 
                             if (next_idx != tmp_idx) {
-                                tmp_arr_ptr->array_[next_idx].store(v ? ptr.get() : nullptr, std::memory_order_relaxed);
+                                tmp_arr_ptr->array_[next_idx].store(ptr.get(), std::memory_order_relaxed);
                             }
 
-                            bool result = node_ptr->compare_exchange_strong(node, v ? MarkArrayNode(tmp_arr_ptr.get())
-                                                                                    : nullptr,
+                            bool result = node_ptr->compare_exchange_strong(node, MarkArrayNode(tmp_arr_ptr.get()),
                                                                             std::memory_order_relaxed);
 
                             if (result && next_idx != tmp_idx) {
-                                if (v) ptr.release();
+                                ptr.release();
                                 tmp_arr_ptr.release();
                                 ptrmgr->read(Thread::id());
                                 return true;
