@@ -225,6 +225,7 @@ if (WITH_AWLMAP)
     set(AWLMAP_YCSB_TEST
             HasherComparison.cpp
             AH_YCSBTest.cpp
+            AH_YCSBIterativeTest.cpp
             AH_MicroBench.cpp)
 
     foreach (sourcefile ${AWLMAP_YCSB_TEST})
