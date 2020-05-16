@@ -35,6 +35,7 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     set(FH_HYBRID_LIBS
             ../../src/faster/io/file_linux.cc
             ${FH_HYBRID_LIBS})
+    set(NUMA -lnuma)
 else ()
     set(FH_HYBRID_LIBS
             ../../src/faster/io/file_windows.cc
@@ -231,7 +232,7 @@ if (WITH_AWLMAP)
                 OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
                 )
         add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} awlmap)
-        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${ATOMIC} -lnuma)
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${ATOMIC} ${NUMA})
         if (${DISABLE_FAST_TABLE})
             target_compile_definitions(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} PUBLIC DISABLE_FAST_TABLE)
         endif ()
