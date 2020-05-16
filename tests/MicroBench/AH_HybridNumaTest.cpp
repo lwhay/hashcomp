@@ -247,10 +247,10 @@ void simpleInsert() {
 #endif
     for (int i = 0; i < total_count; i++) {
 #if defined(linux) && ENABLE_NUMA == 1
-        if (i % (total_count / thrd_number) == 0) {
+        if (i % (total_count / thread_number) == 0) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
-            CPU_SET(i / (total_count / thrd_number), &cpuset);
+            CPU_SET(i / (total_count / thread_number), &cpuset);
             pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
         }
 #endif
@@ -446,7 +446,7 @@ void multiWorkers() {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
         CPU_SET(i, &cpuset);
-        int rc = pthread_setaffinity_np(workers[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+        int rc = pthread_setaffinity_np(workers[i], sizeof(cpu_set_t), &cpuset);
 #endif
     }
     while (timer.elapsedSeconds() < timer_range) {
