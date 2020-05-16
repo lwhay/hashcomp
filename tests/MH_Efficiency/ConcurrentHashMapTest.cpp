@@ -131,7 +131,7 @@ void deleteTest() {
     for (int i = 0; i < thread_number; i++) {
         threads.push_back(std::thread([](maptype &map, uint64_t tid) {
             map.initThread(tid);
-            for (uint64_t r = 0; r < (1llu << 24); r++) {
+            for (uint64_t r = 0; r < (1llu << 20); r++) {
                 for (uint64_t i = 0; i < 4; i++) {
                     uint64_t k = (uint64_t) -1 - (/*r * 4 +*/ i);
                     //printf(cm[tid], k);
@@ -155,6 +155,7 @@ void deleteTest() {
     for (int i = 0; i < thread_number; i++) {
         threads[i].join();
     }
+    map.Printer();
     printf(cm[0], total_count);
 }
 

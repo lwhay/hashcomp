@@ -393,6 +393,82 @@ public:
         }
     }
 
+    void Trace(size_t &inode, size_t &lnode, size_t &depth, atomic<TreeNode *> *nodes = (atomic<TreeNode *> *) -1) {
+        if (nodes == (atomic<TreeNode *> *) -1)nodes = root_;
+        size_t size_limit;
+        if (nodes == root_) {
+            size_limit = root_size_;
+            inode = 0;
+            lnode = 0;
+            depth = 0;
+        } else size_limit = kArrayNodeSize;
+        depth++;
+        size_t current_depth = 0;
+        for (size_t i = 0; i < size_limit; i++) {
+            size_t cdepth = 0;
+            TreeNode *node = nodes[i].load(std::memory_order_relaxed);
+            if (node == nullptr) {
+                continue;
+            }
+            if (IsArrayNode(node)) {
+                Trace(inode, lnode, cdepth, dynamic_cast<ArrayNodeT *>(FilterValidPtr(node))->array_.data());
+                inode++;
+            } else {
+                lnode++;
+            }
+            if (cdepth > current_depth) current_depth = cdepth;
+        }
+        depth += current_depth;
+    }
+
+    size_t Shrink(atomic<TreeNode *> *nodes = (atomic<TreeNode *> *) -1) {
+        if (nodes == (atomic<TreeNode *> *) -1)nodes = root_;
+        size_t size_limit;
+        if (nodes == root_) size_limit = root_size_;
+        else size_limit = kArrayNodeSize;
+        size_t children = 0;
+        for (size_t i = 0; i < size_limit; i++) {
+            TreeNode *node = nodes[i].load(std::memory_order_relaxed);
+            if (node == nullptr) {
+                continue;
+            }
+            if (IsArrayNode(node)) {
+                switch (Shrink(dynamic_cast<ArrayNodeT *>(FilterValidPtr(node))->array_.data())) {
+                    case 0: {
+                        nodes[i].store(nullptr);
+                        delete FilterValidPtr(node);
+                        break;
+                    }
+                    case 1: {
+                        ArrayNodeT *parent = dynamic_cast<ArrayNodeT *>(FilterValidPtr(node));
+                        for (size_t j = 0; j < kArrayNodeSize; j++) {
+                            TreeNode *child = parent->array_.data()[j].load(std::memory_order_relaxed);
+                            if (child != nullptr && !IsArrayNode(child)) {
+                                //assert(!IsArrayNode(child));
+                                nodes[i].store(child, std::memory_order_relaxed);
+                                delete FilterValidPtr(node);
+                                /*std::cerr << i << ":" << j << ":" << std::hex << node << "*"
+                                          << IsArrayNode(child)*//*dynamic_cast<DataNodeT *>(child)->GetValue().first*//*
+                                          << std::endl;*/
+                                break;
+                            }
+                        }
+                        children++;
+                        break;
+                    }
+                    default: {
+                        children++;
+                        break;
+                    }
+                }
+            } else {
+                children++;
+            }
+        }
+
+        return children;
+    }
+
     void Printer(atomic<TreeNode *> *nodes = (atomic<TreeNode *> *) -1, std::string prefix = "") {
         if (nodes == (atomic<TreeNode *> *) -1)nodes = root_;
         size_t size_limit;
@@ -411,7 +487,7 @@ public:
             if (IsArrayNode(node)) {
                 Printer(dynamic_cast<ArrayNodeT *>(FilterValidPtr(node))->array_.data(), head);
             } else {
-                std::cerr << head << "|-" << i << ":" << std::hex << node << ":"
+                std::cerr << head << "|-" << i << ":" << std::hex << node << "@"
                           << dynamic_cast<DataNodeT *>(node)->GetValue().first << std::endl;
             }
         }

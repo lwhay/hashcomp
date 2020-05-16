@@ -103,6 +103,8 @@ struct MyHash {
     }
 };
 
+//#define MyHash std::hash<uint64_t>
+
 #define brown_new_once 1
 #define brown_use_pool 0
 
@@ -266,6 +268,10 @@ void simpleInsert() {
                  << spevector[i].second << endl;
 #endif
     cout << inserted << " " << tracer.getRunTime() << " " << set.size() << endl;
+    size_t inner_node, leaf_node, max_depth;
+    tracer.startTime();
+    store->Trace(inner_node, leaf_node, max_depth);
+    cout << "Trace: " << tracer.getRunTime() << " " << inner_node << " " << leaf_node << " " << max_depth << endl;
 }
 
 void *insertWorker(void *args) {
@@ -342,6 +348,8 @@ void *measureWorker(void *args) {
             }
             if (evenRound++ % 2 == 0) ereased = 0;
             else inserts = 0;
+            //if (evenRound == 500) break;
+            //if (work->tid == 0 && evenRound % 2 == 0) store->Printer();
         }
     } catch (exception e) {
         cout << work->tid << endl;
@@ -422,7 +430,18 @@ void multiWorkers() {
         string outstr = output[i].str();
         cout << outstr;
     }
-    cout << "Gathering ..." << endl;
+    //store->Printer();
+    size_t inner_node, leaf_node, max_depth;
+    tracer.startTime();
+    store->Trace(inner_node, leaf_node, max_depth);
+    cout << "Trace: " << tracer.getRunTime() << " " << inner_node << " " << leaf_node << " " << max_depth << endl;
+    tracer.startTime();
+    store->Shrink();
+    cout << "Gathering: " << tracer.getRunTime() << endl;
+    tracer.startTime();
+    store->Trace(inner_node, leaf_node, max_depth);
+    cout << "Trace: " << tracer.getRunTime() << " " << inner_node << " " << leaf_node << " " << max_depth << endl;
+    //store->Printer();
 }
 
 int main(int argc, char **argv) {
