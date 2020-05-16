@@ -218,7 +218,8 @@ if (WITH_AWLMAP)
             )
 
     set(AWLMAP_TEST
-            AH_HybridTest.cpp)
+            AH_HybridTest.cpp
+            AH_HybridNumaTest.cpp)
 
     foreach (sourcefile ${AWLMAP_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
@@ -230,7 +231,7 @@ if (WITH_AWLMAP)
                 OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
                 )
         add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} awlmap)
-        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${ATOMIC})
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${ATOMIC} -lnuma)
         if (${DISABLE_FAST_TABLE})
             target_compile_definitions(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} PUBLIC DISABLE_FAST_TABLE)
         endif ()
