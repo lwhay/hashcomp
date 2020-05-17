@@ -72,12 +72,10 @@ public:
         std::memcpy(buf_, buf, len_);
     }
 
-    Key(Key const &key) {
-        len_ = key.len_;
-        buf_ = key.buf_;
-    }
+    Key(Key const &key) : Key(key.get(), key.len_) {}
 
     ~Key() {
+        delete[] buf_;
     }
 
     uint8_t *get() const {
