@@ -66,6 +66,7 @@ typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debra<>> brown10;
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debraplus<>> brown11;
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_debracap<>> brown12;
 typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_none<>> brown13;
+typedef brown_reclaim<node, alloc<node>, pool<>, reclaimer_batchhp<>> brown14;
 
 size_t hash_freent = 6;
 
@@ -153,7 +154,7 @@ void init(std::atomic<uint64_t> *bucket) {
             ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
         else
 #endif
-        if (hash_freent >= 5 && hash_freent <= 13) ptr = (node *) deallocator->allocate(0); // 5: ignored cache.
+        if (hash_freent >= 5 && hash_freent <= 14) ptr = (node *) deallocator->allocate(0); // 5: ignored cache.
         else ptr = (node *) std::malloc(sizeof(node));
         size_t idx = i;
         assert(idx >= 0 && idx < list_volume);
@@ -173,7 +174,7 @@ void deinit(std::atomic<uint64_t> *bucket) {
     for (size_t i = 0; i < list_volume; i++) {
         size_t idx = i;
         assert(idx >= 0 && idx < list_volume);
-        if (hash_freent >= 5 && hash_freent <= 13) deallocator->free(bucket[idx].load());
+        if (hash_freent >= 5 && hash_freent <= 14) deallocator->free(bucket[idx].load());
         else std::free((void *) bucket[idx].load());
     }
 }
@@ -187,7 +188,7 @@ void print(std::atomic<uint64_t> *bucket) {
 }
 
 void writer(std::atomic<uint64_t> *bucket, size_t tid) {
-    if (hash_freent >= 5 && hash_freent <= 14) deallocator->initThread(tid);
+    if (hash_freent >= 5 && hash_freent <= 15) deallocator->initThread(tid);
     else if (hash_freent == 2) ftid = tid;
     uint64_t total = 0, hitting = 0, exception = 0;
     std::queue<uint64_t> oldqueue;
@@ -209,7 +210,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
                 ptr = (node *) ((epoch_wrapper<node> *) deallocator)->get();
             else
 #endif
-            if (hash_freent >= 5 && hash_freent <= 13) ptr = (node *) deallocator->allocate(tid); // useless tid in 6-12
+            if (hash_freent >= 5 && hash_freent <= 14) ptr = (node *) deallocator->allocate(tid); // useless tid in 6-12
                 //else if (hash_freent == 14) ptr = ((faster_epoch<node> *) deallocator)->allocate();
             else ptr = (node *) std::malloc(sizeof(node));
             ptr->key = loads[i];
@@ -222,7 +223,7 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
             } while (!bucket[idx].compare_exchange_strong(old, (uint64_t) ptr, std::memory_order_relaxed));
             node *oldptr = (node *) old;
             if (hash_freent == 2 || hash_freent == 4 ||
-                hash_freent >= 5 && hash_freent <= 15) { // mshp etc maintains caches inside each hp.
+                hash_freent >= 5 && hash_freent <= 16) { // mshp etc maintains caches inside each hp.
                 //assert(oldptr->value == 1);
                 if (detail_print && oldptr->value != 1) {
                     exception++;
@@ -261,10 +262,12 @@ void writer(std::atomic<uint64_t> *bucket, size_t tid) {
 }
 
 #if defined(linux) && ENABLE_NUMA == 1
+
 void print_bitmask(const struct bitmask *bm) {
     for (size_t i = 0; i < bm->size; ++i)
         printf("%d", numa_bitmask_isbitset(bm, i));
 }
+
 #endif
 
 int main(int argc, char **argv) {
@@ -350,10 +353,14 @@ int main(int argc, char **argv) {
             break;
         }
         case 14: {
-            deallocator = new faster_epoch<node>(thrd_number);
+            deallocator = new brown14(thrd_number);
             break;
         }
         case 15: {
+            deallocator = new faster_epoch<node>(thrd_number);
+            break;
+        }
+        case 16: {
             deallocator = new opt_hazard<node>(thrd_number);
             break;
         }

@@ -19,6 +19,7 @@
 #include "reclaimer_debra.h"
 #include "reclaimer_debraplus.h"
 #include "reclaimer_debracap.h"
+#include "reclaimer_batchhp.h"
 
 thread_local uint64_t brown_tid;
 thread_local uint64_t holder{0};
