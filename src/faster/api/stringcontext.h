@@ -209,7 +209,12 @@ public:
     Value(Value const &value) : gen_lock_{0}, size_(sizeof(Value) + value.length_), length_(value.length_),
                                 value_(value.value_) {}
 
-    ~Value() { value_ = nullptr; }
+    ~Value() {
+        if (allocated) {
+            delete[] value_;
+            value_ = nullptr;
+        }
+    }
 
     void reset(uint8_t *value, uint32_t length) {
         gen_lock_.store(0);
@@ -218,6 +223,7 @@ public:
         delete[] value_;
         value_ = new uint8_t[length_];
         std::memcpy(value_, value, length);
+        allocated = true;
     }
 
 #else
@@ -270,6 +276,7 @@ private:
     AtomicGenLock gen_lock_;
     uint32_t size_;
     uint32_t length_;
+    bool allocated = false;
     uint8_t *value_;
 
     inline const uint8_t *buffer() const {
