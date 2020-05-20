@@ -9,6 +9,9 @@
 #include "../core/key_hash.h"
 #include "../misc/utility.h"
 
+// we must malloc context memory by disabling copy-2
+#define LIGHTWEIGHT_COPY 1 // Three levels of malloc: 0-k/v/c malloc; 1-c malloc; 2-non malloc
+
 using namespace FASTER::misc;
 
 namespace FASTER {
@@ -67,6 +70,16 @@ uint64_t MurmurHash64A(const void *key, int len, uint64_t seed) {
 
 class Key {
 public:
+#if LIGHTWEIGHT_COPY >= 1
+
+    Key(uint8_t *buf, uint32_t len) : len_{len}, buf_(buf) {}
+
+    Key(Key const &key) : Key(key.get(), key.len_) {}
+
+    ~Key() { buf_ = nullptr; }
+
+#else
+
     Key(uint8_t *buf, uint32_t len) : len_{len} {
         buf_ = new uint8_t[len_];
         std::memcpy(buf_, buf, len_);
@@ -77,6 +90,8 @@ public:
     ~Key() {
         delete[] buf_;
     }
+
+#endif
 
     uint8_t *get() const {
         return buf_;
@@ -185,6 +200,28 @@ static_assert(sizeof(AtomicGenLock) == 8, "sizeof(AtomicGenLock) != 8");
 
 class Value {
 public:
+#if LIGHTWEIGHT_COPY >= 1
+
+    Value() : gen_lock_{0}, size_{0}, length_{0} {}
+
+    Value(uint8_t *buf, uint32_t length) : gen_lock_{0}, size_(sizeof(Value) + length), length_(length), value_(buf) {}
+
+    Value(Value const &value) : gen_lock_{0}, size_(sizeof(Value) + value.length_), length_(value.length_),
+                                value_(value.value_) {}
+
+    ~Value() { value_ = nullptr; }
+
+    void reset(uint8_t *value, uint32_t length) {
+        gen_lock_.store(0);
+        length_ = length;
+        size_ = sizeof(Value) + length;
+        delete[] value_;
+        value_ = new uint8_t[length_];
+        std::memcpy(value_, value, length);
+    }
+
+#else
+
     Value() : gen_lock_{0}, size_{0}, length_{0} {}
 
     Value(uint8_t *buf, uint32_t length) : gen_lock_{0}, size_(sizeof(Value) + length), length_(length) {
@@ -202,10 +239,6 @@ public:
 
     ~Value() { delete[] value_; }
 
-    inline uint32_t size() const {
-        return size_;
-    }
-
     void reset(uint8_t *value, uint32_t length) {
         gen_lock_.store(0);
         length_ = length;
@@ -213,6 +246,12 @@ public:
         delete[] value_; //Might introduce memory leak here.
         value_ = new uint8_t[length_];
         std::memcpy(value_, value, length);
+    }
+
+#endif
+
+    inline uint32_t size() const {
+        return size_;
     }
 
     uint8_t *get() {
@@ -278,6 +317,7 @@ public:
 
     /// Non-atomic and atomic Put() methods.
     inline void Put(Value &value) {
+        assert(input_buffer != value.value_);
         value.reset(input_buffer, length_);
     }
 
@@ -364,7 +404,11 @@ public:
     /// Copy (and deep-copy) constructor.
     ReadContext(const ReadContext &other) : key_{other.key_}, output_length{0} {}
 
-    ~ReadContext() { delete[] output_bytes; }
+    ~ReadContext() {
+#if LIGHTWEIGHT_COPY < 0
+        delete[] output_bytes;
+#endif
+    }
 
     /// The implicit and explicit interfaces require a key() accessor.
     inline const Key &key() const {
@@ -374,17 +418,25 @@ public:
     inline void set(Value &value) {
         value.size_ = sizeof(Value) + output_length;
         value.length_ = output_length;
+#if LIGHTWEIGHT_COPY >= 2
+        value.value_ = output_bytes;
+#else
         value.value_ = new uint8_t[output_length];
         std::memcpy(value.value_, output_bytes, value.length_);
+#endif
     }
 
     inline void Get(const Value &value) {
         // All reads should be atomic (from the mutable tail).
         //ASSERT_TRUE(false);
         output_length = value.length_;
+#if LIGHTWEIGHT_COPY >= 2
+        output_bytes = value.value_;
+#else
         if (output_bytes != nullptr) delete[] output_bytes;
         output_bytes = new uint8_t[output_length];
         std::memcpy(output_bytes, value.value_, output_length);
+#endif
     }
 
     inline void GetAtomic(const Value &value) {
@@ -393,8 +445,12 @@ public:
             before = value.gen_lock_.load();
             output_length = value.length_;
             if (output_bytes != nullptr) delete[] output_bytes;
+#if LIGHTWEIGHT_COPY >= 2
+            output_bytes = value.value_;
+#else
             output_bytes = new uint8_t[output_length];
             std::memcpy(output_bytes, value.buffer(), output_length);
+#endif
             do {
                 after = value.gen_lock_.load();
             } while (after.locked /*|| after.replaced*/);
