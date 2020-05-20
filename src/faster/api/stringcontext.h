@@ -412,7 +412,7 @@ public:
     ReadContext(const ReadContext &other) : key_{other.key_}, output_length{0} {}
 
     ~ReadContext() {
-#if LIGHTWEIGHT_COPY < 0
+#if LIGHTWEIGHT_COPY < 2
         delete[] output_bytes;
 #endif
     }
