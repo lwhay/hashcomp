@@ -47,7 +47,7 @@ private:
     PAD; // post padding for superclass layout
     struct holder holders[MAX_THREADS_POW2];
 
-    class circulequeue {
+    /*class circulequeue {
         constexpr static size_t limit = (batch_size * 2);
         volatile size_t head = 0, tail = 0;
         volatile uint64_t queue[limit];
@@ -67,7 +67,7 @@ private:
                 return now;
             }
         }
-    } cache[thread_limit];
+    } cache[thread_limit];*/
 
 public:
 
@@ -158,7 +158,8 @@ public:
                 size_t idx = (startPos + i) % lru_volume;
                 if (!bs.test(i)) {
                     uint64_t element = lrulist[idx];
-                    if (!cache[tid].push(element)) std::free((void *) element);
+                    this->pool->add(tid, (T *) element);
+                    //if (!cache[tid].push(element)) std::free((void *) element);
                 } else {
 #if TRACE_CONFLICTS == 1
                     conflicts++;
