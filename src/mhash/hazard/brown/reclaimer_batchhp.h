@@ -53,9 +53,6 @@ private:
         volatile uint64_t queue[limit];
     public:
         inline bool push(uint64_t e) {
-            /*if (thread_id == 2)
-                std::cout << (head + limit - tail) << ":" << (head + limit - tail) % limit << ":" << head << ":" << tail
-                          << ":" << limit << std::endl;*/
             if ((head + limit - tail) % limit == 1) return false;
             queue[tail] = e;
             tail = (tail + 1) % limit;
@@ -63,9 +60,6 @@ private:
         }
 
         inline uint64_t pop() {
-            /*if (thread_id == 2)
-                std::cout << (head + limit - tail) << "-" << (head + limit - tail) % limit << "-" << head << "-" << tail
-                          << "-" << limit << std::endl;*/
             if (head == tail) return 0;
             else {
                 uint64_t now = queue[head];
@@ -98,31 +92,35 @@ public:
         return true;
     }
 
-    inline static bool isProtected(const int tid, T *const obj) {
+    inline bool isProtected(const int tid, T *const obj) {
         return true;
     }
 
-    inline static bool isQProtected(const int tid, T *const obj) {
+    inline bool isQProtected(const int tid, T *const obj) {
         return false;
     }
 
     // for hazard pointers (and reference counting)
-    inline static bool protect(const int tid, T *const obj, CallbackType notRetiredCallback, CallbackArg callbackArg,
-                               bool memoryBarrier = true) {
+    inline bool protect(const int tid, T *const ptr, CallbackType notRetiredCallback, CallbackArg callbackArg,
+                        bool memoryBarrier = true) {
+        holders[tid].store((uint64_t) ptr);
+        recent_address = (uint64_t) ptr;
         return true;
     }
 
-    inline static void unprotect(const int tid, T *const obj) {}
+    inline void unprotect(const int tid, T *const obj) {
+        if (recent_address != 0) holders[tid].store(0);
+    }
 
-    inline static bool qProtect(const int tid, T *const obj, CallbackType notRetiredCallback, CallbackArg callbackArg,
-                                bool memoryBarrier = true) {
+    inline bool qProtect(const int tid, T *const obj, CallbackType notRetiredCallback, CallbackArg callbackArg,
+                         bool memoryBarrier = true) {
         return true;
     }
 
-    inline static void qUnprotectAll(const int tid) {}
+    inline void qUnprotectAll(const int tid) {}
 
     // rotate the epoch bags and reclaim any objects retired two epochs ago.
-    inline static void rotateEpochBags(const int tid) {
+    inline void rotateEpochBags(const int tid) {
     }
 
     // invoke this at the beginning of each operation that accesses
@@ -131,16 +129,46 @@ public:
     // (and reclaimed any objects retired two epochs ago).
     // otherwise, the call returns false.
     template<typename First, typename... Rest>
-    inline static bool
+    inline bool
     startOp(const int tid, void *const *const reclaimers, const int numReclaimers, const bool readOnly = false) {
         return false;
     }
 
-    inline static void endOp(const int tid) {
+    inline void endOp(const int tid) {
     }
 
     // for all schemes except reference counting
-    inline static void retire(const int tid, T *p) {
+    inline void retire(const int tid, T *ptr) {
+        assert(ptr != 0);
+        lrulist[endPos] = (uint64_t) ptr;
+        endPos = ++endPos % lru_volume;
+        if (endPos == startPos) {
+            std::bitset<batch_size> bs(0);
+            for (size_t t = 0; t < this->NUM_PROCESSES; t++) {
+                if (t == tid) continue;
+                const uint64_t target = holders[t].load();
+                if (target != 0) {
+                    for (size_t i = 0; i < batch_size; i++) {
+                        if (lrulist[(startPos + i) % lru_volume] == target)
+                            bs.set(i);
+                    }
+                }
+            }
+            for (size_t i = 0; i < batch_size; i++) {
+                size_t idx = (startPos + i) % lru_volume;
+                if (!bs.test(i)) {
+                    uint64_t element = lrulist[idx];
+                    if (!cache[tid].push(element)) std::free((void *) element);
+                } else {
+#if TRACE_CONFLICTS == 1
+                    conflicts++;
+#endif
+                    lrulist[endPos] = lrulist[idx];
+                    endPos = ++endPos % lru_volume;
+                }
+            }
+            startPos = (startPos + batch_size) % lru_volume;
+        }
     }
 
     void debugPrintStatus(const int tid) {
