@@ -14,6 +14,23 @@
 
 #define MAX_HAZARDPTRS_PER_THREAD 16
 
+#ifndef HASHCOMP_BATCH_HAZARD_H
+// Carefully choose reservior to be between thread_number and batch_size, and cache by batch_size * 2;
+constexpr size_t batch_size = (1llu << 9);
+
+constexpr size_t reservior = (1llu << 6);
+
+constexpr size_t lru_volume = batch_size + reservior;
+
+thread_local uint64_t lrulist[lru_volume];
+
+thread_local size_t startPos = 0, endPos = 0;
+
+thread_local uint64_t thread_id = 0;
+
+thread_local uint64_t recent_address = 0;
+#endif
+
 template<typename T = void, class Pool = pool_interface<T> >
 class reclaimer_batchhp : public reclaimer_interface<T, Pool> {
 private:

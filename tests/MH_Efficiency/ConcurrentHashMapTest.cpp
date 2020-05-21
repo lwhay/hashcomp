@@ -5,6 +5,7 @@
 #include <vector>
 #include <thread>
 #include <cassert>
+#include "batch_hazard.h"
 #include "brown_reclaim.h"
 #include "hash_hazard.h"
 #include "tracer.h"
