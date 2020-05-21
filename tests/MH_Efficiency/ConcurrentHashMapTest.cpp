@@ -43,6 +43,7 @@ typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debra<>, n
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debraplus<>, node> brown11;
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debracap<>, node> brown12;
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_none<>, node> brown13;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_batchhp<>, node> brown14;
 
 void multiAWLTest() {
     typedef ConcurrentHashMap<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>> maptype;
@@ -304,5 +305,6 @@ int main(int argc, char **argv) {
     test<brown11>();
     test<brown12>();
     test<brown13>();
+    test<brown14>();
     return 0;
 }

@@ -139,6 +139,7 @@ typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debra<>, n
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debraplus<>, node> brown11;
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_debracap<>, node> brown12;
 typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_none<>, node> brown13;
+typedef brown_reclaim<trick::TreeNode, alloc<node>, pool<>, reclaimer_batchhp<>, node> brown14;
 
 #if TRICK_MAP == 0
 typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, memory_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
@@ -169,10 +170,12 @@ typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equ
 #elif TRICK_MAP == 13
 typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown13> maptype;
 #elif TRICK_MAP == 14
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, faster_epoch<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, brown14> maptype;
 #elif TRICK_MAP == 15
-typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, opt_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, faster_epoch<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
 #elif TRICK_MAP == 16
+typedef trick::ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>, opt_hazard<trick::TreeNode, trick::DataNode<uint64_t, uint64_t>>> maptype;
+#elif TRICK_MAP == 17
 typedef ConcurrentHashMap<uint64_t, /*Value **/uint64_t, MyHash, std::equal_to<>> maptype;
 #endif
 
@@ -232,7 +235,7 @@ struct target *parms;
 #endif
 
 void simpleInsert() {
-#if TRICK_MAP >= 6 && TRICK_MAP <= 13
+#if TRICK_MAP >= 6 && TRICK_MAP <= 14
     store->initThread(thread_number);
 #endif
     Tracer tracer;
@@ -314,7 +317,7 @@ void *measureWorker(void *args) {
     uint64_t mfail = 0, rfail = 0;
     int evenRound = 0;
     uint64_t ereased = 0, inserts = 0;
-#if TRICK_MAP != 16
+#if TRICK_MAP != 17
     store->initThread(work->tid);
 #endif
 #if HASH_VERIFY == 1
