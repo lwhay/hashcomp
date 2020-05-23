@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include "faster.h"
 
-#undef SERIALIZABLE_CONTEXT
+#define SERIALIZABLE_CONTEXT
 
 #ifdef SERIALIZABLE_CONTEXT
 

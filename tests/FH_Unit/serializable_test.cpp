@@ -77,6 +77,55 @@ TEST(SerializableFaster, KeyLengthTest) {
     assert(sizeof(*pk) == 16);
 }
 
+TEST(SerializableFaster, UpsertTest) {
+    constexpr uint64_t limit = 10000000000llu;
+    constexpr uint64_t range = 100000llu;
+#ifdef _WIN32
+    typedef hreadPoolIoHandler handler_t;
+#else
+    typedef QueueIoHandler handler_t;
+#endif
+    typedef FileSystemDisk<handler_t, 1073741824ull> disk_t;
+
+    using store_t = FasterKv<Key, Value, disk_t>;
+
+    store_t store(next_power_of_two(10000000 / 2), 17179869184, "storage");
+
+    for (uint64_t i = 0; i < limit; i += range) {
+        char key[255];
+        char value[255];
+        std::memset(key, 0, 255);
+        std::sprintf(key, "%llu", i);
+        std::memset(value, 0, 255);
+        std::sprintf(value, "%llu", i);
+
+        auto callback = [](IAsyncContext *ctxt, Status result) {
+            CallbackContext<UpsertContext> context{ctxt};
+        };
+        UpsertContext context{Key((uint8_t *) key, std::strlen(key)), Value((uint8_t *) value, std::strlen(value))};
+        Status stat = store.Upsert(context, callback, 1);
+        assert(stat == Status::Ok);
+        //std::cout << i << std::endl;
+    }
+    for (uint64_t i = 0; i < limit; i += range) {
+        char key[255];
+        char value[255];
+        std::memset(key, 0, 255);
+        std::sprintf(key, "%llu", i);
+        std::sprintf(value, "%llu", i);
+
+        auto callback = [](IAsyncContext *ctxt, Status result) {
+            CallbackContext<ReadContext> context{ctxt};
+        };
+        ReadContext context{Key((uint8_t *) key, std::strlen(key))};
+        Status stat = store.Read(context, callback, 1);
+        assert(stat == Status::Ok);
+        char *output = (char *) context.output_bytes;
+        assert(std::strncmp(value, output, context.output_length) == 0);
+        //std::cout << i << std::endl;
+    }
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

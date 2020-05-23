@@ -67,11 +67,17 @@ uint64_t MurmurHash64A(const void *key, int len, uint64_t seed) {
 
 class Key {
 public:
-    Key(uint8_t *buf, uint32_t len) : len_{len} { std::memcpy(buf_, buf, len); }
+    Key(uint8_t *buf, uint32_t len) : len_{len} {
+        if (buf_ == nullptr) buf_ = new uint8_t[len];
+        std::memcpy(buf_, buf, len);
+    }
 
     Key(Key const &key) : Key(key.get(), key.len_) {}
 
-    ~Key() { buf_ = nullptr; }
+    ~Key() {
+        if (buf_ != (uint8_t *) this + sizeof(Key)) delete[] buf_;
+        buf_ = nullptr;
+    }
 
     uint8_t *get() const {
         return buf_;
@@ -86,11 +92,17 @@ public:
         return KeyHash{MurmurHash64A(buf_, len_, hashseedA)};
     }
 
+    inline void setLocalBuffer() {
+        buf_ = (uint8_t *) this + sizeof(Key);
+    }
+
     inline void *operator new(size_t size) {
         return std::malloc(size);
     }
 
     inline void *operator new(size_t size, void *p) {
+        Key *key = (Key *) p;
+        key->setLocalBuffer();
         return p;
     }
 
@@ -113,7 +125,7 @@ public:
 
 private:
     uint32_t len_ = 0;
-    uint8_t *buf_ = (uint8_t *) this + sizeof(Key);
+    uint8_t *buf_ = nullptr;
 };
 
 class UpsertContext;
@@ -199,14 +211,20 @@ public:
     Value() : gen_lock_{0}, size_{0}, length_{0} {}
 
     Value(uint8_t *buf, uint32_t length) : gen_lock_{0}, size_(sizeof(Value) + length), length_(length) {
+        if (value_ == nullptr) value_ = new uint8_t[length];
         std::memcpy(value_, buf, length);
     }
 
     Value(Value const &value) : gen_lock_{0}, size_(sizeof(Value) + value.length_), length_(value.length_) {
+        if (value_ == nullptr) value_ = new uint8_t[length_];
         std::memcpy(value_, value.buffer(), value.length_);
     }
 
     ~Value() {
+        if (value_ != (uint8_t *) this + sizeof(Value)) {
+            delete[] value_;
+            value_ = nullptr;
+        }
         /*if (allocated) {
             delete[] value_;
             value_ = nullptr;
@@ -217,6 +235,8 @@ public:
         gen_lock_.store(0);
         length_ = length;
         size_ = sizeof(Value) + length;
+        assert(value_ == nullptr || value_ == (uint8_t *) this + sizeof(Value));
+        setLocalBuffer();
         /*delete[] value_;
         value_ = new uint8_t[length_];*/
         std::memcpy(value_, value, length);
@@ -227,7 +247,13 @@ public:
         return std::malloc(size);
     }
 
+    inline void setLocalBuffer() {
+        value_ = (uint8_t *) this + sizeof(Value);
+    }
+
     inline void *operator new(size_t size, void *p) {
+        Value *value = (Value *) p;
+        value->setLocalBuffer();
         return p;
     }
 
@@ -259,7 +285,7 @@ private:
     AtomicGenLock gen_lock_;
     uint32_t size_;
     uint32_t length_;
-    uint8_t *value_ = (uint8_t *) this + sizeof(Value);
+    uint8_t *value_ = nullptr;
 
     inline const uint8_t *buffer() const {
         return value_;
@@ -419,6 +445,7 @@ public:
     }
 
     inline void GetAtomic(const Value &value) {
+        //value.setLocalBuffer();
         GenLock before, after;
         do {
             before = value.gen_lock_.load();
