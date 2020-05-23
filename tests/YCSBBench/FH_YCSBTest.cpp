@@ -4,7 +4,17 @@
 #include <stdlib.h>
 #include "faster.h"
 
+#undef SERIALIZABLE_CONTEXT
+
+#ifdef SERIALIZABLE_CONTEXT
+
+#include "serializablecontext.h"
+
+#else
+
 #include "stringcontext.h"
+
+#endif
 
 #define DEFAULT_THREAD_NUM (8)
 #define DEFAULT_KEYS_COUNT (1 << 20)

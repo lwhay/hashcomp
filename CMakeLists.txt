@@ -152,6 +152,7 @@ if (WITH_FH_TESTS)
             tests/FH_Unit/faster_function_test.cpp
             tests/FH_Unit/in_memory_test.cpp
             tests/FH_Unit/faster_struct_test.cpp
+            tests/FH_Unit/serializable_test.cpp
             tests/Pure/FH_InsertDeleteUpsertTest.cpp
             tests/Pure/FH_RoundInsertDeleteTest.cpp
             tests/Pure/FH_MicroDeleteTest.cpp
