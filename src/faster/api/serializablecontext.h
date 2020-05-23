@@ -86,6 +86,10 @@ public:
         return KeyHash{MurmurHash64A(buf_, len_, hashseedA)};
     }
 
+    inline void *operator new(size_t size) {
+        return std::malloc(size);
+    }
+
     inline void *operator new(size_t size, void *p) {
         return p;
     }
@@ -217,6 +221,14 @@ public:
         value_ = new uint8_t[length_];*/
         std::memcpy(value_, value, length);
         //allocated = true;
+    }
+
+    inline void *operator new(size_t size) {
+        return std::malloc(size);
+    }
+
+    inline void *operator new(size_t size, void *p) {
+        return p;
     }
 
     inline void *operator new(size_t size, size_t len) {

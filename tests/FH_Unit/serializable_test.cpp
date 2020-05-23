@@ -36,21 +36,23 @@ TEST(SerializableFaster, KeyLengthTest) {
 
     typedef Record<Key, Value> record_t;
 
-    Key key{(uint8_t *) "Hello world", 11};
-    Value value{
+    Key *pk = (Key *) std::malloc(sizeof(Key) + 11);//new Key((uint8_t *) "Hello world", 11);
+    new(pk) Key{(uint8_t *) "Hello world", 11};
+    Value *pv = (Value *) std::malloc(sizeof(Value) + 100);
+    new(pv) Value{
             (uint8_t *) "from Chinafrom Chinafrom Chinafrom Chinafrom Chinafrom Chinafrom Chinafrom Chinafrom Chinafrom China",
             100};
 
     size_t rl = sizeof(RecordInfo);
-    size_t kh = sizeof(key);
-    size_t kl = alignof(key);
-    size_t vh = sizeof(value);
-    size_t vl = alignof(value);
-    size_t ks = key.size();
-    size_t vs = value.size();
+    size_t kh = sizeof(*pk);
+    size_t kl = alignof(*pk);
+    size_t vh = sizeof(*pv);
+    size_t vl = alignof(*pv);
+    size_t ks = pk->size();
+    size_t vs = pv->size();
     std::cout << hlog.head_address.load().offset() << std::endl;
     std::cout << hlog.GetTailAddress().offset() << std::endl;
-    uint32_t record_size = record_t::size(key, value.size());
+    uint32_t record_size = record_t::size(*pk, pv->size());
     uint32_t page;
     Address retval = hlog.Allocate(record_size, page);
     while (retval < hlog.read_only_address.load()) {
@@ -64,12 +66,12 @@ TEST(SerializableFaster, KeyLengthTest) {
         retval = hlog.Allocate(record_size, page);
     }
     record_t *record = reinterpret_cast<record_t *>(hlog.Get(retval));
-    //new(record) record_t{RecordInfo{0, true, false, false, retval}, key};
+    new(record) record_t{RecordInfo{0, true, false, false, retval}, *pk};
 
-    std::cout << sizeof(key) << std::endl;
+    std::cout << sizeof(*pk) << std::endl;
     std::cout << hlog.head_address.load().offset() << std::endl;
     std::cout << hlog.GetTailAddress().offset() << std::endl;
-    assert(sizeof(key) == 16);
+    assert(sizeof(*pk) == 16);
 }
 
 int main(int argc, char **argv) {
