@@ -21,12 +21,76 @@
 
 using namespace ycsb;
 
-/*#if WITH_STRING
+#if WITH_STRING == 1
 typedef libcuckoo::cuckoohash_map<string, string> cmap;
 #else
-typedef libcuckoo::cuckoohash_map<char *, char *, std::hash<char *>, std::equal_to<char *>, std::allocator<std::pair<const char *, char *>>, 8> cmap;
-#endif*/
-typedef libcuckoo::cuckoohash_map<string, string> cmap;
+constexpr uint32_t kHashSeed = 7079;
+
+uint64_t MurmurHash64A(const void *key, size_t len) {
+    const uint64_t m = 0xc6a4a7935bd1e995ull;
+    const size_t r = 47;
+    uint64_t seed = kHashSeed;
+
+    uint64_t h = seed ^(len * m);
+
+    const auto *data = (const uint64_t *) key;
+    const uint64_t *end = data + (len / 8);
+
+    while (data != end) {
+        uint64_t k = *data++;
+
+        k *= m;
+        k ^= k >> r;
+        k *= m;
+
+        h ^= k;
+        h *= m;
+    }
+
+    const auto *data2 = (const unsigned char *) data;
+
+    switch (len & 7ull) {
+        case 7:
+            h ^= uint64_t(data2[6]) << 48ull;
+        case 6:
+            h ^= uint64_t(data2[5]) << 40ull;
+        case 5:
+            h ^= uint64_t(data2[4]) << 32ull;
+        case 4:
+            h ^= uint64_t(data2[3]) << 24ull;
+        case 3:
+            h ^= uint64_t(data2[2]) << 16ull;
+        case 2:
+            h ^= uint64_t(data2[1]) << 8ull;
+        case 1:
+            h ^= uint64_t(data2[0]);
+            h *= m;
+    };
+
+    h ^= h >> r;
+    h *= m;
+    h ^= h >> r;
+
+    return h;
+}
+
+template<typename T>
+struct str_equal_to {
+    bool operator()(const T first, T second) {
+        if (std::strcmp(first, second) == 0) return true;
+        else return false;
+    }
+};
+
+template<typename T>
+struct str_hash {
+    std::size_t operator()(const T &str) const noexcept {
+        return MurmurHash64A((char *) str, std::strlen(str));
+    }
+};
+
+typedef libcuckoo::cuckoohash_map<char *, char *, str_hash<char *>, str_equal_to<char *>, std::allocator<std::pair<const char *, char *>>> cmap;
+#endif
 
 cmap *store;
 
@@ -80,12 +144,22 @@ void simpleInsert() {
     tracer.startTime();
     int inserted = 0;
     for (int i = 0; i < key_range; i++, inserted++) {
-#if WITH_STRING
+#if WITH_STRING == 1
         store->insert(string(loads[i]->getKey()), std::string(loads[i]->getVal()));
+        assert(std::strcmp(store->find(loads[i]->getKey()).c_str(), loads[i]->getVal()) == 0);
 #else
         store->insert(loads[i]->getKey(), loads[i]->getVal());
+        /*char query[255];
+        std::memset(query, 0, 255);
+        std::memcpy(query, loads[i]->getKey(), loads[i]->keyLength());
+        str_hash<char *> hash;
+        uint64_t h1 = hash(query);
+        uint64_t h2 = hash(loads[i]->getKey());
+        assert(strcmp(query, loads[i]->getKey()) == 0);
+        char *value = store->find((char *) query);
+        char *realv = loads[i]->getVal();*/
+        assert(std::strcmp(store->find(loads[i]->getKey()), loads[i]->getVal()) == 0);
 #endif
-        assert(std::strcmp(store->find(loads[i]->getKey()).c_str(), loads[i]->getVal()) == 0);
     }
     cout << inserted << " " << tracer.getRunTime() << " " << store->size() << endl;
 }

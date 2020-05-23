@@ -34,6 +34,8 @@ TEST(SerializableFaster, KeyLengthTest) {
 
     PersistentMemoryMalloc<disk_t> hlog(256 * 1048576, epoch, disk, disk.log(), 0.9, false);
 
+    Key key((uint8_t *) "Hello world", 11);
+
     typedef Record<Key, Value> record_t;
 
     Key *pk = (Key *) std::malloc(sizeof(Key) + 11);//new Key((uint8_t *) "Hello world", 11);
@@ -71,6 +73,7 @@ TEST(SerializableFaster, KeyLengthTest) {
     std::cout << sizeof(*pk) << std::endl;
     std::cout << hlog.head_address.load().offset() << std::endl;
     std::cout << hlog.GetTailAddress().offset() << std::endl;
+
     assert(sizeof(*pk) == 16);
 }
 
