@@ -93,11 +93,11 @@ public:
         // Get the lock on the value.
         bool success;
         do {
-            uint8_t expected_length;
+            uint32_t expected_length;
             do {
                 // Spin until other the thread releases the lock.
                 expected_length = value.length_.load();
-            } while (expected_length == UINT8_MAX);
+            } while (expected_length == UINT32_MAX);
             // Try to get the lock.
             success = value.length_.compare_exchange_weak(expected_length, UINT32_MAX);
         } while (!success);
