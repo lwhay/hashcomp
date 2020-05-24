@@ -30,7 +30,7 @@ typedef hreadPoolIoHandler handler_t;
 #else
 typedef QueueIoHandler handler_t;
 #endif
-typedef FileSystemDisk<handler_t, 1073741824ull> disk_t;
+typedef FileSystemDisk<handler_t, 68719476736ull> disk_t;
 
 using store_t = FasterKv<Key, Value, disk_t>;
 
@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
-    store = new store_t(next_power_of_two(root_capacity / 2), 17179869184, "storage");
+    store = new store_t(next_power_of_two(root_capacity / 2), 68719476736ull, "storage");
     ycsb::YCSBLoader loader(ycsb::loadpath, key_range);
     loads = loader.load();
     key_range = loader.size();

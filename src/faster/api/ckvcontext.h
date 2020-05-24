@@ -99,7 +99,7 @@ public:
                 expected_length = value.length_.load();
             } while (expected_length == UINT8_MAX);
             // Try to get the lock.
-            success = value.length_.compare_exchange_weak(expected_length, UINT8_MAX);
+            success = value.length_.compare_exchange_weak(expected_length, UINT32_MAX);
         } while (!success);
 
         std::memset(value.value_, 42, 7);
