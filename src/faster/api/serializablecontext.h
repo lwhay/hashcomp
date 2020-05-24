@@ -208,14 +208,14 @@ static_assert(sizeof(AtomicGenLock) == 8, "sizeof(AtomicGenLock) != 8");
 
 class Value {
 public:
-    Value() : gen_lock_{0}, size_{0}, length_{0} {}
+    Value() : gen_lock_{0}, length_{0} {}
 
-    Value(uint8_t *buf, uint32_t length) : gen_lock_{0}, size_(sizeof(Value) + length), length_(length) {
+    Value(uint8_t *buf, uint32_t length) : gen_lock_{0}, length_(length) {
         if (value_ == nullptr) value_ = new uint8_t[length];
         std::memcpy(value_, buf, length);
     }
 
-    Value(Value const &value) : gen_lock_{0}, size_(sizeof(Value) + value.length_), length_(value.length_) {
+    Value(Value const &value) : gen_lock_{0}, length_(value.length_) {
         if (value_ == nullptr) value_ = new uint8_t[length_];
         std::memcpy(value_, value.buffer(), value.length_);
     }
@@ -234,7 +234,6 @@ public:
     void reset(uint8_t *value, uint32_t length) {
         gen_lock_.store(0);
         length_ = length;
-        size_ = sizeof(Value) + length;
         assert(value_ == nullptr || value_ == (uint8_t *) this + sizeof(Value));
         setLocalBuffer();
         /*delete[] value_;
@@ -266,7 +265,7 @@ public:
     }
 
     inline uint32_t size() const {
-        return size_;
+        return sizeof(Value) + length_;
     }
 
     uint8_t *get() {
@@ -283,7 +282,6 @@ public:
 
 private:
     AtomicGenLock gen_lock_;
-    uint32_t size_;
     uint32_t length_;
     uint8_t *value_ = nullptr;
 
@@ -345,7 +343,7 @@ public:
             // Some other thread replaced this record.
             return false;
         }
-        if (value.size_ < sizeof(Value) + length_) {
+        if (value.length_ < length_) {
             // Current value is too small for in-place update.
             value.gen_lock_.unlock(true);
             /*std::cout << std::thread::id() << " " << (char *) key_.get() << " " << key_.size() << " " << sizeof(Value)
@@ -394,7 +392,6 @@ public:
     /// Non-atomic and atomic Put() methods.
     inline void Put(Value &value) {
         value.gen_lock_.store(0);
-        value.size_ = sizeof(Value) + length_;
         value.length_ = length_;
     }
 
@@ -429,7 +426,6 @@ public:
     }
 
     inline void set(Value &value) {
-        value.size_ = sizeof(Value) + output_length;
         value.length_ = output_length;
         value.value_ = new uint8_t[output_length];
         std::memcpy(value.value_, output_bytes, value.length_);
@@ -468,7 +464,7 @@ protected:
 private:
     Key key_;
 public:
-    uint8_t output_length = 0;
+    uint32_t output_length = 0;
     // Extract two bytes of output.
     uint8_t *output_bytes = nullptr;
 };

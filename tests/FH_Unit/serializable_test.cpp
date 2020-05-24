@@ -80,6 +80,7 @@ TEST(SerializableFaster, KeyLengthTest) {
 TEST(SerializableFaster, UpsertTest) {
     constexpr uint64_t limit = 10000000000llu;
     constexpr uint64_t range = 100000llu;
+    constexpr uint64_t ssize = 255;
 #ifdef _WIN32
     typedef hreadPoolIoHandler handler_t;
 #else
@@ -92,12 +93,16 @@ TEST(SerializableFaster, UpsertTest) {
     store_t store(next_power_of_two(10000000 / 2), 17179869184, "storage");
 
     for (uint64_t i = 0; i < limit; i += range) {
-        char key[255];
-        char value[255];
-        std::memset(key, 0, 255);
+        char key[ssize];
+        char value[ssize];
+        std::memset(key, 0, ssize);
         std::sprintf(key, "%llu", i);
-        std::memset(value, 0, 255);
+        std::memset(value, 0, ssize);
         std::sprintf(value, "%llu", i);
+        size_t len = std::strlen(value);
+        for (; len < ssize - std::strlen(key); len += std::strlen(key)) {
+            std::sprintf(value + len, "%llu", i);
+        }
 
         auto callback = [](IAsyncContext *ctxt, Status result) {
             CallbackContext<UpsertContext> context{ctxt};
@@ -108,11 +113,15 @@ TEST(SerializableFaster, UpsertTest) {
         //std::cout << i << std::endl;
     }
     for (uint64_t i = 0; i < limit; i += range) {
-        char key[255];
-        char value[255];
-        std::memset(key, 0, 255);
+        char key[ssize];
+        char value[ssize];
+        std::memset(key, 0, ssize);
         std::sprintf(key, "%llu", i);
         std::sprintf(value, "%llu", i);
+        size_t len = std::strlen(value);
+        for (; len < ssize - std::strlen(key); len += std::strlen(key)) {
+            std::sprintf(value + len, "%llu", i);
+        }
 
         auto callback = [](IAsyncContext *ctxt, Status result) {
             CallbackContext<ReadContext> context{ctxt};
@@ -122,7 +131,7 @@ TEST(SerializableFaster, UpsertTest) {
         assert(stat == Status::Ok);
         char *output = (char *) context.output_bytes;
         assert(std::strncmp(value, output, context.output_length) == 0);
-        //std::cout << i << std::endl;
+        //std::cout << i << ": " << context.output_length << std::endl;
     }
 }
 
