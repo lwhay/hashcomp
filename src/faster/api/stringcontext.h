@@ -473,7 +473,7 @@ protected:
 private:
     Key key_;
 public:
-    uint8_t output_length = 0;
+    uint32_t output_length = 0;
     // Extract two bytes of output.
     uint8_t *output_bytes = nullptr;
 };

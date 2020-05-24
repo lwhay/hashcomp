@@ -61,7 +61,7 @@ public:
 
 private:
     uint8_t value_[31];
-    std::atomic<uint8_t> length_;
+    std::atomic<uint32_t> length_;
 };
 
 class UpsertContext : public IAsyncContext {
@@ -190,7 +190,7 @@ protected:
 private:
     Key key_;
 public:
-    uint8_t output_length;
+    uint32_t output_length;
     uint64_t output_pt1;
     uint64_t output_pt2;
 };
