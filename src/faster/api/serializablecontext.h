@@ -13,7 +13,7 @@ using namespace FASTER::misc;
 
 namespace FASTER {
 namespace api {
-
+#define LIGHT_KV_COPY 1
 #define BIG_CONSTANT(x) (x##LLU)
 constexpr uint64_t hashseedA = 151261303;
 constexpr uint64_t hashseedB = 6722461;
@@ -68,15 +68,22 @@ uint64_t MurmurHash64A(const void *key, int len, uint64_t seed) {
 class Key {
 public:
     Key(uint8_t *buf, uint32_t len) : len_{len} {
+#if LIGHT_KV_COPY == 1
+        if (buf_ == nullptr) buf_ = buf;
+        else std::memcpy(buf_, buf, len);
+#else
         if (buf_ == nullptr) buf_ = new uint8_t[len];
         std::memcpy(buf_, buf, len);
+#endif
     }
 
     Key(Key const &key) : Key(key.get(), key.len_) {}
 
     ~Key() {
+#if LIGHT_KV_COPY == 0
         if (buf_ != (uint8_t *) this + sizeof(Key)) delete[] buf_;
         buf_ = nullptr;
+#endif
     }
 
     uint8_t *get() const {
@@ -211,20 +218,32 @@ public:
     Value() : gen_lock_{0}, length_{0} {}
 
     Value(uint8_t *buf, uint32_t length) : gen_lock_{0}, length_(length) {
+#if LIGHT_KV_COPY == 1
+        if (value_ == nullptr) value_ = buf;
+        else std::memcpy(value_, buf, length);
+#else
         if (value_ == nullptr) value_ = new uint8_t[length];
         std::memcpy(value_, buf, length);
+#endif
     }
 
     Value(Value const &value) : gen_lock_{0}, length_(value.length_) {
+#if LIGHT_KV_COPY == 1
+        if (value_ == nullptr) value_ = value.value_;
+        else std::memcpy(value_, value.buffer(), value.length_);
+#else
         if (value_ == nullptr) value_ = new uint8_t[length_];
         std::memcpy(value_, value.buffer(), value.length_);
+#endif
     }
 
     ~Value() {
+#if LIGHT_KV_COPY == 0
         if (value_ != (uint8_t *) this + sizeof(Value)) {
             delete[] value_;
             value_ = nullptr;
         }
+#endif
         /*if (allocated) {
             delete[] value_;
             value_ = nullptr;
