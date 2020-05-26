@@ -324,6 +324,12 @@ public:
     UpsertContext(const UpsertContext &other) : key_{other.key_}, length_{other.length_},
                                                 input_buffer(other.input_buffer) {}
 
+    void init(Key key, Value value) {
+        key_ = key;
+        length_ = value.length_;
+        input_buffer = value.value_;
+    }
+
     ~UpsertContext() {}
 
     void reset(uint8_t *buffer) {
@@ -430,6 +436,11 @@ public:
 
     /// Copy (and deep-copy) constructor.
     ReadContext(const ReadContext &other) : key_{other.key_}, output_length{0} {}
+
+    void init(Key key) {
+        key_ = key;
+        output_length = 0;
+    }
 
     ~ReadContext() {
         delete[] output_bytes;
