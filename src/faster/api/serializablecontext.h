@@ -318,17 +318,13 @@ public:
     typedef Key key_t;
     typedef Value value_t;
 
-    UpsertContext(Key key, Value value) : key_{key}, length_{value.length_}, input_buffer(new uint8_t[length_]) {
-        std::memcpy(input_buffer, value.value_, length_);
-    }
+    UpsertContext(Key key, Value value) : key_{key}, length_{value.length_}, input_buffer(value.value_) {}
 
     /// Copy (and deep-copy) constructor.
-    UpsertContext(const UpsertContext &other) : key_{other.key_}, length_{other.length_} {
-        input_buffer = new uint8_t[length_];
-        std::memcpy(input_buffer, other.input_buffer, length_);
-    }
+    UpsertContext(const UpsertContext &other) : key_{other.key_}, length_{other.length_},
+                                                input_buffer(other.input_buffer) {}
 
-    ~UpsertContext() { delete[] input_buffer; }
+    ~UpsertContext() {}
 
     void reset(uint8_t *buffer) {
         std::memcpy(input_buffer, buffer, length_);
@@ -453,9 +449,12 @@ public:
     inline void Get(const Value &value) {
         // All reads should be atomic (from the mutable tail).
         //ASSERT_TRUE(false);
+        if (output_bytes != nullptr && output_length < value.length_) {
+            delete[] output_bytes;
+            output_bytes = nullptr;
+        }
         output_length = value.length_;
-        if (output_bytes != nullptr) delete[] output_bytes;
-        output_bytes = new uint8_t[output_length];
+        if (output_bytes == nullptr) output_bytes = new uint8_t[output_length];
         std::memcpy(output_bytes, value.value_, output_length);
     }
 
@@ -464,10 +463,7 @@ public:
         GenLock before, after;
         do {
             before = value.gen_lock_.load();
-            output_length = value.length_;
-            if (output_bytes != nullptr) delete[] output_bytes;
-            output_bytes = new uint8_t[output_length];
-            std::memcpy(output_bytes, value.buffer(), output_length);
+            Get(value);
             do {
                 after = value.gen_lock_.load();
             } while (after.locked /*|| after.replaced*/);
