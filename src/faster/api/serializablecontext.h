@@ -327,7 +327,7 @@ public:
 
     ~UpsertContext() {}
 
-    void init(Key key, Value value) {
+    void init(Key &key, Value &value) {
         key_ = key;
         length_ = value.length_;
         input_buffer = value.value_;
@@ -454,7 +454,7 @@ public:
     ReadContext(const ReadContext &other) : key_{other.key_}, output_length{0} {}
 
 #if LIGHT_CT_COPY == 1
-    void init(Key key) {
+    void init(Key &key) {
         key_ = key;
         output_length = 0;
     }

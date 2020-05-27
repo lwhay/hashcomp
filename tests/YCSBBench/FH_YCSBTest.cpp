@@ -150,7 +150,8 @@ void *measureWorker(void *args) {
                         CallbackContext<ReadContext> context{ctxt};
                     };
 #if LIGHT_CT_COPY == 1
-                    rc.init(Key((uint8_t *) runs[i]->getKey(), std::strlen(runs[i]->getKey())));
+                    Key key((uint8_t *) runs[i]->getKey(), std::strlen(runs[i]->getKey()));
+                    rc.init(key);
 #else
                     ReadContext rc{Key((uint8_t *) runs[i]->getKey(), std::strlen(runs[i]->getKey()))};
 #endif
@@ -165,8 +166,9 @@ void *measureWorker(void *args) {
                         CallbackContext<UpsertContext> context{ctxt};
                     };
 #if LIGHT_CT_COPY == 1
-                    uc.init(Key((uint8_t *) runs[i]->getKey(), std::strlen(runs[i]->getKey())),
-                            Value((uint8_t *) runs[i]->getVal(), std::strlen(runs[i]->getVal())));
+                    Key key((uint8_t *) runs[i]->getKey(), std::strlen(runs[i]->getKey()));
+                    Value value((uint8_t *) runs[i]->getVal(), std::strlen(runs[i]->getVal()));
+                    uc.init(key, value);
 #else
                     UpsertContext uc{Key((uint8_t *) runs[i]->getKey(), std::strlen(runs[i]->getKey())),
                                      Value((uint8_t *) runs[i]->getVal(), std::strlen(runs[i]->getVal()))};

@@ -92,6 +92,15 @@ TEST(SerializableFaster, UpsertTest) {
 
     store_t store(next_power_of_two(10000000 / 2), 17179869184, "storage");
 
+#if LIGHT_CT_COPY == 1
+    char dk[ssize];
+    std::memset(dk, 0, ssize);
+    std::sprintf(dk, "%llu", 0);
+    char dv[ssize];
+    std::memset(dv, 0, ssize);
+    std::sprintf(dv, "%llu", 0);
+    UpsertContext uc{Key((uint8_t *) dk, std::strlen(dk)), Value((uint8_t *) dv, std::strlen(dv))};
+#endif
     for (uint64_t i = 0; i < limit; i += range) {
         char key[ssize];
         char value[ssize];
@@ -107,11 +116,23 @@ TEST(SerializableFaster, UpsertTest) {
         auto callback = [](IAsyncContext *ctxt, Status result) {
             CallbackContext<UpsertContext> context{ctxt};
         };
-        UpsertContext context{Key((uint8_t *) key, std::strlen(key)), Value((uint8_t *) value, std::strlen(value))};
-        Status stat = store.Upsert(context, callback, 1);
+#if LIGHT_CT_COPY == 1
+        Key k((uint8_t *) key, std::strlen(key));
+        Value v((uint8_t *) value, std::strlen(value));
+        uc.init(k, v);
+#else
+        UpsertContext uc{Key((uint8_t *) key, std::strlen(key)), Value((uint8_t *) value, std::strlen(value))};
+#endif
+        Status stat = store.Upsert(uc, callback, 1);
         assert(stat == Status::Ok);
         //std::cout << i << std::endl;
     }
+#if LIGHT_CT_COPY == 1
+    char dummy[ssize];
+    std::memset(dummy, 0, ssize);
+    std::sprintf(dummy, "%llu", 0);
+    ReadContext rc{Key((uint8_t *) dummy, std::strlen(dummy))};
+#endif
     for (uint64_t i = 0; i < limit; i += range) {
         char key[ssize];
         char value[ssize];
@@ -126,11 +147,16 @@ TEST(SerializableFaster, UpsertTest) {
         auto callback = [](IAsyncContext *ctxt, Status result) {
             CallbackContext<ReadContext> context{ctxt};
         };
-        ReadContext context{Key((uint8_t *) key, std::strlen(key))};
-        Status stat = store.Read(context, callback, 1);
+#if LIGHT_CT_COPY == 1
+        Key k((uint8_t *) key, std::strlen(key));
+        rc.init(k);
+#else
+        ReadContext rc{Key((uint8_t *) key, std::strlen(key))};
+#endif
+        Status stat = store.Read(rc, callback, 1);
         assert(stat == Status::Ok);
-        char *output = (char *) context.output_bytes;
-        assert(std::strncmp(value, output, context.output_length) == 0);
+        char *output = (char *) rc.output_bytes;
+        assert(std::strncmp(value, output, rc.output_length) == 0);
         //std::cout << i << ": " << context.output_length << std::endl;
     }
 }
