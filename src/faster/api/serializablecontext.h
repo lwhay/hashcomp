@@ -14,6 +14,7 @@ using namespace FASTER::misc;
 namespace FASTER {
 namespace api {
 #define LIGHT_KV_COPY 1
+#define LIGHT_CT_COPY 0
 #define BIG_CONSTANT(x) (x##LLU)
 constexpr uint64_t hashseedA = 151261303;
 constexpr uint64_t hashseedB = 6722461;
@@ -317,20 +318,35 @@ class UpsertContext : public IAsyncContext {
 public:
     typedef Key key_t;
     typedef Value value_t;
-
+#if LIGHT_CT_COPY == 1
     UpsertContext(Key key, Value value) : key_{key}, length_{value.length_}, input_buffer(value.value_) {}
 
     /// Copy (and deep-copy) constructor.
     UpsertContext(const UpsertContext &other) : key_{other.key_}, length_{other.length_},
                                                 input_buffer(other.input_buffer) {}
 
+    ~UpsertContext() {}
+
     void init(Key key, Value value) {
         key_ = key;
         length_ = value.length_;
         input_buffer = value.value_;
     }
+#else
 
-    ~UpsertContext() {}
+    UpsertContext(Key key, Value value) : key_{key}, length_{value.length_}, input_buffer(new uint8_t[length_]) {
+        std::memcpy(input_buffer, value.value_, length_);
+    }
+
+    /// Copy (and deep-copy) constructor.
+    UpsertContext(const UpsertContext &other) : key_{other.key_}, length_{other.length_} {
+        input_buffer = new uint8_t[length_];
+        std::memcpy(input_buffer, other.input_buffer, length_);
+    }
+
+    ~UpsertContext() { delete[] input_buffer; }
+
+#endif
 
     void reset(uint8_t *buffer) {
         std::memcpy(input_buffer, buffer, length_);
@@ -437,10 +453,12 @@ public:
     /// Copy (and deep-copy) constructor.
     ReadContext(const ReadContext &other) : key_{other.key_}, output_length{0} {}
 
+#if LIGHT_CT_COPY == 1
     void init(Key key) {
         key_ = key;
         output_length = 0;
     }
+#endif
 
     ~ReadContext() {
         delete[] output_bytes;
@@ -460,12 +478,18 @@ public:
     inline void Get(const Value &value) {
         // All reads should be atomic (from the mutable tail).
         //ASSERT_TRUE(false);
+#if LIGHT_CT_COPY == 1
         if (output_bytes != nullptr && output_length < value.length_) {
             delete[] output_bytes;
             output_bytes = nullptr;
         }
         output_length = value.length_;
         if (output_bytes == nullptr) output_bytes = new uint8_t[output_length];
+#else
+        output_length = value.length_;
+        if (output_bytes != nullptr) delete[] output_bytes;
+        output_bytes = new uint8_t[output_length];
+#endif
         std::memcpy(output_bytes, value.value_, output_length);
     }
 

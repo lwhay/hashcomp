@@ -136,9 +136,11 @@ void *measureWorker(void *args) {
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
     uint8_t value[DEFAULT_STR_LENGTH];
+#if LIGHT_CT_COPY == 1
     ReadContext rc{Key((uint8_t *) runs[0]->getKey(), std::strlen(runs[0]->getKey()))};
     UpsertContext uc{Key((uint8_t *) runs[0]->getKey(), std::strlen(runs[0]->getKey())),
                      Value(value, DEFAULT_STR_LENGTH)};
+#endif
     while (stopMeasure.load(memory_order_relaxed) == 0) {
         for (int i = work->tid * total_count / thread_number;
              i < (work->tid + 1) * total_count / thread_number; i++) {
@@ -147,7 +149,11 @@ void *measureWorker(void *args) {
                     auto callback = [](IAsyncContext *ctxt, Status result) {
                         CallbackContext<ReadContext> context{ctxt};
                     };
+#if LIGHT_CT_COPY == 1
                     rc.init(Key((uint8_t *) runs[i]->getKey(), std::strlen(runs[i]->getKey())));
+#else
+                    ReadContext rc{Key((uint8_t *) runs[i]->getKey(), std::strlen(runs[i]->getKey()))};
+#endif
                     Status stat = store->Read(rc, callback, 1);
                     if (stat == Status::Ok) rhit++;
                     else rfail++;
@@ -158,8 +164,13 @@ void *measureWorker(void *args) {
                     auto callback = [](IAsyncContext *ctxt, Status result) {
                         CallbackContext<UpsertContext> context{ctxt};
                     };
+#if LIGHT_CT_COPY == 1
                     uc.init(Key((uint8_t *) runs[i]->getKey(), std::strlen(runs[i]->getKey())),
                             Value((uint8_t *) runs[i]->getVal(), std::strlen(runs[i]->getVal())));
+#else
+                    UpsertContext uc{Key((uint8_t *) runs[i]->getKey(), std::strlen(runs[i]->getKey())),
+                                     Value((uint8_t *) runs[i]->getVal(), std::strlen(runs[i]->getVal()))};
+#endif
                     Status stat = store->Upsert(uc, callback, 1);
                     if (stat == Status::Ok) mhit++;
                     else mfail++;
