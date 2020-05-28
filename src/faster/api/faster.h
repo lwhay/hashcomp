@@ -187,8 +187,8 @@ public:
     }
 
 #ifdef TRACE
-	inline size_t GetConflict() {
-	    return heavyCounter[Thread::id()];
+	inline size_t GetConflict(int tid) {
+	    return heavyCounter[tid];
 	}
 #endif
 

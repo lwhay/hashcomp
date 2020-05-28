@@ -220,8 +220,8 @@ void multiWorkers() {
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], nullptr);
 #ifdef TRACE
-        counter += store->GetConflict();
-        cout << store->GetConflict() << " " << counter << " ";
+        counter += store->GetConflict(i);
+        cout << store->GetConflict(i) << " " << counter << " ";
 #endif
         string outstr = output[i].str();
         cout << outstr;
