@@ -347,6 +347,15 @@ private:
 
     /// Space for two contexts per thread, stored inline.
     ThreadContext thread_contexts_[Thread::kMaxNumThreads];
+
+#define TRACE
+#ifdef TRACE
+	size_t counters[Thread::kMaxNumThreads];
+public:
+	inline size_t GetConflict() {
+	    return counters[Thread::id()];
+	};
+#endif
 };
 
 // Implementations.
@@ -1335,6 +1344,9 @@ template<class K, class V, class D>
 inline Address
 FasterKv<K, V, D>::TraceBackForKeyMatch(const key_t &key, Address from_address, Address min_offset) const {
     while (from_address >= min_offset) {
+#ifdef TRACE
+      counters[Thread::id()]++;
+#endif
         const record_t *record = reinterpret_cast<const record_t *>(hlog.Get(from_address));
         if (key == record->key()) {
             return from_address;

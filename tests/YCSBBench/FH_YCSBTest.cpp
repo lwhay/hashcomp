@@ -214,8 +214,15 @@ void multiWorkers() {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
+#ifdef TRACE
+    size_t counter = 0;
+#endif
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], nullptr);
+#ifdef TRACE
+        counter += store->GetConflict();
+        cout << store->GetConflict() << " " << counter << " ";
+#endif
         string outstr = output[i].str();
         cout << outstr;
     }
