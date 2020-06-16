@@ -1445,7 +1445,7 @@ unsigned num_cpus;
 
 int num_sock;
 
-#define MAX_HARD_THREAD_NUMBER 64
+#define MAX_HARD_THREAD_NUMBER 256
 
 #define NUMA_LOCAL 1
 
@@ -1463,9 +1463,9 @@ void RecordPageLocal4Test() {
 
     for (int i = 0; i < num_sock; ++i) {
         numa_node_to_cpus(i, bm);
-        std::bitset<64> curcpu(*bm->maskp);
+        std::bitset<MAX_HARD_THREAD_NUMBER> curcpu(*bm->maskp);
         std::cout << "numa " << i << " " << std::bitset<64>(*bm->maskp) << " " << numa_node_size(i, 0) << std::endl;
-        for (int i = 0; i < numcpus; i++) if (curcpu.test(i)) map[i] = std::bitset<64>(*bm->maskp);
+        for (int i = 0; i < numcpus; i++) if (curcpu.test(i)) map[i] = std::bitset<MAX_HARD_THREAD_NUMBER>(*bm->maskp);
     }
     numa_bitmask_free(bm);
     std::vector<std::thread> workers;
