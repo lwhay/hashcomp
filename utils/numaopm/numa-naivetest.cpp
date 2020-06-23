@@ -57,7 +57,10 @@ int main(int argc, char **argv) {
     numa_set_localalloc();
     std::cout << "Threads: " << num_cpus << std::endl;
     initialize(num_cpus);
-    serialTest(num_cpus);
+    for (int r = 0; r < 6; r++) {
+        serialTest(num_cpus);
+        std::cout << "------------------------------------------------------" << std::endl;
+    }
     deinitialize(num_cpus);
     return 0;
 }
