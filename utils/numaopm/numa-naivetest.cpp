@@ -114,6 +114,7 @@ void deinitialize(int threads) {
 int main(int argc, char **argv) {
     int num_cpus = numa_num_task_cpus();
     numa_set_localalloc();
+    pin_to_core(0);
     std::cout << "Threads: " << num_cpus << std::endl;
     initialize(num_cpus);
     for (int r = 0; r < 3; r++) {
