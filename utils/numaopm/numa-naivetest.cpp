@@ -36,13 +36,33 @@ void copier(int tid, size_t *from, size_t *to) {
             size_t idx = (r * 128 + i) % operations;
             to[idx] = from[idx];
         }
-    std::cout << "Tpt: " << (double) operations * sizeof(size_t) * 1e6 / tracer.getRunTime() / (1024.0 * 1024 * 1024)
-              << " GB/s" << std::endl;
+    std::cout << "WTpt: " << (double) operations * 64 * 1e6 / tracer.getRunTime() / (1024.0 * 1024 * 1024) << " GB/s"
+              << std::endl;
+}
+
+double total_dummy = .0f;
+
+void reader(int tid, size_t *from) {
+    pin_to_core(tid);
+    Tracer tracer;
+    tracer.startTime();
+    for (int i = 0; i < 128; i++)
+        for (int r = 0; r < operations / 128; r++) {
+            size_t idx = (r * 128 + i) % operations;
+            total_dummy += from[idx];
+        }
+    std::cout << "RTpt: " << (double) operations * 64 * 1e6 / tracer.getRunTime() / (1024.0 * 1024 * 1024) << " GB/s"
+              << " dummy: " << total_dummy << std::endl;
 }
 
 void serialTest(int threads) {
     for (int i = 0; i < threads; i++) {
         std::thread worker = std::thread(copier, i, loads[i], loads[0]);
+        worker.join();
+    }
+    std::cout << "---------------------" << std::endl;
+    for (int i = 0; i < threads; i++) {
+        std::thread worker = std::thread(reader, i, loads[0]);
         worker.join();
     }
 }
