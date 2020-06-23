@@ -8,7 +8,7 @@
 #include <thread>
 #include <tracer.h>
 
-size_t operations = (1ull << 26);
+size_t operations = (1ull << 25);
 size_t **loads;
 size_t **target;
 
