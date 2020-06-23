@@ -31,7 +31,7 @@ void copier(int tid, size_t *from, size_t *to) {
     pin_to_core(tid);
     Tracer tracer;
     tracer.startTime();
-    for (int i = 0; i < operations; i++)
+    for (int i = 0; i < 128; i++)
         for (int r = 0; r < operations / 128; r++) {
             size_t idx = (r * 128 + i) % operations;
             to[idx] = from[idx];
