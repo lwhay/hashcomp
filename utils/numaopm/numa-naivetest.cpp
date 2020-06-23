@@ -36,8 +36,8 @@ void copier(int tid, size_t *from, size_t *to) {
             size_t idx = (r * 128 + i) % operations;
             to[idx] = from[idx];
         }
-    std::cout << "WTpt: " << (double) operations * 64 * 1e6 / tracer.getRunTime() / (1024.0 * 1024 * 1024) << " GB/s"
-              << std::endl;
+    std::cout << tid << "->" << 0 << " WTpt: "
+              << (double) operations * 64 * 1e6 / tracer.getRunTime() / (1024.0 * 1024 * 1024) << " GB/s" << std::endl;
 }
 
 double total_dummy = .0f;
@@ -51,8 +51,9 @@ void reader(int tid, size_t *from) {
             size_t idx = (r * 128 + i) % operations;
             total_dummy += from[idx];
         }
-    std::cout << "RTpt: " << (double) operations * 64 * 1e6 / tracer.getRunTime() / (1024.0 * 1024 * 1024) << " GB/s"
-              << " dummy: " << total_dummy << std::endl;
+    std::cout << tid << "->" << " RTpt: "
+              << (double) operations * 64 * 1e6 / tracer.getRunTime() / (1024.0 * 1024 * 1024) << " GB/s" << " dummy: "
+              << total_dummy << std::endl;
 }
 
 void serialTest(int threads) {
