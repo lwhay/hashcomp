@@ -31,9 +31,11 @@ void copier(int tid, size_t *from, size_t *to) {
     pin_to_core(tid);
     Tracer tracer;
     tracer.startTime();
-    for (int i = 0; i < operations; i++) {
-        to[i] = from[i];
-    }
+    for (int i = 0; i < operations; i++)
+        for (int r = 0; r < operations / 128; r++) {
+            size_t idx = r * 128 + i;
+            to[idx] = from[idx];
+        }
     std::cout << "Tpt: " << (double) operations * sizeof(size_t) * 1e6 / tracer.getRunTime() / (1024.0 * 1024 * 1024)
               << " GB/s" << std::endl;
 }
