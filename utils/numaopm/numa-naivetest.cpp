@@ -8,8 +8,9 @@
 #include <thread>
 #include <tracer.h>
 
-size_t operations = (1ull << 27);
+size_t operations = (1ull << 26);
 size_t **loads;
+size_t **target;
 
 void pin_to_core(size_t core) {
     cpu_set_t cpuset;
@@ -19,6 +20,12 @@ void pin_to_core(size_t core) {
 }
 
 void initialize(int threads) {
+    pin_to_core(0);
+    target = new size_t *[threads];
+    for (int i = 0; i < threads; i++) {
+        target[i] = new size_t[operations];
+        std::memset(target[i], 0xf, operations * sizeof(size_t));
+    }
     loads = new size_t *[threads];
     for (int i = 0; i < threads; i++) {
         pin_to_core(i);
@@ -27,7 +34,7 @@ void initialize(int threads) {
     }
 }
 
-void copier(int tid, size_t *from, size_t *to) {
+void copier(int tid, size_t *from, size_t *to, long *time) {
     pin_to_core(tid);
     Tracer tracer;
     tracer.startTime();
@@ -36,43 +43,72 @@ void copier(int tid, size_t *from, size_t *to) {
             size_t idx = (r * 128 + i) % operations;
             to[idx] = from[idx];
         }
-    std::cout << tid << "->" << 0 << " WTpt: "
-              << (double) operations * 64 * 1e6 / tracer.getRunTime() / (1024.0 * 1024 * 1024) << " GB/s" << std::endl;
+    *time = tracer.getRunTime();
 }
 
-double total_dummy = .0f;
+std::atomic<uint64_t> total_dummy{0};
 
-void reader(int tid, size_t *from) {
+void reader(int tid, size_t *from, long *time) {
     pin_to_core(tid);
     Tracer tracer;
     tracer.startTime();
+    uint64_t dummy = 0;
     for (int i = 0; i < 128; i++)
         for (int r = 0; r < operations / 128; r++) {
             size_t idx = (r * 128 + i) % operations;
-            total_dummy += from[idx];
+            dummy += from[idx];
         }
-    std::cout << tid << "->" << " RTpt: "
-              << (double) operations * 64 * 1e6 / tracer.getRunTime() / (1024.0 * 1024 * 1024) << " GB/s" << " dummy: "
-              << total_dummy << std::endl;
+    *time = tracer.getRunTime();
+    total_dummy.fetch_add(dummy);
 }
 
 void serialTest(int threads) {
+    long runtime[threads];
     for (int i = 0; i < threads; i++) {
-        std::thread worker = std::thread(copier, i, loads[i], loads[0]);
+        std::thread worker = std::thread(copier, i, loads[i], loads[0], runtime + i);
         worker.join();
+        std::cout << i << "->" << 0 << " WTpt: " << (double) operations * 64 * 1e6 / runtime[i] / (1024.0 * 1024 * 1024)
+                  << " GB/s" << std::endl;
     }
     std::cout << "---------------------" << std::endl;
     for (int i = 0; i < threads; i++) {
-        std::thread worker = std::thread(reader, i, loads[0]);
+        std::thread worker = std::thread(reader, i, loads[i], runtime + i);
         worker.join();
+        std::cout << i << "->" << "  RTpt: " << (double) operations * 64 * 1e6 / runtime[i] / (1024.0 * 1024 * 1024)
+                  << " GB/s" << " dummy: " << total_dummy << std::endl;
+    }
+}
+
+void parallelTest(int threads) {
+    long runtime[threads];
+    std::vector<std::thread> workers;
+    for (int i = 0; i < threads; i++) {
+        workers.push_back(std::thread(copier, i, loads[i], target[i], runtime + i));
+    }
+    for (int i = 0; i < threads; i++) {
+        workers[i].join();
+        std::cout << i << "->" << 0 << " PWTpt: "
+                  << (double) operations * 64 * 1e6 / runtime[i] / (1024.0 * 1024 * 1024) << " GB/s" << std::endl;
+    }
+    workers.clear();
+    std::cout << "---------------------" << std::endl;
+    for (int i = 0; i < threads; i++) {
+        workers.push_back(std::thread(reader, i, loads[i], runtime + i));
+    }
+    for (int i = 0; i < threads; i++) {
+        workers[i].join();
+        std::cout << i << "->" << "  PRTpt: " << (double) operations * 64 * 1e6 / runtime[i] / (1024.0 * 1024 * 1024)
+                  << " GB/s" << " dummy: " << total_dummy << std::endl;
     }
 }
 
 void deinitialize(int threads) {
     for (int i = 0; i < threads; i++) {
         delete[] loads[i];
+        delete[] target[i];
     }
     delete[] loads;
+    delete[] target;
 }
 
 int main(int argc, char **argv) {
@@ -80,8 +116,12 @@ int main(int argc, char **argv) {
     numa_set_localalloc();
     std::cout << "Threads: " << num_cpus << std::endl;
     initialize(num_cpus);
-    for (int r = 0; r < 6; r++) {
+    for (int r = 0; r < 3; r++) {
         serialTest(num_cpus);
+        std::cout << "------------------------------------------------------" << std::endl;
+    }
+    for (int r = 0; r < 3; r++) {
+        parallelTest(num_cpus);
         std::cout << "------------------------------------------------------" << std::endl;
     }
     deinitialize(num_cpus);
