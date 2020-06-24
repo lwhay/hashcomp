@@ -239,11 +239,15 @@ int main(int argc, char **argv) {
     cpus_per_socket = numa_num_task_cpus() / count_of_socket;
     pin_to_core(0);
     size_t mask = 0;
-    for (int i = 0; i < count_of_socket; i++) mask |= (1 << i);
+    thread_number = 0;
+    for (int i = 0; i < count_of_socket; i++) {
+        mask |= (1 << i);
+        if (mapping & (1 << i) != 0) thread_number += cpus_per_socket;
+    }
     size_t oldm = mapping;
     mapping &= mask;
     cout << count_of_socket << " " << cpus_per_socket << " " << mapping << " " << oldm << " " << mask << endl;
-    exit;
+    exit(0);
 #endif
     store = new cmap(1 << 20);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
