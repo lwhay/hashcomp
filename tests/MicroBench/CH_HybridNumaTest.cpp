@@ -247,12 +247,12 @@ int main(int argc, char **argv) {
     size_t oldm = mapping;
     mapping &= mask;
     cout << count_of_socket << " " << cpus_per_socket << " " << mapping << " " << oldm << " " << mask << endl;
-    exit(0);
 #endif
     store = new cmap(1 << 20);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
          << readPercentage << endl;
+    exit(0);
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
     prepare();
