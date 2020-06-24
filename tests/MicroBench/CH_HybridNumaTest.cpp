@@ -242,7 +242,7 @@ int main(int argc, char **argv) {
     thread_number = 0;
     for (int i = 0; i < count_of_socket; i++) {
         mask |= (1 << i);
-        if (mapping & (1 << i) != 0) thread_number += cpus_per_socket;
+        if ((mapping & (1 << i)) != 0) thread_number += cpus_per_socket;
     }
     size_t oldm = mapping;
     mapping &= mask;
