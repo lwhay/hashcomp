@@ -147,7 +147,7 @@ char *YCSB_command[5] = {"READ", "INSERT", "DELETE", "UPDATE", "SCAN"};
 enum YCSB_operator {
     lookup = 0,
     insert,
-    erease,
+    erase,
     update,
     scan
 };

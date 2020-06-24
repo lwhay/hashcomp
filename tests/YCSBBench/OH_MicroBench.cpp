@@ -68,11 +68,11 @@ atomic<int> stopMeasure(0);
 
 int updatePercentage = 10;
 
-int ereasePercentage = 0;
+int erasePercentage = 0;
 
 int totalPercentage = 100;
 
-int readPercentage = (totalPercentage - updatePercentage - ereasePercentage);
+int readPercentage = (totalPercentage - updatePercentage - erasePercentage);
 
 struct target {
     int tid;
@@ -133,7 +133,7 @@ void *measureWorker(void *args) {
     uint64_t mfail = 0, rfail = 0;
     int evenRound = 0;
     uint64_t inserts = 0;
-    uint64_t ereased = 0;
+    uint64_t erased = 0;
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
 #if INPUT_METHOD == 0
@@ -157,7 +157,7 @@ void *measureWorker(void *args) {
                     if (std::strcmp(ret.first->second, (char *) &loads[i]) == 0) mhit++;
 #endif
                     else mfail++;
-                } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
+                } else if (erasePercentage > 0 && (i + 1) % (totalPercentage / erasePercentage) == 0) {
                     if (evenRound % 2 == 0) {
                         uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
 #if WITH_STRING == 1
@@ -170,7 +170,7 @@ void *measureWorker(void *args) {
                         if (ret.second) mhit++;
                         else mfail++;
                     } else {
-                        uint64_t key = thread_number * ereased++ + work->tid + (evenRound / 2 + 1) * key_range;
+                        uint64_t key = thread_number * erased++ + work->tid + (evenRound / 2 + 1) * key_range;
 #if WITH_STRING == 1
                         auto ret = store->erase(string((char *) &key, UNIT_SIZE));
 #elif WITH_STRING == 2
@@ -195,7 +195,7 @@ void *measureWorker(void *args) {
                     else rfail++;
                 }
             }
-            if (evenRound++ % 2 == 0) ereased = 0;
+            if (evenRound++ % 2 == 0) erased = 0;
             else inserts = 0;
         }
     } catch (exception e) {
@@ -256,14 +256,14 @@ int main(int argc, char **argv) {
         timer_range = std::atol(argv[4]);
         skew = std::atof(argv[5]);
         updatePercentage = std::atoi(argv[6]);
-        ereasePercentage = std::atoi(argv[7]);
-        readPercentage = totalPercentage - updatePercentage - ereasePercentage;
+        erasePercentage = std::atoi(argv[7]);
+        readPercentage = totalPercentage - updatePercentage - erasePercentage;
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
     store = new fmap(root_capacity);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
-         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
+         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
          << readPercentage << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);

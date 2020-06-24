@@ -43,11 +43,11 @@ atomic<int> stopMeasure(0);
 
 int updatePercentage = 10;
 
-int ereasePercentage = 0;
+int erasePercentage = 0;
 
 int totalPercentage = 100;
 
-int readPercentage = (totalPercentage - updatePercentage - ereasePercentage);
+int readPercentage = (totalPercentage - updatePercentage - erasePercentage);
 
 struct target {
     int tid;
@@ -192,7 +192,7 @@ void *measureWorker(void *args) {
     uint64_t mfail = 0, rfail = 0;
     int evenRound = 0;
     uint64_t inserts = 0;
-    uint64_t ereased = 0;
+    uint64_t erased = 0;
     uint8_t value[DEFAULT_KEY_LENGTH];
     char newkey[DEFAULT_KEY_LENGTH];
     char newvalue[DEFAULT_KEY_LENGTH];
@@ -209,7 +209,7 @@ void *measureWorker(void *args) {
                 int ret = level_update(work->levelHash, &loads[i * DEFAULT_KEY_LENGTH], &loads[i * DEFAULT_KEY_LENGTH]);
                 if (ret == 0) mhit++;
                 else mfail++;
-            } else if (ereasePercentage > 0 && (i + 1) % (totalPercentage / ereasePercentage) == 0) {
+            } else if (erasePercentage > 0 && (i + 1) % (totalPercentage / erasePercentage) == 0) {
                 int ret;
                 if (evenRound % 2 == 0) {
                     uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
@@ -218,7 +218,7 @@ void *measureWorker(void *args) {
                     std::memcpy(newvalue, newkey, DEFAULT_KEY_LENGTH);
                     ret = level_insert(work->levelHash, (uint8_t *) newkey, (uint8_t *) newvalue);
                 } else {
-                    uint64_t key = thread_number * ereased++ + work->tid + (evenRound / 2 + 1) * key_range;
+                    uint64_t key = thread_number * erased++ + work->tid + (evenRound / 2 + 1) * key_range;
                     std::memset(newkey, '0', DEFAULT_KEY_LENGTH);
                     std::sprintf(newkey, "%llu", key);
                     level_delete(work->levelHash, (uint8_t *) newkey);
@@ -231,7 +231,7 @@ void *measureWorker(void *args) {
                 else rfail++;
             }
         }
-        if (evenRound++ % 2 == 0) ereased = 0;
+        if (evenRound++ % 2 == 0) erased = 0;
         else inserts = 0;
     }
 
@@ -281,13 +281,13 @@ int main(int argc, char **argv) {
         timer_range = std::atol(argv[4]);
         skew = std::atof(argv[5]);
         updatePercentage = std::atoi(argv[6]);
-        ereasePercentage = std::atoi(argv[7]);
-        readPercentage = totalPercentage - updatePercentage - ereasePercentage;
+        erasePercentage = std::atoi(argv[7]);
+        readPercentage = totalPercentage - updatePercentage - erasePercentage;
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
-         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
+         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
          << readPercentage << endl;
     loads = (uint8_t *) calloc(DEFAULT_KEY_LENGTH * total_count, sizeof(uint8_t));
     RandomGenerator<uint8_t>::generate(loads, DEFAULT_KEY_LENGTH, key_range, total_count, skew);

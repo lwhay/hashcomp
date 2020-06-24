@@ -124,11 +124,11 @@ atomic<int> stopMeasure(0);
 
 int updatePercentage = 10;
 
-int ereasePercentage = 0;
+int erasePercentage = 0;
 
 int totalPercentage = 100;
 
-int readPercentage = (totalPercentage - updatePercentage - ereasePercentage);
+int readPercentage = (totalPercentage - updatePercentage - erasePercentage);
 
 struct target {
     int tid;
@@ -296,8 +296,8 @@ int main(int argc, char **argv) {
         timer_range = std::atol(argv[4]);
         skew = std::atof(argv[5]);
         updatePercentage = std::atoi(argv[6]);
-        ereasePercentage = std::atoi(argv[7]);
-        readPercentage = totalPercentage - updatePercentage - ereasePercentage;
+        erasePercentage = std::atoi(argv[7]);
+        readPercentage = totalPercentage - updatePercentage - erasePercentage;
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
@@ -312,7 +312,7 @@ int main(int argc, char **argv) {
     runs = runner.load();
     total_count = runner.size();
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
-         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << ereasePercentage << ":"
+         << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
          << readPercentage << " hash size: " << store->bucket_count() << " capacity: " << store->capacity()
          << " load factor: " << store->load_factor() << " loads: " << store->size() << endl;
     cout << "multiinsert" << endl;

@@ -167,7 +167,8 @@ if (WITH_LIBCUCKOO)
     link_directories(${LIBCUCKOO_PREFIX}/src/libcukoo-build/)
 
     set(CUKOO_TEST
-            CH_HybridTest.cpp)
+            CH_HybridTest.cpp
+            CH_HybridNumaTest.cpp)
 
     foreach (sourcefile ${CUKOO_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
@@ -179,7 +180,7 @@ if (WITH_LIBCUCKOO)
                 OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
                 )
         add_dependencies(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} libcuckoo)
-        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${ATOMIC})
+        target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${ATOMIC} ${NUMA})
     endforeach (sourcefile ${CUKOO_TEST})
 endif ()
 

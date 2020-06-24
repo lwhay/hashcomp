@@ -1,5 +1,5 @@
 //
-// Created by iclab on 10/12/19.
+// Created by iclab on 6/24/20.
 //
 
 #include <iostream>
@@ -19,6 +19,23 @@
 //#define DEFAULT_KEY_LENGTH 8
 
 #define COUNT_HASH         1
+
+#ifdef linux
+
+#include <numa.h>
+
+void pin_to_core(size_t core) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core, &cpuset);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+}
+
+size_t cpus_per_socket = 8;
+
+size_t count_of_socket = 1;
+
+#endif
 
 typedef libcuckoo::cuckoohash_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
         std::allocator<std::pair<const uint64_t, uint64_t>>, 8> cmap;
@@ -45,7 +62,7 @@ size_t key_range = DEFAULT_KEYS_RANGE;
 
 double skew = 0.0;
 
-int root_capacity = (1 << 16);
+int mapping = 0x0f;        //f: 3210: Whether the 0th, 1st, 2nd, 3rd numa-based sockets are activiated.
 
 stringstream *output;
 
@@ -215,8 +232,19 @@ int main(int argc, char **argv) {
         readPercentage = totalPercentage - updatePercentage - erasePercentage;
     }
     if (argc > 8)
-        root_capacity = std::atoi(argv[8]);
-    store = new cmap(root_capacity);
+        mapping = std::atoi(argv[8]);
+#ifdef linux
+    count_of_socket = numa_max_node() + 1;
+    cout << count_of_socket << endl;
+    cpus_per_socket = numa_num_task_cpus() / count_of_socket;
+    pin_to_core(0);
+    size_t mask = 0;
+    for (int i = 0; i < count_of_socket; i++) mask |= (1 << i);
+    mapping &= mask;
+    cout << count_of_socket << " " << cpus_per_socket << " " << mapping << endl;
+    exit;
+#endif
+    store = new cmap(1 << 20);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
          << readPercentage << endl;
