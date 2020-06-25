@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
     }
     if (argc > 8)
         mapping = std::atoi(argv[8]);
-    count_of_socket = 2; //numa_max_node() + 1;
+    count_of_socket = numa_max_node() + 1; // 2; //
     cout << count_of_socket << endl;
     cpus_per_socket = numa_num_task_cpus() / count_of_socket;
     struct bitmask *bm = numa_bitmask_alloc(numa_num_task_cpus());
