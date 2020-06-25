@@ -125,7 +125,9 @@ void *measureWorker(void *args) {
     uint64_t erased = 0;
     cmap *localstore = store[work->socket];
     uint64_t *localloads = loads[work->socket];
-    output[work->tid] << work->tid << " " << work->core << " " << work->socket << " " << " ";
+    output[work->tid] << work->tid << " " << work->core << " " << work->socket << " "
+                      << ((work->tid % cpus_per_socket) * (total_count / cpus_per_socket)) << " "
+                      << ((work->tid % cpus_per_socket + 1) * (total_count / cpus_per_socket)) << " ";
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
 #if INPUT_METHOD == 0
