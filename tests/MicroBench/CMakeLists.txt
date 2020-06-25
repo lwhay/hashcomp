@@ -166,9 +166,16 @@ if (WITH_LIBCUCKOO)
 
     link_directories(${LIBCUCKOO_PREFIX}/src/libcukoo-build/)
 
-    set(CUKOO_TEST
-            CH_HybridTest.cpp
-            CH_HybridNumaTest.cpp)
+    if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+        set(CUKOO_TEST
+                CH_HybridTest.cpp
+                CH_HybridNumaTest.cpp
+                CH_HybridIdeaTest.cpp)
+    else ()
+        set(CUKOO_TEST
+                CH_HybridTest.cpp)
+    endif ()
+
 
     foreach (sourcefile ${CUKOO_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
