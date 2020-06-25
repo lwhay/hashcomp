@@ -105,7 +105,7 @@ void *insertWorker(void *args) {
     int c = work->cpu;
     unordered_set<uint64_t> set;
     size_t load_count = total_count / cpus_per_socket;
-    for (size_t i = c * load_count; i < (c + 1) * load_count; i++) {
+    for (size_t i = work->tid % cpus_per_socket * load_count; i < (work->tid % cpus_per_socket + 1) * load_count; i++) {
         store[c]->insert(loads[c][i], loads[c][i]);
         set.insert(loads[c][i]);
         inserted++;
@@ -130,10 +130,10 @@ void *measureWorker(void *args) {
 #if INPUT_METHOD == 0
             for (int i = 0; i < total_count; i++) {
 #elif INPUT_METHOD == 1
-            for (int i = work->tid; i < total_count; i += cpus_per_socket) {
+            for (int i = work->tid % cpus_per_socket; i < total_count; i += cpus_per_socket) {
 #else
-            for (int i = work->tid * total_count / cpus_per_socket;
-                 i < (work->tid + 1) * total_count / cpus_per_socket; i++) {
+            for (int i = work->tid % cpus_per_socket * total_count / cpus_per_socket;
+                 i < (work->tid % cpus_per_socket + 1) * total_count / cpus_per_socket; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
                     bool ret = localstore->update(localloads[i], localloads[i]/*new Value(loads[i])*/);
