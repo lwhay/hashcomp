@@ -80,6 +80,7 @@ int readPercentage = (totalPercentage - updatePercentage - erasePercentage);
 
 struct target {
     int tid;
+    int core;
     uint64_t *insert;
     cmap *store;
 };
@@ -172,8 +173,11 @@ void prepare() {
     workers = new pthread_t[thread_number];
     parms = new struct target[thread_number];
     output = new stringstream[thread_number];
+    int idx = -1;
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
+        parms[i].core = active_cores._Find_next(idx);
+        idx = active_cores._Find_next(idx);
         parms[i].store = store;
         parms[i].insert = (uint64_t *) calloc(total_count / thread_number, sizeof(uint64_t *));
         char buf[DEFAULT_STR_LENGTH];
@@ -265,10 +269,17 @@ int main(int argc, char **argv) {
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
          << readPercentage << endl;
-    exit(0);
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
     prepare();
+#ifdef linux
+    bitset<128> actived{0};
+    for (int i = 0; i < thread_number; i++) {
+        actived.set(parms[i].core);
+    }
+    cout << actived << endl;
+#endif
+    exit(0);
     cout << "simple" << endl;
     simpleInsert();
 #if INPUT_SHUFFLE == 1
