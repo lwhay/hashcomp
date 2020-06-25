@@ -255,12 +255,11 @@ int main(int argc, char **argv) {
             for (int j = 0; j < bm->size; j++) {
                 if (1 == numa_bitmask_isbitset(bm, j))active_cores.set(j);
             }
-            if (selected_core >= 0)
-                pin_to_core(selected_core);
             thread_number += cpus_per_socket;
         }
         selected_core += cpus_per_socket;
     }
+    pin_to_core(active_cores._Find_first());
     size_t oldm = mapping;
     mapping &= mask;
     cout << count_of_socket << " " << cpus_per_socket << " " << mapping << " " << oldm << " " << mask << endl;
