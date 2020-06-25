@@ -88,8 +88,7 @@ int readPercentage = (totalPercentage - updatePercentage - erasePercentage);
 struct target {
     int tid;
     int core;
-    int cpu;
-    cmap *store;
+    int socket;
 };
 
 pthread_t *workers;
@@ -102,7 +101,7 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     pin_to_core(work->core);
     int inserted = 0;
-    int c = work->cpu;
+    int c = work->socket;
     unordered_set<uint64_t> set;
     size_t load_count = total_count / cpus_per_socket;
     for (size_t i = work->tid % cpus_per_socket * load_count; i < (work->tid % cpus_per_socket + 1) * load_count; i++) {
@@ -123,8 +122,8 @@ void *measureWorker(void *args) {
     int evenRound = 0;
     uint64_t inserts = 0;
     uint64_t erased = 0;
-    cmap *localstore = store[work->cpu];
-    uint64_t *localloads = loads[work->cpu];
+    cmap *localstore = store[work->socket];
+    uint64_t *localloads = loads[work->socket];
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
 #if INPUT_METHOD == 0
@@ -180,7 +179,7 @@ void prepare() {
     int idx = -1;
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
-        parms[i].cpu = coreToSocket[i];
+        parms[i].socket = coreToSocket[i];
         parms[i].core = active_cores._Find_next(idx);
         idx = active_cores._Find_next(idx);
     }
@@ -239,21 +238,22 @@ int main(int argc, char **argv) {
     }
     if (argc > 8)
         mapping = std::atoi(argv[8]);
-    count_of_socket = numa_max_node() + 1;
+    count_of_socket = 2; //numa_max_node() + 1;
     cout << count_of_socket << endl;
     cpus_per_socket = numa_num_task_cpus() / count_of_socket;
     struct bitmask *bm = numa_bitmask_alloc(numa_num_task_cpus());
+    /*int pseudomapping[2][8] = {{1, 1, 1, 1, 0, 0, 0, 0},
+                               {0, 0, 0, 0, 1, 1, 1, 1}};*/
     size_t mask = 0;
     thread_number = 0;
-    int selected_core = -1;
     for (int i = 0; i < MAX_CORES; i++) coreToSocket[i] = -1;
     for (int i = 0; i < MAX_SOCKET; i++) for (int j = 0; j < MAX_CORES_PER_SOCKET; j++) socketToCore[i][j] = -1;
     for (int i = 0; i < count_of_socket; i++) {
         mask |= (1 << i);
         numa_node_to_cpus(i, bm);
         if ((mapping & (1 << i)) != 0) {
-            for (int j = 0, idx = 0; j < bm->size; j++) {
-                if (1 == numa_bitmask_isbitset(bm, j)) {
+            for (int j = 0, idx = 0; j < bm->size /*8*/; j++) {
+                if (1 == /*pseudomapping[i][j]*/numa_bitmask_isbitset(bm, j)) {
                     active_cores.set(j);
                     socketToCore[i][idx++] = j;
                     coreToSocket[j] = i;
@@ -261,11 +261,11 @@ int main(int argc, char **argv) {
             }
             thread_number += cpus_per_socket;
         }
-        selected_core += cpus_per_socket;
     }
     size_t oldm = mapping;
     mapping &= mask;
-    cout << count_of_socket << " " << cpus_per_socket << " " << mapping << " " << oldm << " " << mask << endl;
+    cout << count_of_socket << " " << cpus_per_socket << " " << mapping << " " << oldm << " " << mask << " " << bm->size
+         << endl;
     cout << active_cores << endl;
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
