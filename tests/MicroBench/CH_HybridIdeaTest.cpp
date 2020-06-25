@@ -180,10 +180,9 @@ void prepare() {
     int idx = -1;
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
-        parms[i].socket = coreToSocket[i];
         parms[i].core = active_cores._Find_next(idx);
         idx = active_cores._Find_next(idx);
-        cout << idx << endl;
+        parms[i].socket = coreToSocket[idx];
     }
 }
 
