@@ -172,7 +172,7 @@ void *measureWorker(void *args) {
 }
 
 void prepare() {
-    cout << "prepare" << endl;
+    cout << "prepare " << thread_number << endl;
     workers = new pthread_t[thread_number];
     parms = new struct target[thread_number];
     output = new stringstream[thread_number];
@@ -182,6 +182,7 @@ void prepare() {
         parms[i].socket = coreToSocket[i];
         parms[i].core = active_cores._Find_next(idx);
         idx = active_cores._Find_next(idx);
+        cout << idx << endl;
     }
 }
 
