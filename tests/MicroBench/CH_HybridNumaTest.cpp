@@ -33,6 +33,8 @@ void pin_to_core(size_t core) {
 
 size_t cpus_per_socket = 8;
 
+bitset<128> active_cores{0};
+
 size_t count_of_socket = 1;
 
 #endif
@@ -237,16 +239,27 @@ int main(int argc, char **argv) {
     count_of_socket = numa_max_node() + 1;
     cout << count_of_socket << endl;
     cpus_per_socket = numa_num_task_cpus() / count_of_socket;
-    pin_to_core(0);
+    struct bitmask *bm = numa_bitmask_alloc(numa_num_task_cpus());
     size_t mask = 0;
     thread_number = 0;
+    int selected_core = -1;
     for (int i = 0; i < count_of_socket; i++) {
         mask |= (1 << i);
-        if ((mapping & (1 << i)) != 0) thread_number += cpus_per_socket;
+        numa_node_to_cpus(i, bm);
+        if ((mapping & (1 << i)) != 0) {
+            for (int j = 0; j < bm->size; j++) {
+                if (1 == numa_bitmask_isbitset(bm, j))active_cores.set(j);
+            }
+            if (selected_core >= 0)
+                pin_to_core(selected_core);
+            thread_number += cpus_per_socket;
+        }
+        selected_core += cpus_per_socket;
     }
     size_t oldm = mapping;
     mapping &= mask;
     cout << count_of_socket << " " << cpus_per_socket << " " << mapping << " " << oldm << " " << mask << endl;
+    cout << active_cores << endl;
 #endif
     store = new cmap(1 << 20);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
