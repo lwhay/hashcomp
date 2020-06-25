@@ -125,7 +125,7 @@ void *measureWorker(void *args) {
     uint64_t erased = 0;
     cmap *localstore = store[work->socket];
     uint64_t *localloads = loads[work->socket];
-    cout << "\t" << work->tid << " " << work->core << " " << work->socket << " " << endl;
+    output[work->tid] << work->tid << " " << work->core << " " << work->socket << " " << " ";
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
 #if INPUT_METHOD == 0
