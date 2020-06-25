@@ -104,7 +104,7 @@ void *insertWorker(void *args) {
     int c = work->socket;
     unordered_set<uint64_t> set;
     size_t load_count = total_count / cpus_per_socket;
-    cout << "\t" << work->tid << " " << work->core << " " << work->socket << " " << load_count << endl;
+    output[work->tid] << work->tid << " " << work->core << " " << work->socket << " " << load_count << " ";
     for (size_t i = work->tid % cpus_per_socket * load_count; i < (work->tid % cpus_per_socket + 1) * load_count; i++) {
         store[c]->insert(loads[c][i], loads[c][i]);
         set.insert(loads[c][i]);
