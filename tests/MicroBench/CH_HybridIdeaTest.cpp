@@ -110,7 +110,7 @@ void *insertWorker(void *args) {
         set.insert(loads[c][i]);
         inserted++;
     }
-    cout << inserted << " " << tracer.getRunTime() << " " << set.size() << endl;
+    output[work->tid] << inserted << " " << tracer.getRunTime() << " " << set.size() << endl;
 }
 
 void *measureWorker(void *args) {
@@ -203,6 +203,8 @@ void multiWorkers(bool init = true) {
         }
         for (int i = 0; i < thread_number; i++) {
             pthread_join(workers[i], nullptr);
+            string outstr = output[i].str();
+            cout << outstr;
         }
         cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     } else {
