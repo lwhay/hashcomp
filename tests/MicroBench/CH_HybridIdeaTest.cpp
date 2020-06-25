@@ -269,6 +269,10 @@ int main(int argc, char **argv) {
     cout << count_of_socket << " " << cpus_per_socket << " " << mapping << " " << oldm << " " << mask << " " << bm->size
          << endl;
     cout << active_cores << endl;
+    for (int i = 0; i < MAX_CORES; i++) {
+        cout << coreToSocket[i] << " ";
+    }
+    cout << endl;
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
          << readPercentage << endl;
