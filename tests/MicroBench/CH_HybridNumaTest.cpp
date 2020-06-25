@@ -116,6 +116,7 @@ void *measureWorker(void *args) {
     Tracer tracer;
     tracer.startTime();
     struct target *work = (struct target *) args;
+    pin_to_core(work->core);
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
     int evenRound = 0;
@@ -279,7 +280,6 @@ int main(int argc, char **argv) {
     }
     cout << actived << endl;
 #endif
-    exit(0);
     cout << "simple" << endl;
     simpleInsert();
 #if INPUT_SHUFFLE == 1
