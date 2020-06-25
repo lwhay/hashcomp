@@ -125,6 +125,7 @@ void *measureWorker(void *args) {
     uint64_t erased = 0;
     cmap *localstore = store[work->socket];
     uint64_t *localloads = loads[work->socket];
+    cout << "\t" << work->tid << " " << work->core << " " << work->socket << " " << endl;
     try {
         while (stopMeasure.load(memory_order_relaxed) == 0) {
 #if INPUT_METHOD == 0
@@ -132,8 +133,8 @@ void *measureWorker(void *args) {
 #elif INPUT_METHOD == 1
             for (int i = work->tid % cpus_per_socket; i < total_count; i += cpus_per_socket) {
 #else
-            for (int i = work->tid % cpus_per_socket * total_count / cpus_per_socket;
-                 i < (work->tid % cpus_per_socket + 1) * total_count / cpus_per_socket; i++) {
+            for (int i = (work->tid % cpus_per_socket) * (total_count / cpus_per_socket);
+                 i < (work->tid % cpus_per_socket + 1) * (total_count / cpus_per_socket); i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
                     bool ret = localstore->update(localloads[i], localloads[i]/*new Value(loads[i])*/);
