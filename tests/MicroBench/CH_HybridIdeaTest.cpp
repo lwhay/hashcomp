@@ -183,10 +183,12 @@ void prepare() {
     workers = new pthread_t[thread_number];
     parms = new struct target[thread_number];
     output = new stringstream[thread_number];
+    int socket[MAX_SOCKET];
+    for (int i = 0; i < MAX_SOCKET; i++) socket[i] = 0;
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
         parms[i].socket = coreToSocket[i];
-        parms[i].core = socketToCore[coreToSocket[i]][i % cpus_per_socket];
+        parms[i].core = socketToCore[coreToSocket[i]][socket[coreToSocket[i]]++];
     }
 }
 
