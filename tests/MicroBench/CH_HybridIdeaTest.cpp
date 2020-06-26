@@ -113,7 +113,7 @@ void *insertWorker(void *args) {
         set.insert(loads[c][i]);
         inserted++;
     }
-    output[work->tid] << inserted << " " << tracer.getRunTime() << " " << set.size() << endl;
+    output[work->tid] << inserted << " " << tracer.getRunTime() << " " << set.size() << " " << store[c]->size() << endl;
 }
 
 void *measureWorker(void *args) {
