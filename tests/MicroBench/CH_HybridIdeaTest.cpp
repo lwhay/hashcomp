@@ -183,12 +183,19 @@ void prepare() {
     workers = new pthread_t[thread_number];
     parms = new struct target[thread_number];
     output = new stringstream[thread_number];
-    int socket[MAX_SOCKET];
-    for (int i = 0; i < MAX_SOCKET; i++) socket[i] = 0;
+    int current_socket = -1;
+    int current_core = cpus_per_socket;
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
-        parms[i].socket = coreToSocket[i];
-        parms[i].core = socketToCore[coreToSocket[i]][socket[coreToSocket[i]]++];
+        if (current_core == cpus_per_socket) {
+            do {
+                current_socket++;
+            } while (socketToCore[current_socket][0] < 0);
+            current_core = 0;
+        }
+        parms[i].socket = current_socket;
+        parms[i].core = socketToCore[current_socket][current_core++];
+        cout << parms[i].tid << " " << parms[i].core << " " << parms[i].socket << endl;
     }
 }
 
