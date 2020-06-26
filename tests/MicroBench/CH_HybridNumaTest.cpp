@@ -290,7 +290,7 @@ int main(int argc, char **argv) {
          << modify_success << " modify failure: " << modify_failure << " throughput: "
          << (double) (read_success + read_failure + modify_success + modify_failure) * thread_number / total_time
          << " hash size: " << store->bucket_count() << " capacity: " << store->capacity() << " load factor: "
-         << store->load_factor() << endl;
+         << store->load_factor() << " key count: " << store->size() << endl;
     free(loads);
     finish();
     //delete mhash;
