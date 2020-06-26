@@ -209,8 +209,8 @@ void finish() {
 void multiWorkers(bool init = true) {
     cpu_set_t cpu_set;
     CPU_ZERO(&cpu_set);
-    CPU_SET(0, &cpu_set);
-    sched_setaffinity(0, sizeof(cpu_set_t), &cpu_set);
+    for (int i = 0; i < numa_num_task_cpus(); i++) CPU_SET(i, &cpu_set);
+    for (int i = 0; i < thread_number; i++) sched_setaffinity(i, sizeof(cpu_set_t), &cpu_set);
     output = new stringstream[thread_number];
     Tracer tracer;
     tracer.startTime();
@@ -283,10 +283,10 @@ int main(int argc, char **argv) {
     mapping &= mask;
     cout << count_of_socket << " " << cpus_per_socket << " " << mapping << " " << oldm << " " << mask << " " << bm->size
          << endl;
-    for (int i = 0; i < MAX_CORES; i++) {
+    /*for (int i = 0; i < MAX_CORES; i++) {
         cout << coreToSocket[i] << " ";
     }
-    cout << endl;
+    cout << endl;*/
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
          << readPercentage << " numa_input: " << numaScheme << endl;
