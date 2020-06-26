@@ -37,8 +37,6 @@ void pin_to_core(size_t core) {
 
 size_t cpus_per_socket = 8;
 
-bitset<MAX_CORES> active_cores{0};
-
 int coreToSocket[MAX_CORES];
 int socketToCore[MAX_SOCKET][MAX_CORES_PER_SOCKET];
 
@@ -185,12 +183,10 @@ void prepare() {
     workers = new pthread_t[thread_number];
     parms = new struct target[thread_number];
     output = new stringstream[thread_number];
-    int idx = -1;
     for (int i = 0; i < thread_number; i++) {
         parms[i].tid = i;
-        parms[i].core = active_cores._Find_next(idx);
-        idx = active_cores._Find_next(idx);
-        parms[i].socket = coreToSocket[idx];
+        parms[i].socket = coreToSocket[i];
+        parms[i].core = socketToCore[coreToSocket[i]][i % cpus_per_socket];
     }
 }
 
@@ -263,7 +259,6 @@ int main(int argc, char **argv) {
         if ((mapping & (1 << i)) != 0) {
             for (int j = 0, idx = 0; j < bm->size /*8*/; j++) {
                 if (1 == /*pseudomapping[i][j]*/numa_bitmask_isbitset(bm, j)) {
-                    active_cores.set(j);
                     socketToCore[i][idx++] = j;
                     coreToSocket[j] = i;
                 }
@@ -275,7 +270,6 @@ int main(int argc, char **argv) {
     mapping &= mask;
     cout << count_of_socket << " " << cpus_per_socket << " " << mapping << " " << oldm << " " << mask << " " << bm->size
          << endl;
-    cout << active_cores << endl;
     for (int i = 0; i < MAX_CORES; i++) {
         cout << coreToSocket[i] << " ";
     }
