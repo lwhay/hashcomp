@@ -316,7 +316,11 @@ int main(int argc, char **argv) {
          << modify_success << " modify failure: " << modify_failure << " throughput: "
          << (double) (read_success + read_failure + modify_success + modify_failure) * thread_number / total_time
          << " hash size: " << store[active_socket]->bucket_count() << " capacity: " << store[active_socket]->capacity()
-         << " load factor: " << store[active_socket]->load_factor() << endl;
+         << " load factor: " << store[active_socket]->load_factor() << endl << "key count: ";
+    for (int c = 0; c < count_of_socket; c++) {
+        if (socketToCore[c][0] >= 0) cout << store[active_socket]->size() << " ";
+    }
+    cout << endl;
     free(loads);
     finish();
     //delete mhash;
