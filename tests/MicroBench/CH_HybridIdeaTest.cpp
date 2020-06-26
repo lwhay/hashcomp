@@ -65,7 +65,7 @@ uint64_t total_count = DEFAULT_KEYS_COUNT;
 
 uint64_t timer_range = default_timer_range;
 
-int using_numa_input = 0x3f;
+int numaScheme = 0x7f;     // 0th, 1st, 2nd numa-based initialization, insert, measure will be numa-based
 
 int thread_number = DEFAULT_THREAD_NUM;
 
@@ -101,7 +101,7 @@ void *insertWorker(void *args) {
     Tracer tracer;
     tracer.startTime();
     struct target *work = (struct target *) args;
-    if (using_numa_input & 0x2 != 0) pin_to_core(work->core);
+    if ((numaScheme & 0x2) != 0) pin_to_core(work->core);
     int inserted = 0;
     int c = work->socket;
     unordered_set<uint64_t> set;
@@ -119,7 +119,7 @@ void *measureWorker(void *args) {
     Tracer tracer;
     tracer.startTime();
     struct target *work = (struct target *) args;
-    pin_to_core(work->core);
+    if ((numaScheme & 0x4) != 0) pin_to_core(work->core);
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
     int evenRound = 0;
@@ -233,7 +233,7 @@ void multiWorkers(bool init = true) {
 
 int main(int argc, char **argv) {
     if (argc > 7) {
-        using_numa_input = std::atoi(argv[1]);
+        numaScheme = std::atoi(argv[1]);
         key_range = std::atol(argv[2]);
         total_count = std::atol(argv[3]);
         timer_range = std::atol(argv[4]);
@@ -279,13 +279,13 @@ int main(int argc, char **argv) {
     cout << endl;
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
-         << readPercentage << " numa_input: " << using_numa_input << endl;
+         << readPercentage << " numa_input: " << numaScheme << endl;
     loads = new uint64_t *[MAX_SOCKET];
 
     int active_socket = -1;
     for (int i = 0; i < MAX_SOCKET; i++)
         if (socketToCore[i][0] >= 0) {
-            if (using_numa_input & 0x1 != 0) pin_to_core(socketToCore[i][0]);
+            if ((numaScheme & 0x1) != 0) pin_to_core(socketToCore[i][0]);
             loads[i] = (uint64_t *) calloc(total_count, sizeof(uint64_t));
             store[i] = new cmap(1 << 20);
             RandomGenerator<uint64_t>::generate(loads[i], key_range, total_count, skew);
@@ -304,7 +304,7 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < MAX_SOCKET; i++)
         if (socketToCore[i][0] >= 0) {
-            if (using_numa_input & 0x1 != 0) pin_to_core(socketToCore[i][0]);
+            if ((numaScheme & 0x1) != 0) pin_to_core(socketToCore[i][0]);
 #if INPUT_SHUFFLE == 1
             std::random_shuffle(loads[i], loads[i] + total_count);
 #endif
