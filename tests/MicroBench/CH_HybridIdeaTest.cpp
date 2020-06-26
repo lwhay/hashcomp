@@ -207,6 +207,10 @@ void finish() {
 }
 
 void multiWorkers(bool init = true) {
+    cpu_set_t cpu_set;
+    CPU_ZERO(&cpu_set);
+    CPU_SET(0, &cpu_set);
+    sched_setaffinity(0, sizeof(cpu_set_t), &cpu_set);
     output = new stringstream[thread_number];
     Tracer tracer;
     tracer.startTime();
@@ -312,11 +316,11 @@ int main(int argc, char **argv) {
         if (socketToCore[i][0] >= 0) {
             if ((numaScheme & 0x1) != 0) pin_to_core(socketToCore[i][0]);
 #if INPUT_SHUFFLE == 1
-            std::random_shuffle(loads[i], loads[i] + total_count);
+            std::random_shuffle(loads[i], loads[i] + (total_count / cpus_per_socket) * cpus_per_socket);
 #endif
         }
 
-    cout << "multiinsert" << endl;
+    cout << "measuring" << endl;
     multiWorkers(false);
     cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "
          << modify_success << " modify failure: " << modify_failure << " throughput: "
