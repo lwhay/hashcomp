@@ -109,7 +109,7 @@ void *insertWorker(void *args) {
                       << (((work->tid % cpus_per_socket) + 1) * load_count) << " ";
     for (size_t i = (work->tid % cpus_per_socket) * load_count;
          i < ((work->tid % cpus_per_socket) + 1) * load_count; i++) {
-        store[c]->insert(loads[c][i], loads[c][i]);
+        store[c]->insert_or_assign(loads[c][i], loads[c][i]);
         set.insert(loads[c][i]);
         inserted++;
     }
@@ -195,7 +195,7 @@ void prepare() {
         }
         parms[i].socket = current_socket;
         parms[i].core = socketToCore[current_socket][current_core++];
-        cout << parms[i].tid << " " << parms[i].core << " " << parms[i].socket << endl;
+        //cout << parms[i].tid << " " << parms[i].core << " " << parms[i].socket << endl;
     }
 }
 
