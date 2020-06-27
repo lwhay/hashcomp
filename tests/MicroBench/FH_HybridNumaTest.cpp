@@ -160,9 +160,7 @@ void *measureWorker(void *args) {
                     };
                     UpsertContext context{loads[i], loads[i]};
                     Status stat = store->Upsert(context, callback, 1);
-                    if (stat == Status::NotFound)
-                        mfail++;
-                    else mfail++;
+                    if (stat == Status::NotFound) mfail++; else mhit++;
                 } else if (erasePercentage > 0 && (i + 1) % (totalPercentage / erasePercentage) == 0) {
                     bool ret;
                     if (evenRound % 2 == 0) {
