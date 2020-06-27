@@ -36,14 +36,19 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
             ../../src/faster/io/file_linux.cc
             ${FH_HYBRID_LIBS})
     set(NUMA -lnuma)
+
+    set(FH_HYBRID_TEST
+            FH_HybridTest.cpp
+            FH_HybridNumaTest.cpp
+            FH_HybridIdeaTest.cpp)
 else ()
     set(FH_HYBRID_LIBS
             ../../src/faster/io/file_windows.cc
             ${FH_HYBRID_LIBS})
-endif ()
 
-set(FH_HYBRID_TEST
-        FH_HybridTest.cpp)
+    set(FH_HYBRID_TEST
+            FH_HybridTest.cpp)
+endif ()
 
 message("subproject" ${CMAKE_CURRENT_SOURCE_DIR})
 message("faster lib" ${FH_LIBS})
@@ -66,7 +71,7 @@ foreach (sourcefile ${FH_HYBRID_TESTS_EXES})
             EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
             OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
             )
-    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${LTBB} ${AIO} ${UUID})
+    target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} gtest ${PTHREAD} ${LTBB} ${AIO} ${UUID} ${NUMA})
 endforeach (sourcefile ${FH_HYBRID_TESTS_EXES})
 
 set(LH_HYBRID_TESTS_EXES ${LH_HYBRID_TEST})
