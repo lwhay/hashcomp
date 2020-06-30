@@ -233,7 +233,8 @@ if (WITH_AWLMAP)
 
     set(AWLMAP_TEST
             AH_HybridTest.cpp
-            AH_HybridNumaTest.cpp)
+            AH_HybridNumaTest.cpp
+            AH_HybridIdeaTest.cpp)
 
     foreach (sourcefile ${AWLMAP_TEST})
         get_filename_component(exename ${sourcefile} NAME_WE)
