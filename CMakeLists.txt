@@ -721,3 +721,5 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     endif ()
     add_subdirectory(utils/numaopm)
 endif ()
+
+add_subdirectory(utils/pmtest)
