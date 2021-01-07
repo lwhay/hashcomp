@@ -12,9 +12,15 @@
 #include <string>
 #include <unistd.h>
 
+#include "tracer.h"
+
 #define LAYOUT "concurrent_hash_map"
 
-static const char *path = "/mnt/pmm"; // "/dev/nvram/pmm";
+char *path = "/dev/shm/test/pmm"; //"/home/iclab/pmm"; //"/mnt/pmm"; // "/dev/nvram/pmm";
+
+int concurrency = 8;
+
+const int thread_items = (1 << 20);
 
 namespace nvobj = pmem::obj;
 
@@ -64,16 +70,94 @@ void set(nvobj::pool<root> &pop, size_t concurrency = 8, size_t thread_items = 5
     } while (0);
 }
 
+
+template<typename Function>
+void parallel_exec(size_t concurrency, Function f) {
+    std::vector<std::thread> threads;
+    threads.reserve(concurrency);
+
+    for (size_t i = 0; i < concurrency; ++i) {
+        threads.emplace_back(f, i);
+    }
+
+    for (auto &t : threads) {
+        t.join();
+    }
+}
+
 void naive() {
+    Tracer tracer;
+    tracer.startTime();
     nvobj::pool<root> pop;
+    std::cout << "pool: " << tracer.getRunTime() << std::endl;
     if (access(path, F_OK) != -1)
         pop = nvobj::pool<root>::open(path, LAYOUT);
     else
         pop = nvobj::pool<root>::create(path, LAYOUT, PMEMOBJ_MIN_POOL * (1 << 10), S_IWUSR | S_IRUSR);
-    for (int i = 0; i < (1llu < 20); i++) set(pop, 8);
+    std::cout << "open: " << tracer.getRunTime() << std::endl;
+    for (int i = 0; i < (1llu < 30); i++) set(pop, 8);
+    std::cout << "setz: " << tracer.getRunTime() << std::endl;
+
+    pmem::obj::transaction::run(pop, [&] {
+        pop.root()->cons = nvobj::make_persistent<pmmtype>();
+        pop.root()->tls = nvobj::make_persistent<tlstype>();
+    });
+    pop.root()->cons->runtime_initialize();
+
+    nvobj::persistent_ptr<tlstype> &tls = pop.root()->tls;
+    using accessor = pmmtype::accessor;
+    using const_acc = pmmtype::const_accessor;
+
+    tls->resize(concurrency);
+    parallel_exec(concurrency, [&](size_t thread_id) {
+        int begin = thread_id * thread_items;
+        int end = begin + int(thread_items);
+        auto &pstr = tls->at(thread_id);
+
+        for (int i = begin; i < end; i++) {
+            pstr = std::to_string(i);
+            const pmmtype::key_type &val = pstr;
+            bool result = pop.root()->cons->insert_or_assign(val, i);
+            // UT_ASSERT(result);
+            assert(result);
+        }
+        for (int i = begin; i < end; i++) {
+            //test.check_item<accessor>(std::to_string(i), i);
+            accessor acc;
+            bool found = pop.root()->cons->find(acc, std::to_string(i));
+            assert(found);
+        }
+        for (int i = begin; i < end; i++) {
+            /* assign existing keys new values */
+            pstr = std::to_string(i);
+            const pmmtype::key_type &val = pstr;
+            bool result = pop.root()->cons->insert_or_assign(val, i + 1);
+            // UT_ASSERT(!result);
+            assert(!result);
+        }
+        for (int i = begin; i < end; i++) {
+            // test.check_item<const_acc>(std::to_string(i), i + 1);
+            accessor acc;
+            bool found = pop.root()->cons->find(acc, std::to_string(i));
+            // assert(acc->first == i);
+            assert(acc->second == i + 1);
+        }
+    });
+    //test.check_consistency();
+    // clear and recheck
+    pop.root()->cons->clear();
+    assert(pop.root()->cons->size() == 0);
+    assert(std::distance(pop.root()->cons->begin(), pop.root()->cons->end()) == 0);
+    tls->clear();
 }
 
-int main() {
+int main(int argc, char **argv) {
+    if (argc < 3) {
+        std::cout << "Command: path tnum" << std::endl;
+        exit(0);
+    }
+    path = argv[1];
+    concurrency = std::atoi(argv[2]);
     // dummy();
     naive();
     return 0;
