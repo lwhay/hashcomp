@@ -187,7 +187,7 @@ void naive() {
     // pop.root()->cons->clear();
     std::cout << "clear: " << tracer.getRunTime() << std::endl;
     // assert(pop.root()->cons->size() == 0);
-    assert(std::distance(pop.root()->cons->begin(), pop.root()->cons->end()) == 0);
+    // assert(std::distance(pop.root()->cons->begin(), pop.root()->cons->end()) == 0);
     tls->clear();
     std::cout << "empty: " << tracer.getRunTime() << std::endl;
     pop.root()->cons.persist();
