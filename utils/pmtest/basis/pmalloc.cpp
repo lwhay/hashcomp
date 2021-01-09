@@ -114,6 +114,7 @@ void naive() {
 
     tls->resize(concurrency);
     std::cout << "init: " << tracer.getRunTime() << std::endl;
+    std::cout << "size: " << pop.root()->cons->size() << " " << std::endl;
     parallel_exec(concurrency, [&](size_t thread_id) {
         int begin = thread_id * thread_items;
         int end = begin + int(thread_items);
@@ -128,15 +129,13 @@ void naive() {
             assert(result);
         }
         pop.root()->cons.persist();
-        std::cout << "size: " << pop.root()->cons->size() << " " << std::endl;
     });
-    std::cout << "roundw1: " << tracer.getRunTime() << std::endl;
+    std::cout << "roundw1: " << tracer.getRunTime() << " size: " << pop.root()->cons->size() << std::endl;
 
     parallel_exec(concurrency, [&](size_t thread_id) {
         int begin = thread_id * thread_items;
         int end = begin + int(thread_items);
         auto &pstr = tls->at(thread_id);
-        std::cout << "size: " << pop.root()->cons->size() << " " << std::endl;
         for (int i = begin; i < end; i++) {
             //test.check_item<accessor>(std::to_string(i), i);
             pstr = std::to_string(i);
@@ -164,7 +163,7 @@ void naive() {
             assert(!result);
         }
     });
-    std::cout << "roundw2: " << tracer.getRunTime() << std::endl;
+    std::cout << "roundw2: " << tracer.getRunTime() << " size: " << pop.root()->cons->size() << std::endl;
 
     parallel_exec(concurrency, [&](size_t thread_id) {
         int begin = thread_id * thread_items;
@@ -185,12 +184,14 @@ void naive() {
 
     //test.check_consistency();
     // clear and recheck
-    pop.root()->cons->clear();
+    // pop.root()->cons->clear();
     std::cout << "clear: " << tracer.getRunTime() << std::endl;
-    assert(pop.root()->cons->size() == 0);
+    // assert(pop.root()->cons->size() == 0);
     assert(std::distance(pop.root()->cons->begin(), pop.root()->cons->end()) == 0);
     tls->clear();
     std::cout << "empty: " << tracer.getRunTime() << std::endl;
+    pop.root()->cons.persist();
+    std::cout << "persist: " << tracer.getRunTime() << std::endl;
 }
 
 int main(int argc, char **argv) {
