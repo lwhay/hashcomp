@@ -89,20 +89,28 @@ void naive() {
     tracer.startTime();
     nvobj::pool<root> pop;
     std::cout << "pool: " << tracer.getRunTime() << std::endl;
-    if (access(path, F_OK) != -1)
+    if (access(path, F_OK) != -1) {
         pop = nvobj::pool<root>::open(path, LAYOUT);
-    else
+
+        std::cout << "size: " << pop.root()->cons->size() << " " << pop.root()->cons->bucket_count() << std::endl;
+        pmem::obj::transaction::run(pop, [&] {
+            pop.root()->cons = nvobj::make_persistent<pmmtype>();
+            pop.root()->tls = nvobj::make_persistent<tlstype>();
+            std::cout << "make persistent" << std::endl;
+        });
+        std::cout << "size: " << pop.root()->cons->size() << " " << pop.root()->cons->bucket_count() << std::endl;
+    } else {
         pop = nvobj::pool<root>::create(path, LAYOUT, PMEMOBJ_MIN_POOL * ((1 << 12) - (1 << 10)), S_IWUSR | S_IRUSR);
+
+        pmem::obj::transaction::run(pop, [&] {
+            pop.root()->cons = nvobj::make_persistent<pmmtype>();
+            pop.root()->tls = nvobj::make_persistent<tlstype>();
+            std::cout << "make persistent" << std::endl;
+        });
+    }
     std::cout << "open: " << tracer.getRunTime() << std::endl;
     for (int i = 0; i < (1llu < 30); i++) set(pop, 8);
     std::cout << "setz: " << tracer.getRunTime() << std::endl;
-
-    std::cout << "size: " << pop.root()->cons->size() << " " << pop.root()->cons->bucket_count() << std::endl;
-    pmem::obj::transaction::run(pop, [&] {
-        pop.root()->cons = nvobj::make_persistent<pmmtype>();
-        pop.root()->tls = nvobj::make_persistent<tlstype>();
-        std::cout << "make persistent" << std::endl;
-    });
 
     pmem::obj::concurrent_hash_map_internal::scoped_lock_traits<pmem::obj::concurrent_hash_map_internal::shared_mutex_scoped_lock<pmem::obj::shared_mutex>>::initial_rw_state(
             true);
@@ -116,7 +124,6 @@ void naive() {
     tls->resize(concurrency);
     std::cout << "init: " << tracer.getRunTime() << std::endl;
 
-    std::cout << "size: " << pop.root()->cons->size() << " " << pop.root()->cons->bucket_count() << std::endl;
     parallel_exec(concurrency, [&](size_t thread_id) {
         int begin = thread_id * thread_items;
         int end = begin + int(thread_items);
