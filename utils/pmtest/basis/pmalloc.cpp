@@ -161,7 +161,7 @@ void naive() {
                 /* assign existing keys new values */
                 pstr = std::to_string(i);
                 const pmmtype::key_type &val = pstr;
-                bool result = pop.root()->cons->insert_or_assign(val, i + 1);
+                bool result = pop.root()->cons->insert_or_assign(val, i + 1 + r);
                 // UT_ASSERT(!result);
                 assert(!result);
             }
@@ -175,13 +175,13 @@ void naive() {
             auto &pstr = tls->at(thread_id);
 
             for (int i = begin; i < end; i++) {
-                // test.check_item<const_acc>(std::to_string(i), i + 1);
+                // test.check_item<const_acc>(std::to_string(i), i + 1 + r);
                 accessor acc;
                 pstr = std::to_string(i);
                 const pmmtype::key_type &val = pstr;
                 bool found = pop.root()->cons->find(acc, val);
                 assert(acc->first == val);
-                assert(acc->second == i + 1);
+                assert(acc->second == i + 1 + r);
             }
         });
         std::cout << "roundr" << r + 2 << ": " << tracer.getRunTime() << std::endl;
