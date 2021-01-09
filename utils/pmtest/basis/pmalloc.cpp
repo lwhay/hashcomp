@@ -4,15 +4,14 @@
 
 #include <libpmemobj++/container/concurrent_hash_map.hpp>
 #include <libpmemobj++/container/string.hpp>
+#include <libpmemobj++/container/vector.hpp>
+#include <libpmemobj++/p.hpp>
 #include <libpmemobj++/persistent_ptr.hpp>
 #include <libpmemobj++/pool.hpp>
 #include <libpmemobj++/transaction.hpp>
 
-#include <thread>
-#include <string>
-#include <unistd.h>
-
 #include "tracer.h"
+#include <unistd.h>
 
 #define LAYOUT "concurrent_hash_map"
 
@@ -101,7 +100,12 @@ void naive() {
     pmem::obj::transaction::run(pop, [&] {
         pop.root()->cons = nvobj::make_persistent<pmmtype>();
         pop.root()->tls = nvobj::make_persistent<tlstype>();
+        std::cout << "make persistent" << std::endl;
     });
+
+    pmem::obj::concurrent_hash_map_internal::scoped_lock_traits<pmem::obj::concurrent_hash_map_internal::shared_mutex_scoped_lock<pmem::obj::shared_mutex>>::initial_rw_state(
+            true);
+
     pop.root()->cons->runtime_initialize();
 
     nvobj::persistent_ptr<tlstype> &tls = pop.root()->tls;
@@ -109,6 +113,7 @@ void naive() {
     using const_acc = pmmtype::const_accessor;
 
     tls->resize(concurrency);
+    std::cout << "init: " << tracer.getRunTime() << std::endl;
     parallel_exec(concurrency, [&](size_t thread_id) {
         int begin = thread_id * thread_items;
         int end = begin + int(thread_items);
@@ -117,16 +122,24 @@ void naive() {
         for (int i = begin; i < end; i++) {
             pstr = std::to_string(i);
             const pmmtype::key_type &val = pstr;
-            bool result = pop.root()->cons->insert_or_assign(val, i);
+            bool result = pop.root()->cons->insert_or_assign(std::forward<const nvobj::string &>(val),
+                                                             std::forward<nvobj::p<int &>>(i));
             // UT_ASSERT(result);
             assert(result);
         }
+        pop.root()->cons.persist();
+        std::cout << "size: " << pop.root()->cons->size() << " " << std::endl;
         for (int i = begin; i < end; i++) {
             //test.check_item<accessor>(std::to_string(i), i);
+            pstr = std::to_string(i);
+            const pmmtype::key_type &val = pstr;
             accessor acc;
-            bool found = pop.root()->cons->find(acc, std::to_string(i));
+            bool found = pop.root()->cons->find(acc, val);
             assert(found);
+            assert(acc->first == val);
+            assert(acc->second == i);
         }
+        std::cout << "begin" << std::endl;
         for (int i = begin; i < end; i++) {
             /* assign existing keys new values */
             pstr = std::to_string(i);
@@ -138,17 +151,21 @@ void naive() {
         for (int i = begin; i < end; i++) {
             // test.check_item<const_acc>(std::to_string(i), i + 1);
             accessor acc;
-            bool found = pop.root()->cons->find(acc, std::to_string(i));
-            // assert(acc->first == i);
+            pstr = std::to_string(i);
+            const pmmtype::key_type &val = pstr;
+            bool found = pop.root()->cons->find(acc, val);
+            assert(acc->first == val);
             assert(acc->second == i + 1);
         }
     });
+    std::cout << "run: " << tracer.getRunTime() << std::endl;
     //test.check_consistency();
     // clear and recheck
     pop.root()->cons->clear();
     assert(pop.root()->cons->size() == 0);
     assert(std::distance(pop.root()->cons->begin(), pop.root()->cons->end()) == 0);
     tls->clear();
+    std::cout << "clear: " << tracer.getRunTime() << std::endl;
 }
 
 int main(int argc, char **argv) {
