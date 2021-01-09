@@ -97,6 +97,7 @@ void naive() {
     for (int i = 0; i < (1llu < 30); i++) set(pop, 8);
     std::cout << "setz: " << tracer.getRunTime() << std::endl;
 
+    std::cout << "size: " << pop.root()->cons->size() << " " << pop.root()->cons->bucket_count() << std::endl;
     pmem::obj::transaction::run(pop, [&] {
         pop.root()->cons = nvobj::make_persistent<pmmtype>();
         pop.root()->tls = nvobj::make_persistent<tlstype>();
@@ -114,7 +115,8 @@ void naive() {
 
     tls->resize(concurrency);
     std::cout << "init: " << tracer.getRunTime() << std::endl;
-    std::cout << "size: " << pop.root()->cons->size() << " " << std::endl;
+
+    std::cout << "size: " << pop.root()->cons->size() << " " << pop.root()->cons->bucket_count() << std::endl;
     parallel_exec(concurrency, [&](size_t thread_id) {
         int begin = thread_id * thread_items;
         int end = begin + int(thread_items);
@@ -149,39 +151,41 @@ void naive() {
     });
     std::cout << "roundr1: " << tracer.getRunTime() << std::endl;
 
-    parallel_exec(concurrency, [&](size_t thread_id) {
-        int begin = thread_id * thread_items;
-        int end = begin + int(thread_items);
-        auto &pstr = tls->at(thread_id);
+    for (int r = 0; r < 10; r++) {
+        parallel_exec(concurrency, [&](size_t thread_id) {
+            int begin = thread_id * thread_items;
+            int end = begin + int(thread_items);
+            auto &pstr = tls->at(thread_id);
 
-        for (int i = begin; i < end; i++) {
-            /* assign existing keys new values */
-            pstr = std::to_string(i);
-            const pmmtype::key_type &val = pstr;
-            bool result = pop.root()->cons->insert_or_assign(val, i + 1);
-            // UT_ASSERT(!result);
-            assert(!result);
-        }
-    });
-    std::cout << "roundw2: " << tracer.getRunTime() << " size: " << pop.root()->cons->size() << std::endl;
+            for (int i = begin; i < end; i++) {
+                /* assign existing keys new values */
+                pstr = std::to_string(i);
+                const pmmtype::key_type &val = pstr;
+                bool result = pop.root()->cons->insert_or_assign(val, i + 1);
+                // UT_ASSERT(!result);
+                assert(!result);
+            }
+        });
+        std::cout << "roundw" << r + 2 << ": " << tracer.getRunTime() << " size: " << pop.root()->cons->size()
+                  << std::endl;
 
-    parallel_exec(concurrency, [&](size_t thread_id) {
-        int begin = thread_id * thread_items;
-        int end = begin + int(thread_items);
-        auto &pstr = tls->at(thread_id);
+        parallel_exec(concurrency, [&](size_t thread_id) {
+            int begin = thread_id * thread_items;
+            int end = begin + int(thread_items);
+            auto &pstr = tls->at(thread_id);
 
-        for (int i = begin; i < end; i++) {
-            // test.check_item<const_acc>(std::to_string(i), i + 1);
-            accessor acc;
-            pstr = std::to_string(i);
-            const pmmtype::key_type &val = pstr;
-            bool found = pop.root()->cons->find(acc, val);
-            assert(acc->first == val);
-            assert(acc->second == i + 1);
-        }
-    });
-    std::cout << "roundr2: " << tracer.getRunTime() << std::endl;
-
+            for (int i = begin; i < end; i++) {
+                // test.check_item<const_acc>(std::to_string(i), i + 1);
+                accessor acc;
+                pstr = std::to_string(i);
+                const pmmtype::key_type &val = pstr;
+                bool found = pop.root()->cons->find(acc, val);
+                assert(acc->first == val);
+                assert(acc->second == i + 1);
+            }
+        });
+        std::cout << "roundr" << r + 2 << ": " << tracer.getRunTime() << std::endl;
+    }
     //test.check_consistency();
     // clear and recheck
     // pop.root()->cons->clear();
