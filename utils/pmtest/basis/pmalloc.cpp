@@ -92,7 +92,7 @@ void naive() {
     if (access(path, F_OK) != -1)
         pop = nvobj::pool<root>::open(path, LAYOUT);
     else
-        pop = nvobj::pool<root>::create(path, LAYOUT, PMEMOBJ_MIN_POOL * (1 << 10), S_IWUSR | S_IRUSR);
+        pop = nvobj::pool<root>::create(path, LAYOUT, PMEMOBJ_MIN_POOL * ((1 << 12) - (1 << 10)), S_IWUSR | S_IRUSR);
     std::cout << "open: " << tracer.getRunTime() << std::endl;
     for (int i = 0; i < (1llu < 30); i++) set(pop, 8);
     std::cout << "setz: " << tracer.getRunTime() << std::endl;
@@ -129,6 +129,14 @@ void naive() {
         }
         pop.root()->cons.persist();
         std::cout << "size: " << pop.root()->cons->size() << " " << std::endl;
+    });
+    std::cout << "roundw1: " << tracer.getRunTime() << std::endl;
+
+    parallel_exec(concurrency, [&](size_t thread_id) {
+        int begin = thread_id * thread_items;
+        int end = begin + int(thread_items);
+        auto &pstr = tls->at(thread_id);
+        std::cout << "size: " << pop.root()->cons->size() << " " << std::endl;
         for (int i = begin; i < end; i++) {
             //test.check_item<accessor>(std::to_string(i), i);
             pstr = std::to_string(i);
@@ -139,7 +147,14 @@ void naive() {
             assert(acc->first == val);
             assert(acc->second == i);
         }
-        std::cout << "begin" << std::endl;
+    });
+    std::cout << "roundr1: " << tracer.getRunTime() << std::endl;
+
+    parallel_exec(concurrency, [&](size_t thread_id) {
+        int begin = thread_id * thread_items;
+        int end = begin + int(thread_items);
+        auto &pstr = tls->at(thread_id);
+
         for (int i = begin; i < end; i++) {
             /* assign existing keys new values */
             pstr = std::to_string(i);
@@ -148,6 +163,14 @@ void naive() {
             // UT_ASSERT(!result);
             assert(!result);
         }
+    });
+    std::cout << "roundw2: " << tracer.getRunTime() << std::endl;
+
+    parallel_exec(concurrency, [&](size_t thread_id) {
+        int begin = thread_id * thread_items;
+        int end = begin + int(thread_items);
+        auto &pstr = tls->at(thread_id);
+
         for (int i = begin; i < end; i++) {
             // test.check_item<const_acc>(std::to_string(i), i + 1);
             accessor acc;
@@ -158,14 +181,16 @@ void naive() {
             assert(acc->second == i + 1);
         }
     });
-    std::cout << "run: " << tracer.getRunTime() << std::endl;
+    std::cout << "roundr2: " << tracer.getRunTime() << std::endl;
+
     //test.check_consistency();
     // clear and recheck
     pop.root()->cons->clear();
+    std::cout << "clear: " << tracer.getRunTime() << std::endl;
     assert(pop.root()->cons->size() == 0);
     assert(std::distance(pop.root()->cons->begin(), pop.root()->cons->end()) == 0);
     tls->clear();
-    std::cout << "clear: " << tracer.getRunTime() << std::endl;
+    std::cout << "empty: " << tracer.getRunTime() << std::endl;
 }
 
 int main(int argc, char **argv) {
