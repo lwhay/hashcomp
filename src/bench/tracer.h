@@ -34,6 +34,8 @@ using namespace std;
 
 #define WITH_NUMA   0
 
+#define MULTIINIT          1
+
 #if WITH_NUMA != 0
 unsigned num_cpus = std::thread::hardware_concurrency();
 cpu_set_t default_cpuset;
