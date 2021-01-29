@@ -26,6 +26,8 @@
 #define DEFAULT_KEYS_COUNT (1 << 20)
 #define DEFAULT_KEYS_RANGE (1 << 2)
 
+#define MULTIINIT          1
+
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
 
@@ -279,6 +281,9 @@ void simpleInsert() {
 
 void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
+#if TRICK_MAP != 17
+    store->initThread(work->tid);
+#endif
     uint64_t inserted = 0;
     for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
         store->Insert(loads[i], loads[i]);
@@ -412,12 +417,17 @@ void multiWorkers() {
     output = new stringstream[thread_number];
     Tracer tracer;
     tracer.startTime();
-    /*for (int i = 0; i < thread_number; i++) {
+#if MULTIINIT
+    for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], nullptr, insertWorker, &parms[i]);
     }
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], nullptr);
-    }*/
+    }
+#if INPUT_SHUFFLE == 1
+    std::random_shuffle(loads, loads + total_count);
+#endif
+#endif
     cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     Timer timer;
     timer.start();
@@ -462,15 +472,18 @@ int main(int argc, char **argv) {
         root_capacity = std::atoi(argv[8]);
     store = new maptype(root_capacity, 20, thread_number + 1);
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
-         << timer_range << " skew: " << distribution_skew << " u:e:r = " << updatePercentage << ":" << erasePercentage
+         << timer_range << " skew: " << distribution_skew << " u:e:r = " << updatePercentage << ":"
+         << erasePercentage
          << ":" << readPercentage << endl;
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, distribution_skew);
     prepare();
     cout << "simple" << endl;
+#if !MULTIINIT
     simpleInsert();
 #if INPUT_SHUFFLE == 1
     std::random_shuffle(loads, loads + total_count);
+#endif
 #endif
     cout << "multiinsert" << endl;
     multiWorkers();

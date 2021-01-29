@@ -114,9 +114,9 @@ void simpleInsert() {
 }
 
 void *insertWorker(void *args) {
-    //struct target *work = (struct target *) args;
+    struct target *work = (struct target *) args;
     uint64_t inserted = 0;
-    for (int i = 0; i < total_count; i++) {
+    for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
         auto callback = [](IAsyncContext *ctxt, Status result) {
             CallbackContext<UpsertContext> context{ctxt};
         };
