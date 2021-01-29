@@ -318,7 +318,7 @@ int main(int argc, char **argv) {
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
     init_size = next_power_of_two(root_capacity / 2);
-    store = new store_t(init_size, 17179869184, "storage");
+    store = new store_t(init_size, 171798691840, "storage");
     cout << " threads: " << thread_number << " range: " << key_range << " count: " << total_count << " timer: "
          << timer_range << " skew: " << skew << " u:e:r = " << updatePercentage << ":" << erasePercentage << ":"
          << readPercentage << endl;
