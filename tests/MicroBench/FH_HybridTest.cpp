@@ -24,6 +24,8 @@
 #define DEFAULT_KEYS_COUNT (1 << 20)
 #define DEFAULT_KEYS_RANGE (1 << 2)
 
+#define MULTIINIT          1
+
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
 
@@ -273,12 +275,17 @@ void multiWorkers() {
     output = new stringstream[thread_number];
     Tracer tracer;
     tracer.startTime();
-    /*for (int i = 0; i < thread_number; i++) {
+#if MULTIINIT
+    for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], nullptr, insertWorker, &parms[i]);
     }
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], nullptr);
-    }*/
+    }
+#if INPUT_SHUFFLE == 1
+    std::random_shuffle(loads, loads + total_count);
+#endif
+#endif
     cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     Timer timer;
     timer.start();
@@ -319,9 +326,11 @@ int main(int argc, char **argv) {
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
     prepare();
     cout << "simple" << endl;
+#if !MULTIINIT
     simpleInsert();
 #if INPUT_SHUFFLE == 1
     std::random_shuffle(loads, loads + total_count);
+#endif
 #endif
     cout << "multiinsert" << endl;
     multiWorkers();

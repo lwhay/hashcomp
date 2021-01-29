@@ -18,6 +18,8 @@
 #define DEFAULT_STR_LENGTH 256
 //#define DEFAULT_KEY_LENGTH 8
 
+#define MULTIINIT          1
+
 #define COUNT_HASH         1
 
 typedef libcuckoo::cuckoohash_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
@@ -83,9 +85,9 @@ void simpleInsert() {
 }
 
 void *insertWorker(void *args) {
-    //struct target *work = (struct target *) args;
+    struct target *work = (struct target *) args;
     uint64_t inserted = 0;
-    for (int i = 0; i < total_count; i++) {
+    for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
         store->insert(loads[i], loads[i]);
         inserted++;
     }
@@ -179,13 +181,18 @@ void multiWorkers() {
     output = new stringstream[thread_number];
     Tracer tracer;
     tracer.startTime();
-    /*for (int i = 0; i < thread_number; i++) {
+#if MULTIINIT
+    for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], nullptr, insertWorker, &parms[i]);
     }
     for (int i = 0; i < thread_number; i++) {
         pthread_join(workers[i], nullptr);
-    }*/
+    }
     cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
+#if INPUT_SHUFFLE == 1
+    std::random_shuffle(loads, loads + total_count);
+#endif
+#endif
     Timer timer;
     timer.start();
     for (int i = 0; i < thread_number; i++) {
@@ -223,10 +230,12 @@ int main(int argc, char **argv) {
     loads = (uint64_t *) calloc(total_count, sizeof(uint64_t));
     RandomGenerator<uint64_t>::generate(loads, key_range, total_count, skew);
     prepare();
+#if !MULTIINIT
     cout << "simple" << endl;
     simpleInsert();
 #if INPUT_SHUFFLE == 1
     std::random_shuffle(loads, loads + total_count);
+#endif
 #endif
     cout << "multiinsert" << endl;
     multiWorkers();
