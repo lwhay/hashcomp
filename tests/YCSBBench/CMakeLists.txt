@@ -170,6 +170,7 @@ if (WITH_LIBCUCKOO)
     link_directories(${LIBCUCKOO_PREFIX}/src/libcukoo-build/)
 
     set(CUKOO_YCSB_TEST
+            IH_YCSBTest.cpp
             CH_YCSBTest.cpp
             CH_MicroBench.cpp)
 

@@ -227,11 +227,12 @@ public:
                     if (i % 2 == 0) {
                         requests.push_back(
                                 new YCSB_request(static_cast<YCSB_operator>(i), strdup(fields[2].substr(4).c_str()),
-                                                 fields[2].length()));
+                                                 fields[2].length() - 4));
                     } else {
                         requests.push_back(
                                 new YCSB_request(static_cast<YCSB_operator>(i), strdup(fields[2].substr(4).c_str()),
-                                                 fields[2].length(), strdup(fields[3].c_str()), fields[3].length()));
+                                                 fields[2].length() - 4, strdup(fields[3].c_str()),
+                                                 fields[3].length()));
                     }
                     if (++numberOfRequests == limitOfRequests) goto complete;
                 }
