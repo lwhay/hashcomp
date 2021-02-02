@@ -91,8 +91,6 @@ typedef libcuckoo::new_cuckoohash_map cmap;
 
 cmap *store;
 
-cmap tmp(25);
-
 std::vector<YCSB_request *> loads;
 
 std::vector<YCSB_request *> runs;
@@ -115,7 +113,7 @@ int key_range = DEFAULT_KEYS_RANGE;
 
 double skew = 0.0;
 
-int root_capacity = (1 << 16);
+int root_capacity = (25);
 
 stringstream *output;
 
@@ -268,7 +266,10 @@ int main(int argc, char **argv) {
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
-    store = &tmp;
+    cmap tmp(25);
+    cmap engine(1);
+    store = &engine;
+    store->swap(tmp);
     YCSBLoader loader(loadpath, key_range);
     loads = loader.load();
     key_range = loader.size();
