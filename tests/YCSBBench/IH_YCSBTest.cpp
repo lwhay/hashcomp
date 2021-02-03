@@ -161,6 +161,7 @@ void *measureWorker(void *args) {
     Tracer tracer;
     tracer.startTime();
     struct target *work = (struct target *) args;
+    libcuckoo::thread_id = work->tid;
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
     try {
@@ -266,6 +267,8 @@ int main(int argc, char **argv) {
     }
     if (argc > 8)
         root_capacity = std::atoi(argv[8]);
+    uint64_t power = 0, root_size = root_capacity;
+    do { power++; } while (root_size = (root_size >> 1));
     cmap tmp(25);
     cmap engine(1);
     store = &engine;
