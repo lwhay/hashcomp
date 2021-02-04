@@ -140,6 +140,8 @@ struct target *parms;
 void simpleInsert() {
     Tracer tracer;
     tracer.startTime();
+    libcuckoo::cuckoo_thread_id = 0;
+    store->brown_init_thread(0);
     int inserted = 0;
     for (int i = 0; i < key_range; i++, inserted++) {
         // cout << inserted << endl;
@@ -163,6 +165,7 @@ void *measureWorker(void *args) {
     tracer.startTime();
     struct target *work = (struct target *) args;
     libcuckoo::cuckoo_thread_id = work->tid;
+    store->brown_init_thread(work->tid);
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
     try {
@@ -270,8 +273,8 @@ int main(int argc, char **argv) {
         root_capacity = std::atoi(argv[8]);
     uint64_t power = 0, root_size = root_capacity;
     do { power++; } while (root_size = (root_size >> 1));
-    cmap tmp(25);
-    cmap engine(1);
+    cmap tmp(25, thread_number);
+    cmap engine(1, thread_number);
     store = &engine;
     store->swap(tmp);
     YCSBLoader loader(loadpath, key_range);

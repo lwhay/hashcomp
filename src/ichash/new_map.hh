@@ -1209,7 +1209,7 @@ namespace libcuckoo {
             size_t par_ptr = buckets_.read_from_bucket_slot(pos.index,pos.slot);
             size_t ptr = get_ptr(par_ptr);
             bool a = str_equal_to()(ITEM_KEY(ptr),ITEM_KEY_LEN(ptr),key,key_len);
-            ASSERT(a,"key error");
+            // if (!a) cout << "key error" << endl;
             buckets_.deallocator->read(cuckoo_thread_id);
             return true;
         }
