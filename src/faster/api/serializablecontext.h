@@ -142,6 +142,8 @@ class DeleteContext;
 
 class ReadContext;
 
+class RmwContext;
+
 class GenLock {
 public:
     GenLock() : control_{0} {}
@@ -299,7 +301,8 @@ public:
     friend class DeleteContext;
 
     friend class ReadContext;
-
+    
+    friend class RmwContext;
 private:
     AtomicGenLock gen_lock_;
     uint32_t length_;
@@ -312,6 +315,79 @@ private:
     inline uint8_t *buffer() {
         return value_;
     }
+};
+
+class RmwContext : public IAsyncContext {
+public:
+    typedef Key key_t;
+    typedef Value value_t;
+
+    RmwContext(Key key, Value value) : key_{key}, length_{value.length_}, input_buffer(new uint8_t[length_]) {
+        std::memcpy(input_buffer, value.value_, length_);
+    }
+
+
+    RmwContext(const RmwContext &other) : key_{other.key_}, length_{other.length_} {
+        input_buffer = new uint8_t[length_];
+        std::memcpy(input_buffer, other.input_buffer, length_);
+    }
+
+    ~RmwContext() { delete[] input_buffer; }
+
+    void reset(uint8_t *buffer) {
+        std::memcpy(input_buffer, buffer, length_);
+    }
+
+    inline const Key &key() const {
+        return key_;
+    }
+
+    inline uint32_t value_size() const {
+        return sizeof(Value) + length_;
+    }
+
+    inline uint8_t *get() const {
+        return input_buffer;
+    }
+
+    inline void RmwInitial(Value &value) {
+        assert(input_buffer != value.value_);
+        value.reset(input_buffer, length_);
+    }
+
+    inline void RmwCopy(Value &old_value,Value &new_value) {
+        new_value.reset(input_buffer, length_);
+    }
+
+    inline bool RmwAtomic(Value &value) {
+        bool replaced;
+        while (!value.gen_lock_.try_lock(replaced) && !replaced) {
+            std::this_thread::yield();
+        }
+        if (replaced) {
+            return false;
+        }
+        if (value.length_ < length_) {
+            value.gen_lock_.unlock(true);
+            return false;
+        }
+
+        value.length_ = length_;
+        if(value.buffer()[0]!='a')
+            value.buffer()[0]=='a';
+        value.gen_lock_.unlock(false);
+        return true;
+    }
+
+protected:
+    Status DeepCopy_Internal(IAsyncContext *&context_copy) {
+        return IAsyncContext::DeepCopy_Internal(*this, context_copy);
+    }
+
+private:
+    Key key_;
+    uint32_t length_;
+    uint8_t *input_buffer;
 };
 
 class UpsertContext : public IAsyncContext {

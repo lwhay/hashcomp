@@ -24,6 +24,7 @@
 thread_local uint64_t brown_tid;
 thread_local uint64_t holder{0};
 static int free_type = -1; // 0: hazard; 1: debraplus; 2: others
+static uint64_t brown_ptr_mask = 0xffffffffffffull;
 
 template<typename T, class N, class P, class R, typename D = T>
 class brown_reclaim : public ihazard<T, D> {
@@ -81,23 +82,28 @@ public:
         //return (uint64_t) alloc->allocate(brown_tid);
     }
 
-    uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) {
+    uint64_t load(size_t tid, std::atomic<uint64_t> &atomic_entry) {
+
         if (free_type == 0) {
+            ASSERT(false,"brown not define")
             uint64_t address = 0;
+            uint64_t par_ptr = atomic_entry.load(std::memory_order_relaxed);
             do {
                 if (address != 0) reclaimer->unprotect(brown_tid, (D *) address);
-                address = ptr.load(std::memory_order_relaxed);
+                address = atomic_entry.load(std::memory_order_relaxed) & brown_ptr_mask;
                 if (address == 0) break;
                 reclaimer->protect(brown_tid, (D *) address, callbackReturnTrue, nullptr, false);
-            } while (address != ptr.load(std::memory_order_relaxed));
+                par_ptr = atomic_entry.load(std::memory_order_relaxed);
+            } while (address != (par_ptr & brown_ptr_mask) ) ;
             holder = address;
-            return address;
+            return par_ptr;
         } else {
-            holder = ptr.load(std::memory_order_relaxed);
-            if (holder == 0) return holder;
+            uint64_t entry = atomic_entry.load(std::memory_order_relaxed);
+            holder =  entry & brown_ptr_mask;
+            if (holder == 0 ) return entry;
             //std::cout << "start: " << tid << " " << address << std::endl;
             reclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
-            return ptr.load(std::memory_order_relaxed);
+            return atomic_entry.load(std::memory_order_relaxed);
         }
     }
 
@@ -138,9 +144,9 @@ public:
         }
     }
 
-    bool free(uint64_t ptr) {
+    bool free(uint64_t entry) {
         //std::cout << ftid << std::endl;
-        reclaimer->retire(brown_tid, (D *) ptr);
+        reclaimer->retire(brown_tid, (D *) (entry & brown_ptr_mask));
         if (free_type != 0) {
             //alloc->deallocate(ftid, (T *) ptr);
             /*reclaimer->template startOp<T>(ftid, (void *const *const) &reclaimer, 1);

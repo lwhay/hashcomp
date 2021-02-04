@@ -6,8 +6,6 @@
 #include <cstddef>
 #include <limits>
 
-#define ASSERT(exp_, msg_) if(!(exp_)) {std::cerr<<"ASSERT FALSE : "<<msg_<<std::endl;assert(false);}
-
 namespace libcuckoo {
 
 //! The default maximum number of keys per bucket

@@ -13,9 +13,18 @@
 //#include "brown_reclaim.h"
 #include "cuckoohash_util.hh"
 
+#include "item.h"
+#include "brown_reclaim.h"
+
 namespace libcuckoo {
 
     static const int ATOMIC_ALIGN_RATIO = 1;
+
+    thread_local int cuckoo_thread_id;
+
+#define alloc allocator_new
+#define pool pool_perthread_and_shared
+typedef brown_reclaim<Item , alloc<Item>, pool<>, reclaimer_ebr_token<>> brown6;
 
 template <std::size_t SLOT_PER_BUCKET>
 class bucket_container {
@@ -55,17 +64,21 @@ public:
 
   };
 
-  bucket_container(size_type hp):hashpower_(hp),ready_to_destory(false){
+  bucket_container(size_type hp,int cuckoo_thread_num):hashpower_(hp),ready_to_destory(false){
       buckets_ = new bucket[size()]();
+      deallocator = new brown6 (cuckoo_thread_num);
   }
 
+  bucket_container(size_type hp):hashpower_(hp),ready_to_destory(false){
+        buckets_ = new bucket[size()]();
+    }
   ~bucket_container() noexcept { destroy_buckets(); }
 
   void destroy_buckets() noexcept {
         bool still_have_item = false;
         for (size_type i = 0; i < size(); ++i) {
             for(size_type j = 0; j < SLOT_PER_BUCKET ;j++){
-                if(read_from_bucket_slot(i,j) != (uint64_t) nullptr){
+                if(buckets_[i].values_[j].load() != (uint64_t) nullptr){
                     still_have_item = true;
                     break;
                 }
@@ -79,6 +92,14 @@ public:
         size_t bc_hashpower = bc.hashpower();
         bc.hashpower(hashpower());
         hashpower(bc_hashpower);
+        std::swap(buckets_, bc.buckets_);
+    }
+
+    void swap_first(bucket_container &bc) noexcept {
+        size_t bc_hashpower = bc.hashpower();
+        bc.hashpower(hashpower());
+        hashpower(bc_hashpower);
+        this->deallocator = bc.deallocator;
         std::swap(buckets_, bc.buckets_);
     }
 
@@ -96,12 +117,14 @@ public:
   const bucket &operator[](size_type i) const { return buckets_[i]; }
 
 
-  inline size_type read_from_slot(const bucket &b,size_type slot){
-      return b.values_[slot * ATOMIC_ALIGN_RATIO].load();
+  inline size_type read_from_slot( bucket &b,size_type slot){
+      return deallocator->load(cuckoo_thread_id,b.values_[slot * ATOMIC_ALIGN_RATIO]);
+      //return b.values_[slot * ATOMIC_ALIGN_RATIO].load();
   }
 
   inline size_type read_from_bucket_slot(size_type ind,size_type slot){
-      return buckets_[ind].values_[slot * ATOMIC_ALIGN_RATIO].load();
+      return deallocator->load(cuckoo_thread_id,std::ref( buckets_[ind].values_[slot * ATOMIC_ALIGN_RATIO]));
+      //return buckets_[ind].values_[slot * ATOMIC_ALIGN_RATIO].load();
   }
 
   inline atomic<size_t> & get_atomic_par_ptr(size_type ind,size_type slot){
@@ -121,15 +144,39 @@ public:
         bucket &b = buckets_[ind];
         uint64_t old = b.values_[slot * ATOMIC_ALIGN_RATIO].load();
         if(old != old_ptr) return false;
-        return b.values_[slot * ATOMIC_ALIGN_RATIO].compare_exchange_strong(old,update_ptr);
+        if(b.values_[slot * ATOMIC_ALIGN_RATIO].compare_exchange_strong(old,update_ptr)){
+            deallocator->free(old);
+            return true;
+        }else{
+            return false;
+        }
   }
 
   bool try_eraseKV(size_type ind, size_type slot,uint64_t erase_ptr) {
         bucket &b = buckets_[ind];
         uint64_t old = b.values_[slot * ATOMIC_ALIGN_RATIO].load();
         if(old != erase_ptr) return false;
-        return b.values_[slot * ATOMIC_ALIGN_RATIO].compare_exchange_strong(old,(uint64_t) nullptr);
+        if(b.values_[slot * ATOMIC_ALIGN_RATIO].compare_exchange_strong(old,(uint64_t) nullptr)){
+            deallocator->free(old);
+            return true;
+        }else{
+            return false;
+        }
+
   }
+
+    Item * allocate_item(char * key,size_t key_len,char * value,size_t value_len){
+        //Item * p = (Item * )malloc(key_len + value_len + 2 * sizeof(uint32_t));
+        Item * p =  (Item *) deallocator->allocate(cuckoo_thread_id);;
+        ASSERT(p!= nullptr,"malloc failure");
+        p->key_len = key_len;
+        p->value_len = value_len;
+        memcpy(ITEM_KEY(p),key,key_len);
+        memcpy(ITEM_VALUE(p),value,value_len);
+        return p;
+    }
+
+
 
   //only for kick and rehash
   //par_ptr holding kick lock
@@ -179,6 +226,7 @@ public:
       ready_to_destory = true;
   }
 
+    ihazard<Item> *deallocator;
 private:
     bool ready_to_destory;
 
