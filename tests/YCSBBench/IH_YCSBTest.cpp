@@ -11,6 +11,7 @@
 #include <mutex>
 #include <stdio.h>
 #include <stdlib.h>
+#include <bitset>
 #include "tracer.h"
 #include "ichash/new_map.hh"
 
@@ -161,7 +162,7 @@ void *measureWorker(void *args) {
     Tracer tracer;
     tracer.startTime();
     struct target *work = (struct target *) args;
-    libcuckoo::thread_id = work->tid;
+    libcuckoo::cuckoo_thread_id = work->tid;
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
     try {
