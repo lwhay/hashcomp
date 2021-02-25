@@ -149,7 +149,7 @@ public:
         reclaimer->retire(brown_tid, (D *) (entry & brown_ptr_mask));
         if (free_type != 0) {
             //alloc->deallocate(ftid, (T *) ptr);
-            eclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
+            reclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
             /*rreclaimer->endOp(ftid);*/
             // reclaimer->rotateEpochBags(brown_tid);
         }
