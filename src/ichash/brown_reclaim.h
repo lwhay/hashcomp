@@ -44,7 +44,7 @@ protected:
     using ihazard<T, D>::thread_number;
 
 public:
-    brown_reclaim(size_t total_thread) : thread_num(total_thread + 1) {
+    brown_reclaim(size_t total_thread) : thread_num(total_thread/* + 1*/) {
         alloc = new Allocator(thread_num, nullptr);
         pool = new Pool(thread_num, alloc, nullptr);
         reclaimer = new Reclaimer(thread_num, pool, nullptr);
@@ -82,10 +82,10 @@ public:
         //return (uint64_t) alloc->allocate(brown_tid);
     }
 
-    uint64_t load(size_t tid, std::atomic<uint64_t> &atomic_entry) {
+    uint64_t load(size_t tid, std::atomic <uint64_t> &atomic_entry) {
 
         if (free_type == 0) {
-            ASSERT(false,"brown not define")
+            ASSERT(false, "brown not define")
             uint64_t address = 0;
             uint64_t par_ptr = atomic_entry.load(std::memory_order_relaxed);
             do {
@@ -94,13 +94,13 @@ public:
                 if (address == 0) break;
                 reclaimer->protect(brown_tid, (D *) address, callbackReturnTrue, nullptr, false);
                 par_ptr = atomic_entry.load(std::memory_order_relaxed);
-            } while (address != (par_ptr & brown_ptr_mask) ) ;
+            } while (address != (par_ptr & brown_ptr_mask));
             holder = address;
             return par_ptr;
         } else {
             uint64_t entry = atomic_entry.load(std::memory_order_relaxed);
-            holder =  entry & brown_ptr_mask;
-            if (holder == 0 ) return entry;
+            holder = entry & brown_ptr_mask;
+            if (holder == 0) return entry;
             //std::cout << "start: " << tid << " " << address << std::endl;
             reclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
             return atomic_entry.load(std::memory_order_relaxed);
@@ -149,9 +149,9 @@ public:
         reclaimer->retire(brown_tid, (D *) (entry & brown_ptr_mask));
         if (free_type != 0) {
             //alloc->deallocate(ftid, (T *) ptr);
-            /*reclaimer->template startOp<T>(ftid, (void *const *const) &reclaimer, 1);
-            reclaimer->endOp(ftid);*/
-            reclaimer->rotateEpochBags(brown_tid);
+            reclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
+            /*rreclaimer->endOp(ftid);*/
+            // reclaimer->rotateEpochBags(brown_tid);
         }
         //std::free((T *) ptr);
         return true;
