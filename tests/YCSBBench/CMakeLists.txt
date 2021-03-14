@@ -171,6 +171,7 @@ if (WITH_LIBCUCKOO)
 
     set(CUKOO_YCSB_TEST
             LC_YCSBTest.cpp
+            LC_YCSBTest1.cpp
             IH_YCSBTest.cpp
             CH_YCSBTest.cpp
             CH_MicroBench.cpp)
