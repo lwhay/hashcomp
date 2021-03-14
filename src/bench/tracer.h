@@ -213,7 +213,7 @@ public:
                                                                                  numberOfRequests(0),
                                                                                  limitOfRequests(number) {}
 
-    std::vector<YCSB_request *> load() {
+    std::vector<YCSB_request *> load(int start = 4) {
         std::vector<YCSB_request *> requests;
         std::fstream lf(inputpath, ios::in);
         string line;
@@ -226,12 +226,12 @@ public:
                 if (fields[0].compare(YCSB_command[i]) == 0) {
                     if (i % 2 == 0) {
                         requests.push_back(
-                                new YCSB_request(static_cast<YCSB_operator>(i), strdup(fields[2].substr(4).c_str()),
-                                                 fields[2].length() - 4));
+                                new YCSB_request(static_cast<YCSB_operator>(i), strdup(fields[2].substr(start).c_str()),
+                                                 fields[2].length() - start));
                     } else {
                         requests.push_back(
-                                new YCSB_request(static_cast<YCSB_operator>(i), strdup(fields[2].substr(4).c_str()),
-                                                 fields[2].length() - 4, strdup(fields[3].c_str()),
+                                new YCSB_request(static_cast<YCSB_operator>(i), strdup(fields[2].substr(start).c_str()),
+                                                 fields[2].length() - start, strdup(fields[3].c_str()),
                                                  fields[3].length()));
                     }
                     if (++numberOfRequests == limitOfRequests) goto complete;
