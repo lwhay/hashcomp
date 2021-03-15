@@ -34,8 +34,9 @@ public:
 template<class KeyType>
 class StrComparator {
 public:
-    int operator()(const KeyType &a, const KeyType &b) const {
-        return std::strcmp((char *) a, (char *) b);
+    int operator()(const KeyType &a, uint32_t kl_a, const KeyType &b, uint32_t kl_b) const {
+        if (kl_a != kl_b) return false;
+        return std::memcmp((char *) a, (char *) b, kl_a);
     }
 };
 
@@ -44,62 +45,71 @@ class Entry {
 public:
     KeyType key;
     char *value;
+    uint32_t klen;
+    uint32_t vlen;
 
-    Entry<KeyType>(const KeyType &k, const char *v);
+    Entry<KeyType>(const KeyType &k, uint32_t k_len, const char *v, uint32_t v_len);
 
     ~Entry<KeyType>();
 };
 
 template<class KeyType>
-Entry<KeyType>::Entry(const KeyType &k, const char *v) : key(k) {
-    value = new char[strlen(v) + 1];
-    strcpy(value, v);
+Entry<KeyType>::Entry(const KeyType &k, uint32_t k_len, const char *v, uint32_t v_len) : klen(k_len), vlen(v_len) {
+    key = static_cast<KeyType>(std::malloc(klen));
+    value = static_cast<char *>(std::malloc(vlen));
+    std::memcpy(key, k, klen);
+    std::memcpy(value, v, vlen);
+    klen = k_len;
+    vlen = v_len;
 }
 
 template<class KeyType>
 Entry<KeyType>::~Entry() {
-    delete value;
+    std::free(key);
+    std::free(value);
 }
 
 template<class KeyType>
-class lockFreeCuckoo {
+class LockFreeCuckoo {
 private:
     Entry<KeyType> *cursor;
     static const int FIRST = 0;
     static const int SECOND = 1;
     static const int NIL = -1;
     // static const char *NP = (char *) 0;
-public:
+
     std::atomic<Entry<KeyType> *> *table1;
     std::atomic<Entry<KeyType> *> *table2;
     size_t t1Size;
     size_t t2Size;
 
-    lockFreeCuckoo(size_t size1, size_t size2);
+public:
+    LockFreeCuckoo(size_t size1, size_t size2);
 
-    ~lockFreeCuckoo();
+    ~LockFreeCuckoo();
 
-    char *Search(KeyType key);
+    char *Search(KeyType key, uint32_t k_len);
 
-    bool Insert(const char *address, const KeyType &key);
+    bool Insert(const KeyType &key, uint32_t k_len, const char *address, uint32_t v_len);
 
-    bool Delete(const KeyType &key);
+    bool Delete(const KeyType &key, uint32_t k_len);
 
-    bool Contains(const KeyType &key) const;
+    bool Contains(const KeyType &key, uint32_t k_len) const;
 
-    bool moveToKey(const KeyType &searchKey);
+    bool moveToKey(const KeyType &searchKey, uint32_t k_len);
 
     char *nextValueAtKey();
 
     size_t getSize();
 
     void ensureCapacity(uint32_t capacity);    // resize
+
     void printTable();
 
 private:
     void init();
 
-    int Find(KeyType key, Entry<KeyType> **ent1, Entry<KeyType> **ent2);
+    int Find(KeyType key, uint32_t k_len, Entry<KeyType> **ent1, Entry<KeyType> **ent2);
 
     bool Relocate(int tableNum, int pos);
 
@@ -107,14 +117,13 @@ private:
 
     void deleteDup(int idx1, Entry<KeyType> *ent1, int idx2, Entry<KeyType> *ent2);
 
-    int hash1(const KeyType key) const;
+    int hash1(const KeyType key, uint32_t k_len) const;
 
-    int hash2(const KeyType key) const;
+    int hash2(const KeyType key, uint32_t k_len) const;
 
 private:
     // KeyComparator不需要大家实现，但是key的比较需要由compare_来完成
     StrComparator<KeyType> /*const*/ compare_;
-
 };
 
 
@@ -160,9 +169,8 @@ bool checkCounter(int ctr1, int ctr2, int ctrs1, int ctrs2) {
     return false;
 }
 
-
 template<class KeyType>
-lockFreeCuckoo<KeyType>::lockFreeCuckoo(size_t size1, size_t size2) : t1Size(size1), t2Size(size2) {
+LockFreeCuckoo<KeyType>::LockFreeCuckoo(size_t size1, size_t size2) : t1Size(size1), t2Size(size2) {
     table1 = new std::atomic<Entry<KeyType> *>[size1];
     table2 = new std::atomic<Entry<KeyType> *>[size2];
     cursor = NULL;
@@ -170,13 +178,14 @@ lockFreeCuckoo<KeyType>::lockFreeCuckoo(size_t size1, size_t size2) : t1Size(siz
 }
 
 template<class KeyType>
-lockFreeCuckoo<KeyType>::~lockFreeCuckoo() {
+LockFreeCuckoo<KeyType>::~LockFreeCuckoo() {
+    cout << table1 << endl;
     delete table1;
     delete table2;
 }
 
 template<class KeyType>
-void lockFreeCuckoo<KeyType>::init() {
+void LockFreeCuckoo<KeyType>::init() {
     Entry<KeyType> *temp = NULL;
     for (int i = 0; i < t1Size; i++) {
         atomic_store(&table1[i], temp);
@@ -188,7 +197,7 @@ void lockFreeCuckoo<KeyType>::init() {
 }
 
 template<class KeyType>
-int lockFreeCuckoo<KeyType>::hash1(const KeyType keyIn) const {
+int LockFreeCuckoo<KeyType>::hash1(const KeyType keyIn, uint32_t k_len) const {
     /*int num = 0x27d4eb2d; // a prime or an odd constant
     KeyType key = keyIn;
     key = (key ^ 61) ^ (key >> 16);
@@ -203,10 +212,10 @@ int lockFreeCuckoo<KeyType>::hash1(const KeyType keyIn) const {
     const size_t r = 47;
     uint64_t seed = kHashSeed;
 
-    uint64_t h = seed ^(std::strlen(key) * m);
+    uint64_t h = seed ^(k_len * m);
 
     const auto *data = (const uint64_t *) key;
-    const uint64_t *end = data + (std::strlen(key) / 8);
+    const uint64_t *end = data + (k_len / 8);
 
     while (data != end) {
         uint64_t k = *data++;
@@ -221,7 +230,7 @@ int lockFreeCuckoo<KeyType>::hash1(const KeyType keyIn) const {
 
     const auto *data2 = (const unsigned char *) data;
 
-    switch (std::strlen(key) & 7ull) {
+    switch (k_len & 7ull) {
         case 7:
             h ^= uint64_t(data2[6]) << 48ull;
         case 6:
@@ -247,7 +256,7 @@ int lockFreeCuckoo<KeyType>::hash1(const KeyType keyIn) const {
 }
 
 template<class KeyType>
-int lockFreeCuckoo<KeyType>::hash2(const KeyType keyIn) const {
+int LockFreeCuckoo<KeyType>::hash2(const KeyType keyIn, uint32_t k_len) const {
     /*KeyType key = keyIn;
     key = ((key >> 16) ^ key) * 0x45d9f3b;
     key = ((key >> 16) ^ key) * 0x45d9f3b;
@@ -259,11 +268,10 @@ int lockFreeCuckoo<KeyType>::hash2(const KeyType keyIn) const {
     const size_t r = 47;
     uint64_t seed = kHashSeed;
 
-    uint64_t h = seed ^(std::strlen(key) * m);
+    uint64_t h = seed ^(k_len * m);
 
-    size_t len = std::strlen(key);
     const auto *data = (const uint64_t *) key;
-    const uint64_t *end = data + (std::strlen(key) / 8);
+    const uint64_t *end = data + (k_len / 8);
 
     while (data != end) {
         uint64_t k = *data++;
@@ -278,7 +286,7 @@ int lockFreeCuckoo<KeyType>::hash2(const KeyType keyIn) const {
 
     const auto *data2 = (const unsigned char *) data;
 
-    switch (std::strlen(key) & 7ull) {
+    switch (k_len & 7ull) {
         case 7:
             h ^= uint64_t(data2[6]) << 48ull;
         case 6:
@@ -304,7 +312,7 @@ int lockFreeCuckoo<KeyType>::hash2(const KeyType keyIn) const {
 }
 
 template<class KeyType>
-void lockFreeCuckoo<KeyType>::helpRelocate(int which, int idx, bool initiator) {
+void LockFreeCuckoo<KeyType>::helpRelocate(int which, int idx, bool initiator) {
     Entry<KeyType> *srcEntry, *dstEntry, *tmpEntry;
     int dstIdx, nCnt, cnt1, cnt2, size[2];
     atomic<Entry<KeyType> *> *tbl[2];
@@ -326,8 +334,8 @@ void lockFreeCuckoo<KeyType>::helpRelocate(int which, int idx, bool initiator) {
         if (!(is_marked((void *) srcEntry)))
             return;
 
-        KeyType key = extract_address(srcEntry)->key;
-        dstIdx = (which == FIRST ? hash2(key) : hash1(key));
+        Entry<KeyType> *ent = extract_address(srcEntry);
+        dstIdx = (which == FIRST ? hash2(ent->key, ent->klen) : hash1(ent->key, ent->klen));
         dstEntry = atomic_load_explicit(&tbl[1 - which][dstIdx], memory_order_seq_cst);
         if (extract_address(dstEntry) == NULL) {
             cnt1 = get_cnt((void *) srcEntry);
@@ -360,9 +368,8 @@ void lockFreeCuckoo<KeyType>::helpRelocate(int which, int idx, bool initiator) {
     }
 }
 
-
 template<class KeyType>
-void lockFreeCuckoo<KeyType>::deleteDup(int idx1, Entry<KeyType> *ent1, int idx2, Entry<KeyType> *ent2) {
+void LockFreeCuckoo<KeyType>::deleteDup(int idx1, Entry<KeyType> *ent1, int idx2, Entry<KeyType> *ent2) {
     Entry<KeyType> *tmp1, *tmp2;
     KeyType key1, key2;
     int cnt;
@@ -370,9 +377,9 @@ void lockFreeCuckoo<KeyType>::deleteDup(int idx1, Entry<KeyType> *ent1, int idx2
     tmp2 = atomic_load(&table2[idx2]);
     if ((ent1 != tmp1) && (ent2 != tmp2))
         return;
-    key1 = extract_address(ent1)->key;
-    key2 = extract_address(ent2)->key;
-    if (key1 != key2)
+    Entry<KeyType> *e1 = extract_address(ent1);
+    Entry<KeyType> *e2 = extract_address(ent2);
+    if (compare_(e1->key, e1->klen, e2->key, e2->klen))
         return;
     tmp2 = NULL;
     cnt = get_cnt(ent2);
@@ -381,9 +388,9 @@ void lockFreeCuckoo<KeyType>::deleteDup(int idx1, Entry<KeyType> *ent1, int idx2
 }
 
 template<class KeyType>
-char *lockFreeCuckoo<KeyType>::Search(KeyType key) {
-    int h1 = hash1(key);
-    int h2 = hash2(key);
+char *LockFreeCuckoo<KeyType>::Search(KeyType key, uint32_t k_len) {
+    int h1 = hash1(key, k_len);
+    int h2 = hash2(key, k_len);
     int cnt1, cnt2, ncnt1, ncnt2;
     while (true) {
         // 1st round
@@ -391,25 +398,25 @@ char *lockFreeCuckoo<KeyType>::Search(KeyType key) {
         Entry<KeyType> *ent1 = atomic_load_explicit(&table1[h1], memory_order_relaxed);
         cnt1 = get_cnt(ent1);
         ent1 = extract_address(ent1);
-        if (ent1 != NULL && !compare_(ent1->key, key))
+        if (ent1 != NULL && !compare_(ent1->key, ent1->klen, key, k_len))
             return ent1->value;
         // Looking in table 2
         Entry<KeyType> *ent2 = atomic_load_explicit(&table2[h2], memory_order_relaxed);
         cnt2 = get_cnt(ent2);
         ent2 = extract_address(ent2);
-        if (ent2 != NULL && !compare_(ent2->key, key))
+        if (ent2 != NULL && !compare_(ent2->key, ent2->klen, key, k_len))
             return ent2->value;
 
         // 2nd round
         ent1 = atomic_load_explicit(&table1[h1], memory_order_relaxed);
         ncnt1 = get_cnt(ent1);
         ent1 = extract_address(ent1);
-        if (ent1 != NULL && !compare_(ent1->key, key))
+        if (ent1 != NULL && !compare_(ent1->key, ent1->klen, key, k_len))
             return ent1->value;
         ent2 = atomic_load_explicit(&table2[h2], memory_order_relaxed);
         ncnt2 = get_cnt(ent2);
         ent2 = extract_address(ent2);
-        if (ent2 != NULL && !compare_(ent2->key, key))
+        if (ent2 != NULL && !compare_(ent2->key, ent2->klen, key, k_len))
             return ent2->value;
 
         if (checkCounter(cnt1, cnt2, ncnt1, ncnt2))
@@ -420,9 +427,9 @@ char *lockFreeCuckoo<KeyType>::Search(KeyType key) {
 }
 
 template<class KeyType>
-int lockFreeCuckoo<KeyType>::Find(KeyType key, Entry<KeyType> **ent1, Entry<KeyType> **ent2) {
-    int h1 = hash1(key);
-    int h2 = hash2(key);
+int LockFreeCuckoo<KeyType>::Find(KeyType key, uint32_t k_len, Entry<KeyType> **ent1, Entry<KeyType> **ent2) {
+    int h1 = hash1(key, k_len);
+    int h2 = hash2(key, k_len);
     int result = NIL;
     int cnt1, cnt2, ncnt1, ncnt2;
     Entry<KeyType> *e;
@@ -437,7 +444,7 @@ int lockFreeCuckoo<KeyType>::Find(KeyType key, Entry<KeyType> **ent1, Entry<KeyT
             if (is_marked((void *) e)) {
                 helpRelocate(0, h1, false);
                 continue;
-            } else if (!compare_(e->key, key))
+            } else if (!compare_(e->key, e->klen, key, k_len))
                 result = FIRST;
         }
 
@@ -451,9 +458,9 @@ int lockFreeCuckoo<KeyType>::Find(KeyType key, Entry<KeyType> **ent1, Entry<KeyT
                 helpRelocate(1, h2, false);
                 continue;
             }
-            if (!compare_(e->key, key)) {
+            if (!compare_(e->key, e->klen, key, k_len)) {
                 if (result == FIRST) {
-                    printf("Find(): Delete_dup()\n");
+                    // printf("Find(): Delete_dup() 1\n");
                     deleteDup(h1, *ent1, h2, *ent2);
                 } else
                     result = SECOND;
@@ -472,7 +479,7 @@ int lockFreeCuckoo<KeyType>::Find(KeyType key, Entry<KeyType> **ent1, Entry<KeyT
                 helpRelocate(0, h1, false);
                 printf("Find(): help_relocate()");
                 continue;
-            } else if (!compare_(e->key, key))
+            } else if (!compare_(e->key, e->klen, key, k_len))
                 result = FIRST;
         }
 
@@ -485,9 +492,9 @@ int lockFreeCuckoo<KeyType>::Find(KeyType key, Entry<KeyType> **ent1, Entry<KeyT
                 helpRelocate(1, h2, false);
                 continue;
             }
-            if (!compare_(e->key, key)) {
+            if (!compare_(e->key, e->klen, key, k_len)) {
                 if (result == FIRST) {
-                    printf("Find(): Delete_dup()\n");
+                    printf("Find(): Delete_dup() 2\n");
                     deleteDup(h1, *ent1, h2, *ent2);
                 } else
                     result = SECOND;
@@ -504,8 +511,8 @@ int lockFreeCuckoo<KeyType>::Find(KeyType key, Entry<KeyType> **ent1, Entry<KeyT
 }
 
 template<class KeyType>
-bool lockFreeCuckoo<KeyType>::Relocate(int which, int index) {
-    int threshold = t1Size + t2Size;
+bool LockFreeCuckoo<KeyType>::Relocate(int which, int index) {
+    int threshold = /*t1Size + t2Size*/65536;
     int route[threshold]; // store cuckoo path
     int startLevel = 0, tblNum = which;
     KeyType key;
@@ -521,6 +528,9 @@ bool lockFreeCuckoo<KeyType>::Relocate(int which, int index) {
     bool found = false;
     int depth = startLevel;
     do {
+        assert(tbl[tblNum] == table1 || tbl[tblNum] == table2);
+        assert(tblNum == 0 || tblNum == 1);
+        assert(idx >= 0 && idx < t1Size);
         curEntry = atomic_load(&tbl[tblNum][idx]);
         while (is_marked((void *) curEntry)) {
             helpRelocate(tblNum, idx, false);
@@ -531,7 +541,8 @@ bool lockFreeCuckoo<KeyType>::Relocate(int which, int index) {
         preEntAddr = extract_address(preEntry);
         curEntAddr = extract_address(curEntry);
         if (curEntAddr != NULL && preEntAddr != NULL) {
-            if (preEntry == curEntry || !compare_(preEntAddr->key, curEntAddr->key)) {
+            if (preEntry == curEntry ||
+                !compare_(preEntAddr->key, preEntAddr->klen, curEntAddr->key, curEntAddr->klen)) {
                 if (tblNum == FIRST)
                     deleteDup(idx, curEntry, preIdx, preEntry);
                 else
@@ -541,11 +552,11 @@ bool lockFreeCuckoo<KeyType>::Relocate(int which, int index) {
         // not an empty slot, continue discovery
         if (curEntAddr != NULL) {
             route[depth] = idx;
-            key = curEntAddr->key;
             preEntry = curEntry;
             preIdx = idx;
             tblNum = 1 - tblNum; // change to another table
-            idx = (tblNum == FIRST ? hash1(key) : hash2(key));
+            idx = (tblNum == FIRST ? hash1(curEntAddr->key, curEntAddr->klen) : hash2(curEntAddr->key,
+                                                                                      curEntAddr->klen));
         }
             // find an empty slot
         else {
@@ -571,8 +582,8 @@ bool lockFreeCuckoo<KeyType>::Relocate(int which, int index) {
             if (srcEntryAddr == NULL) {
                 continue;
             }
-            key = srcEntryAddr->key;
-            dstIdx = (tblNum == FIRST ? hash2(key) : hash1(key));
+            dstIdx = (tblNum == FIRST ? hash2(srcEntryAddr->key, srcEntryAddr->klen) : hash1(srcEntryAddr->key,
+                                                                                             srcEntryAddr->klen));
             dstEntry = atomic_load(&tbl[1 - tblNum][dstIdx]);
             if (extract_address(dstEntry) != NULL) {
                 startLevel = i + 1;
@@ -587,17 +598,18 @@ bool lockFreeCuckoo<KeyType>::Relocate(int which, int index) {
 }
 
 template<class KeyType>
-bool lockFreeCuckoo<KeyType>::Insert(const char *address, const KeyType &key) {
-    Entry<KeyType> *newEntry = new Entry<KeyType>(key, address);
+bool LockFreeCuckoo<KeyType>::Insert(const KeyType &key, uint32_t klen, const char *address, uint32_t vlen) {
+    Entry<KeyType> *newEntry = new Entry<KeyType>(key, klen, address, vlen);
     Entry<KeyType> *ent1 = NULL, *ent2 = NULL;
     // shared_ptr<Entry<KeyType>> spent1(ent1);
     // shared_ptr<Entry<KeyType>> spent2(ent2);
     int cnt = 0;
-    int h1 = hash1(key);
-    int h2 = hash2(key);
+    int h1 = hash1(key, klen);
+    int h2 = hash2(key, klen);
 
+    // for (int i = 0; i < t1Size; i++) atomic_load(&table1[i]);
     while (true) {
-        int result = Find(key, &ent1, &ent2);
+        int result = Find(key, klen, &ent1, &ent2);
         //updating existing content
         if (result == FIRST) {
             cnt = get_cnt(ent1);
@@ -661,13 +673,13 @@ bool lockFreeCuckoo<KeyType>::Insert(const char *address, const KeyType &key) {
 
 
 template<class KeyType>
-bool lockFreeCuckoo<KeyType>::Delete(const KeyType &key) {
+bool LockFreeCuckoo<KeyType>::Delete(const KeyType &key, uint32_t klen) {
     Entry<KeyType> *ent1 = NULL, *ent2 = NULL;
     int cnt = 0;
-    int h1 = hash1(key);
-    int h2 = hash2(key);
+    int h1 = hash1(key, klen);
+    int h2 = hash2(key, klen);
     while (true) {
-        int result = Find(key, &ent1, &ent2);
+        int result = Find(key, klen, &ent1, &ent2);
         if (result == FIRST) {
             Entry<KeyType> *tmp = NULL;
             cnt = get_cnt(ent1);
@@ -696,9 +708,9 @@ bool lockFreeCuckoo<KeyType>::Delete(const KeyType &key) {
 }
 
 template<class KeyType>
-bool lockFreeCuckoo<KeyType>::Contains(const KeyType &key) const {
-    int h1 = hash1(key);
-    int h2 = hash2(key);
+bool LockFreeCuckoo<KeyType>::Contains(const KeyType &key, uint32_t klen) const {
+    int h1 = hash1(key, klen);
+    int h2 = hash2(key, klen);
     int cnt1, cnt2, ncnt1, ncnt2;
     while (true) {
         // 1st round
@@ -706,24 +718,24 @@ bool lockFreeCuckoo<KeyType>::Contains(const KeyType &key) const {
         Entry<KeyType> *ent1 = atomic_load_explicit(&table1[h1], memory_order_relaxed);
         cnt1 = get_cnt(ent1);
         ent1 = extract_address(ent1);
-        if (ent1 != NULL && !compare_(ent1->key, key))
+        if (ent1 != NULL && !compare_(ent1->key, ent1->klen, key, klen))
             return true;
         // Looking in table 2
         Entry<KeyType> *ent2 = atomic_load_explicit(&table2[h2], memory_order_relaxed);
         cnt2 = get_cnt(ent2);
         ent2 = extract_address(ent2);
-        if (ent2 != NULL && !compare_(ent2->key, key))
+        if (ent2 != NULL && !compare_(ent2->key, ent2->klen, key, klen))
             return true;
         // 2nd round
         ent1 = atomic_load_explicit(&table1[h1], memory_order_relaxed);
         ncnt1 = get_cnt(ent1);
         ent1 = extract_address(ent1);
-        if (ent1 != NULL && !compare_(ent1->key, key))
+        if (ent1 != NULL && !compare_(ent1->key, ent1->klen, key, klen))
             return true;
         ent2 = atomic_load_explicit(&table2[h2], memory_order_relaxed);
         ncnt2 = get_cnt(ent2);
         ent2 = extract_address(ent2);
-        if (ent2 != NULL && !compare_(ent2->key, key))
+        if (ent2 != NULL && !compare_(ent2->key, ent2->klen, key, klen))
             return true;
 
         if (checkCounter(cnt1, cnt2, ncnt1, ncnt2))
@@ -735,7 +747,7 @@ bool lockFreeCuckoo<KeyType>::Contains(const KeyType &key) const {
 
 
 template<class KeyType>
-void lockFreeCuckoo<KeyType>::printTable() {
+void LockFreeCuckoo<KeyType>::printTable() {
     printf("******************hash_table 1*****************\n");
     Entry<KeyType> *e, *tmp = NULL;
     for (int i = 0; i < t1Size; i++) {
@@ -767,9 +779,9 @@ void lockFreeCuckoo<KeyType>::printTable() {
 }
 
 template<class KeyType>
-bool lockFreeCuckoo<KeyType>::moveToKey(const KeyType &searchKey) {
-    int h1 = hash1(searchKey);
-    int h2 = hash2(searchKey);
+bool LockFreeCuckoo<KeyType>::moveToKey(const KeyType &searchKey, uint32_t klen) {
+    int h1 = hash1(searchKey, klen);
+    int h2 = hash2(searchKey, klen);
     int cnt1, cnt2, ncnt1, ncnt2;
     while (true) {
         // 1st round
@@ -777,7 +789,7 @@ bool lockFreeCuckoo<KeyType>::moveToKey(const KeyType &searchKey) {
         Entry<KeyType> *ent1 = atomic_load_explicit(&table1[h1], memory_order_relaxed);
         cnt1 = get_cnt(ent1);
         ent1 = extract_address(ent1);
-        if (ent1 != NULL && !compare_(ent1->key, searchKey)) {
+        if (ent1 != NULL && !compare_(ent1->key, ent1->klen, searchKey, klen)) {
             this->cursor = ent1;
             return true;
         }
@@ -785,7 +797,7 @@ bool lockFreeCuckoo<KeyType>::moveToKey(const KeyType &searchKey) {
         Entry<KeyType> *ent2 = atomic_load_explicit(&table2[h2], memory_order_relaxed);
         cnt2 = get_cnt(ent2);
         ent2 = extract_address(ent2);
-        if (ent2 != NULL && !compare_(ent2->key, searchKey)) {
+        if (ent2 != NULL && !compare_(ent2->key, ent2->klen, searchKey, klen)) {
             this->cursor = ent2;
             return true;
         }
@@ -794,14 +806,14 @@ bool lockFreeCuckoo<KeyType>::moveToKey(const KeyType &searchKey) {
         ent1 = atomic_load_explicit(&table1[h1], memory_order_relaxed);
         ncnt1 = get_cnt(ent1);
         ent1 = extract_address(ent1);
-        if (ent1 != NULL && !compare_(ent1->key, searchKey)) {
+        if (ent1 != NULL && !compare_(ent1->key, ent1->klen, searchKey, klen)) {
             this->cursor = ent1;
             return true;
         }
         ent2 = atomic_load_explicit(&table2[h2], memory_order_relaxed);
         ncnt2 = get_cnt(ent2);
         ent2 = extract_address(ent2);
-        if (ent2 != NULL && !compare_(ent2->key, searchKey)) {
+        if (ent2 != NULL && !compare_(ent2->key, ent2->klen, searchKey, klen)) {
             this->cursor = ent2;
             return true;
         }
@@ -814,21 +826,21 @@ bool lockFreeCuckoo<KeyType>::moveToKey(const KeyType &searchKey) {
 }
 
 template<class KeyType>
-char *lockFreeCuckoo<KeyType>::nextValueAtKey() {
+char *LockFreeCuckoo<KeyType>::nextValueAtKey() {
     if (this->cursor == NULL)
         return new char(0);
     return this->cursor->value;
 }
 
 template<class KeyType>
-size_t lockFreeCuckoo<KeyType>::getSize() {
+size_t LockFreeCuckoo<KeyType>::getSize() {
     return t1Size + t2Size;
 }
 
 // Only for hash index to reSize and rehash
 // 默认2个表分别为capacity/2
 template<class KeyType>
-void lockFreeCuckoo<KeyType>::ensureCapacity(uint32_t capacity) {
+void LockFreeCuckoo<KeyType>::ensureCapacity(uint32_t capacity) {
     std::atomic<Entry<KeyType> *> *oldTable1 = table1;
     std::atomic<Entry<KeyType> *> *oldTable2 = table2;
     size_t old1 = t1Size;
@@ -851,13 +863,13 @@ void lockFreeCuckoo<KeyType>::ensureCapacity(uint32_t capacity) {
     for (int i = 0; i < old1; i++) {
         temp = extract_address(atomic_load_explicit(&oldTable1[i], memory_order_relaxed));
         if (temp)
-            Insert(temp->value, temp->key);
+            Insert(temp->key, temp->klen, temp->value, temp->vlen);
 
     }
     for (int i = 0; i < old2; i++) {
         temp = extract_address(atomic_load_explicit(&oldTable2[i], memory_order_relaxed));
         if (temp)
-            Insert(temp->value, temp->key);
+            Insert(temp->key, temp->klen, temp->value, temp->vlen);
     }
 
     delete oldTable1;

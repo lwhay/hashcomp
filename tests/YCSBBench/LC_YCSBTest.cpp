@@ -29,7 +29,7 @@ struct str_equal_to {
     }
 };
 
-typedef lockFreeCuckoo<char *> cmap;
+typedef LockFreeCuckoo<char *> cmap;
 
 cmap *store;
 
@@ -87,7 +87,7 @@ void simpleInsert() {
         store->insert(string(loads[i]->getKey()), std::string(loads[i]->getVal()));
         assert(std::strcmp(store->find(loads[i]->getKey()).c_str(), loads[i]->getVal()) == 0);
 #else
-        store->Insert(loads[i]->getVal(), loads[i]->getKey());
+        store->Insert(loads[i]->getKey(), loads[i]->keyLength(), loads[i]->getVal(), loads[i]->valLength());
         /*char query[255];
         std::memset(query, 0, 255);
         std::memcpy(query, loads[i]->getKey(), loads[i]->keyLength());
@@ -100,7 +100,9 @@ void simpleInsert() {
 //        char *out = store->Search(loads[i]->getKey());
 //        int j = 0;
 //        std::cout << store->Search(loads[i]->getKey()) << ":" << loads[i]->getVal() << std::endl;
-        assert(std::strcmp(store->Search(loads[i]->getKey()), loads[i]->getVal()) == 0);
+        /*assert(std::memcmp(store->Search(loads[i]->getKey(), loads[i]->keyLength()), loads[i]->getVal(),
+                           loads[i]->valLength()) == 0);*/
+//        cout << i << endl;
 #endif
     }
     cout << inserted << " " << tracer.getRunTime() << " " << store->getSize() << endl;
@@ -113,7 +115,7 @@ void *insertWorker(void *args) {
 #if WITH_STRING
         store->insert(string(loads[i]->getKey()), std::string(loads[i]->getVal()));
 #else
-        store->Insert(loads[i]->getKey(), loads[i]->getVal());
+        store->Insert(loads[i]->getKey(), loads[i]->keyLength(), loads[i]->getVal(), loads[i]->valLength());
 #endif
         inserted++;
     }
@@ -132,24 +134,26 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
                 switch (static_cast<int>(runs[i]->getOp())) {
                     case 0: {
-                        char *ret = store->Search(runs[i]->getKey());
+                        char *ret = store->Search(runs[i]->getKey(), runs[i]->keyLength());
                         rhit++;
                         break;
                     }
                     case 1: {
-                        bool ret = store->Insert(runs[i]->getVal(), runs[i]->getKey());
+                        bool ret = store->Insert(runs[i]->getKey(), runs[i]->keyLength(), runs[i]->getVal(),
+                                                 runs[i]->valLength());
                         if (ret) mhit++;
                         else mfail++;
                         break;
                     }
                     case 2: {
-                        bool ret = store->Delete(runs[i]->getKey());
+                        bool ret = store->Delete(runs[i]->getKey(), runs[i]->keyLength());
                         if (ret) mhit++;
                         else mfail++;
                         break;
                     }
                     case 3: {
-                        bool ret = store->Insert(runs[i]->getVal(), runs[i]->getKey());
+                        bool ret = store->Insert(runs[i]->getKey(), runs[i]->keyLength(), runs[i]->getVal(),
+                                                 runs[i]->valLength());
                         if (ret) mhit++;
                         else mfail++;
                         break;
@@ -228,6 +232,7 @@ int main(int argc, char **argv) {
         root_capacity = std::atoi(argv[8]);
         if (root_capacity < 32) root_capacity = std::pow(2, root_capacity);
     }
+    if (root_capacity < std::pow(2, 24)) root_capacity = std::pow(2, 24);
     store = new cmap(root_capacity, root_capacity);
     YCSBLoader loader(loadpath, key_range);
     loads = loader.load();
