@@ -273,7 +273,8 @@ int main(int argc, char **argv) {
         root_capacity = std::atoi(argv[8]);
     uint64_t power = 0, root_size = root_capacity;
     do { power++; } while (root_size = (root_size >> 1));
-    cmap tmp(25, thread_number);
+    cout << "power: " << power << " root_capacity: " << root_capacity << endl;
+    cmap tmp(power, thread_number);
     cmap engine(1, thread_number);
     store = &engine;
     store->swap(tmp);
