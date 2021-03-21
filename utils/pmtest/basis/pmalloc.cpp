@@ -100,7 +100,7 @@ void naive() {
         });
         std::cout << "size: " << pop.root()->cons->size() << " " << pop.root()->cons->bucket_count() << std::endl;
     } else {
-        pop = nvobj::pool<root>::create(path, LAYOUT, PMEMOBJ_MIN_POOL * ((1 << 12) - (1 << 10)), S_IWUSR | S_IRUSR);
+        pop = nvobj::pool<root>::create(path, LAYOUT, PMEMOBJ_MIN_POOL * ((1 << 14) - (1 << 12)), S_IWUSR | S_IRUSR);
 
         pmem::obj::transaction::run(pop, [&] {
             pop.root()->cons = nvobj::make_persistent<pmmtype>();
