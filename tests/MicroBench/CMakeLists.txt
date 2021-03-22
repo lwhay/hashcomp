@@ -25,6 +25,7 @@ include_directories("../../src/faster/cc")
 include_directories("../../src/faster/core")
 include_directories("../../src/faster/memory")
 include_directories("../../src/faster/api")
+include_directories("../../src/whash")
 
 set(FH_HYBRID_LIBS
         ../../src/faster/misc/address.cc
@@ -40,14 +41,16 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     set(FH_HYBRID_TEST
             FH_HybridTest.cpp
             FH_HybridNumaTest.cpp
-            FH_HybridIdeaTest.cpp)
+            FH_HybridIdeaTest.cpp
+            BH_HyridTest.cpp)
 else ()
     set(FH_HYBRID_LIBS
             ../../src/faster/io/file_windows.cc
             ${FH_HYBRID_LIBS})
 
     set(FH_HYBRID_TEST
-            FH_HybridTest.cpp)
+            FH_HybridTest.cpp
+            BH_HyridTest.cpp)
 endif ()
 
 message("subproject" ${CMAKE_CURRENT_SOURCE_DIR})
