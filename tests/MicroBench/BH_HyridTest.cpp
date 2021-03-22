@@ -78,9 +78,10 @@ void simpleInsert() {
     int inserted = 0;
     unordered_set<uint64_t> set;
     for (int i = 0; i < total_count; i++) {
-        store->insert(loads[i], loads[i], 0);
+        store->insert(loads[i], loads[i], thread_number);
         set.insert(loads[i]);
         inserted++;
+        // if (i % (total_count / 10) == 0) cout << store->getDepth() << endl;
     }
     cout << inserted << " " << tracer.getRunTime() << " " << set.size() << endl;
 }
@@ -89,8 +90,9 @@ void *insertWorker(void *args) {
     struct target *work = (struct target *) args;
     uint64_t inserted = 0;
     for (int i = work->tid * total_count / thread_number; i < (work->tid + 1) * total_count / thread_number; i++) {
-        store->insert(loads[i], loads[i], 0);
+        store->insert(loads[i], loads[i], work->tid);
         inserted++;
+        // if (work->tid == 0 && i % (total_count / (thread_number * 10)) == 0) cout << store->getDepth() << endl;
     }
     __sync_fetch_and_add(&exists, inserted);
 }
@@ -115,17 +117,17 @@ void *measureWorker(void *args) {
                  i < (work->tid + 1) * total_count / thread_number; i++) {
 #endif
                 if (updatePercentage > 0 && i % (totalPercentage / updatePercentage) == 0) {
-                    bool ret = store->insert(loads[i], loads[i]/*new Value(loads[i])*/, 0);
+                    bool ret = store->insert(loads[i], loads[i]/*new Value(loads[i])*/, work->tid);
                     if (ret) mhit++;
                     else mfail++;
                 } else if (erasePercentage > 0 && (i + 1) % (totalPercentage / erasePercentage) == 0) {
                     bool ret;
                     if (evenRound % 2 == 0) {
                         uint64_t key = thread_number * inserts++ + work->tid + (evenRound / 2 + 1) * key_range;
-                        ret = store->insert(key, key, 0);
+                        ret = store->insert(key, key, work->tid);
                     } else {
                         uint64_t key = thread_number * erased++ + work->tid + (evenRound / 2 + 1) * key_range;
-                        ret = store->remove(key, 0);
+                        ret = store->remove(key, work->tid);
                     }
                     if (ret) mhit++;
                     else mfail++;
@@ -242,7 +244,8 @@ int main(int argc, char **argv) {
     multiWorkers();
     cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "
          << modify_success << " modify failure: " << modify_failure << " throughput: "
-         << (double) (read_success + read_failure + modify_success + modify_failure) * thread_number / total_time;
+         << (double) (read_success + read_failure + modify_success + modify_failure) * thread_number / total_time
+         << " depth: " << store->getDepth() << endl;
     free(loads);
     finish();
     //delete mhash;

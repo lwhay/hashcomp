@@ -72,13 +72,13 @@ class hashmap {
     public:
         BigWord() : Data() {}
 
-        BigWord(BigWord const& b) : Data() {
+        BigWord(BigWord const &b) : Data() {
             for (int i = 0; i < BIGWORD_SIZE; ++i) {
                 this->Data[i] = b.Data[i];
             }
         }
 
-        BigWord& operator=(BigWord const& b) {
+        BigWord &operator=(BigWord const &b) {
             for (int i = 0; i < BIGWORD_SIZE; ++i) {
                 this->Data[i] = b.Data[i];
             }
@@ -164,7 +164,7 @@ class hashmap {
         Bucket(const Bucket &b) = delete;
 
         explicit Bucket(uint32_t p, size_t d, shared_ptr<BState> s, BigWord t)
-            : prefix(p), depth(d), toggle(t) {
+                : prefix(p), depth(d), toggle(t) {
             atomic_store(&state, s);
         }
 
@@ -216,6 +216,7 @@ class hashmap {
             }
             dir = next_dir;
             depth++;
+            cout << depth << endl;
         }
 
         ~DState() = default;
@@ -257,7 +258,7 @@ class hashmap {
             nextBState->applied = oldToggle; // copy constructor using operator=
 
             atomic_compare_exchange_weak(&b.b_ptr->state,
-                    &oldBState, nextBState);
+                                         &oldBState, nextBState);
         }
     }
 
@@ -319,7 +320,8 @@ class hashmap {
             if (Prefix(e, blist[b_index].b_ptr->depth, d.depth) == blist[b_index].b_ptr->prefix) {
                 assert(atomic_load(&d.dir[e].b_ptr->state)->BucketAvailability() == FULL_BUCKET);
                 d.dir[e] = blist[b_index];
-                if (e + 1 < POW(d.depth) && Prefix(e + 1, blist[b_index].b_ptr->depth, d.depth) != blist[b_index].b_ptr->prefix) {
+                if (e + 1 < POW(d.depth) &&
+                    Prefix(e + 1, blist[b_index].b_ptr->depth, d.depth) != blist[b_index].b_ptr->prefix) {
                     if (b_index == 0) b_index++; // blist[1] will always be right after blist[0]
                     else break; // early stop
                 }
@@ -384,7 +386,8 @@ class hashmap {
         assert(start >= depth);
 
         uint32_t mask = (uint32_t) ((1 << (start)) - 1); // mask for the first (start) bits
-        auto prefix = (uint32_t) (hash & mask) << (SIZE_OF_HASH - start) >> (SIZE_OF_HASH - depth); // clear bits bigger than start and smaller than depth
+        auto prefix = (uint32_t) (hash & mask) << (SIZE_OF_HASH - start) >> (SIZE_OF_HASH -
+                                                                             depth); // clear bits bigger than start and smaller than depth
         return prefix;
     }
 
@@ -409,8 +412,7 @@ class hashmap {
             htl = atomic_load(&ht);
             bstate = atomic_load(&htl->dir[Prefix(hashed_key, htl->getDepth())].b_ptr->state);
             ++run_times;
-        }
-        while (bstate->results[id].seqnum != opSeqnum[id]);
+        } while (bstate->results[id].seqnum != opSeqnum[id]);
         return true;
     }
 
@@ -438,6 +440,8 @@ public:
         }
         return {false, Value()};
     }
+
+    int getDepth() { return atomic_load(&ht)->getDepth(); }
 
     bool insert(Key const &key, Value const &value, unsigned int const id) {
         assert(0 <= id && id < NUMBER_OF_THREADS);
