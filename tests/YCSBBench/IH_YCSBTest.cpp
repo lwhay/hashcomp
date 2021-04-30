@@ -114,7 +114,7 @@ void *measureWorker(void *args) {
     Tracer tracer;
     tracer.startTime();
     struct target *work = (struct target *) args;
-    // store->init_thread(work->tid);
+    store->init_thread(work->tid);
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
     try {
