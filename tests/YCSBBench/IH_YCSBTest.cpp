@@ -114,7 +114,7 @@ void *measureWorker(void *args) {
     Tracer tracer;
     tracer.startTime();
     struct target *work = (struct target *) args;
-    store->init_thread(work->tid);
+    // store->init_thread(work->tid);
     uint64_t mhit = 0, rhit = 0;
     uint64_t mfail = 0, rfail = 0;
     try {
@@ -193,6 +193,14 @@ void multiWorkers() {
     cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     Timer timer;
     timer.start();
+    tracer.startTime();
+    for (int i = 0; i < thread_number; i++) {
+        pthread_create(&workers[i], nullptr, insertWorker, &parms[i]);
+    }
+    for (int i = 0; i < thread_number; i++) {
+        pthread_join(workers[i], nullptr);
+    }
+    cout << "Insert " << exists << " " << tracer.getRunTime() << endl;
     for (int i = 0; i < thread_number; i++) {
         pthread_create(&workers[i], nullptr, measureWorker, &parms[i]);
     }
@@ -231,7 +239,7 @@ int main(int argc, char **argv) {
     key_range = loader.size();
     prepare();
     cout << "simple" << endl;
-    simpleInsert();
+    // simpleInsert();
     YCSBLoader runner(runpath, total_count);
     runs = runner.load();
     total_count = runner.size();
