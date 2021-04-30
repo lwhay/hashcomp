@@ -32,6 +32,9 @@ constexpr size_t NO_MAXIMUM_HASHPOWER =
 //! set LIBCUCKOO_DEBUG to 1 to enable debug output
 #define LIBCUCKOO_DEBUG 0
 
+
+    using size_type = size_t;
+
 }  // namespace libcuckoo
 
 #endif // _CUCKOOHASH_CONFIG_HH
