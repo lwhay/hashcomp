@@ -51,7 +51,7 @@ uint64_t timer_range = default_timer_range;
 
 int thread_number = DEFAULT_THREAD_NUM;
 
-int key_range = DEFAULT_KEYS_RANGE;
+size_t key_range = DEFAULT_KEYS_RANGE;
 
 double skew = 0.0;
 
