@@ -79,7 +79,7 @@ int totalPercentage = 100;
 int readPercentage = (totalPercentage - updatePercentage - erasePercentage);
 
 struct target {
-    int tid;
+    size_t tid;
     cmap *store;
 };
 
