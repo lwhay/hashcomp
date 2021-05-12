@@ -18,8 +18,6 @@
 #define MAX_UNIF_SIZE  BASE_SIZE * pow(FACTOR,MAX_ORDER-1)
 
 
-
-
 #ifndef SOFTWARE_BARRIER
 #   define SOFTWARE_BARRIER asm volatile("": : :"memory")
 #endif
@@ -33,10 +31,9 @@
 #define MAX_THREADS_POW2 512
 
 
-
 thread_local int debug_tid;
 
-struct Debug_thread_work_info{
+struct Debug_thread_work_info {
     uint64_t num_new_item_malloc;
     uint64_t num_mlq_reclaim;
 };
@@ -44,11 +41,12 @@ struct Debug_thread_work_info{
 thread_local Debug_thread_work_info tw_info;
 
 std::mutex debug_mtx;
-static void dump_debug_thread_work_info(){
+
+static void dump_debug_thread_work_info() {
     debug_mtx.lock();
-    cout<<"thread: "<<debug_tid<<endl;
-    cout<<"num_new_item_alloc  "<<tw_info.num_new_item_malloc<<endl;
-    cout<<"num_mlq_reclaimer  "<<tw_info.num_mlq_reclaim<<endl;
+    cout << "thread: " << debug_tid << endl;
+    cout << "num_new_item_alloc  " << tw_info.num_new_item_malloc << endl;
+    cout << "num_mlq_reclaimer  " << tw_info.num_mlq_reclaim << endl;
     debug_mtx.unlock();
 }
 

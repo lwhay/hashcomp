@@ -42,7 +42,7 @@ private:
     size_t numberOfRequests;
     size_t limitOfRequests;
 
-    void supersplit(const std::string &s, std::vector<std::string> &v, const std::string &c,
+    void supersplit(const std::string &s, std::vector <std::string> &v, const std::string &c,
                     size_t n = std::numeric_limits<size_t>::max()) {
         std::string::size_type pos1, pos2;
         size_t len = s.length();
@@ -68,15 +68,15 @@ public:
                                                                                        limitOfRequests(number) {}
 
     std::vector<YCSB_request *> load() {
-        std::vector<YCSB_request *> requests;
+        std::vector < YCSB_request * > requests;
         std::fstream lf(inputpath, ios::in);
-        if(lf.fail()){
+        if (lf.fail()) {
             printf("open file fail\n");
             //return 0;
         }
         string line;
         while (std::getline(lf, line)) {
-            std::vector<std::string> fields;
+            std::vector <std::string> fields;
             supersplit(line, fields, " ", 3);
             if (fields.size() < 2) continue;
             for (int i = 0; i < 5; i++) {

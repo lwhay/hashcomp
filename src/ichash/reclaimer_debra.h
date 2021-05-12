@@ -23,7 +23,7 @@ typedef BufferStack<storeType> LimboBag;
 
 static uint64_t brown_ptr_mask = 0xffffffffffffull;
 
-class Reclaimer_debra{
+class Reclaimer_debra {
 
 private:
     class ThreadData {
@@ -46,6 +46,7 @@ private:
         int opsSinceRead;
         //MultiLevelQueue<storeType> multiLevelQueue;
         AllocatorNew<storeType> allocatorNew;
+
         ThreadData() {}
 
     private:
@@ -64,20 +65,25 @@ private:
     const int NUM_PROCESSES;
 
 
+    void retire(int tid, storeType *ptr);
 
-    void retire(int tid,storeType * ptr);
     void rotate_epoch_bag(int tid);
 
 public:
 
     Reclaimer_debra(int thread_num);
+
     void initThread(int tid = 0);
 
     bool startOp(int tid);
+
     void endOp(int tid);
 
-    inline storeType * allocate(int tid, uint64_t len);
-    bool deallocate(int tid, storeType * ptr);
+    inline storeType *allocate(int tid, uint64_t len);
+
+    bool deallocate(int tid, storeType *ptr);
+
+    double average();
 
     //void dump();
 };
@@ -97,7 +103,7 @@ Reclaimer_debra::Reclaimer_debra(int thread_num) : NUM_PROCESSES(thread_num) {
 void Reclaimer_debra::initThread(int tid) {
     for (int i = 0; i < NUMBER_OF_EPOCH_BAGS; ++i) {
         if (threadData[tid].epochbags[i] == NULL) {
-            threadData[tid].epochbags[i] = new LimboBag ;
+            threadData[tid].epochbags[i] = new LimboBag;
         }
     }
     threadData[tid].currentBag = threadData[tid].epochbags[0];
@@ -114,20 +120,37 @@ bool Reclaimer_debra::deallocate(int tid, storeType *ptr) {
     //TODO can rm mask here, just confirm that input ptr,not entry
     //TODO pay attention to op time
     //startOp(tid);
-    retire(tid, (storeType *)((uint64_t)ptr & brown_ptr_mask));
+    retire(tid, (storeType *) ((uint64_t) ptr & brown_ptr_mask));
     //endOp(tid);
+}
+
+double Reclaimer_debra::average() {
+    double avg = .0;
+    size_t count = 0;
+#if TRACE
+    for (int i = 0; i < NUM_PROCESSES; i++) {
+        for (int j = 0; j < NUMBER_OF_EPOCH_BAGS; j++) {
+            avg += threadData[i].epochbags[j]->total;
+            count += threadData[i].epochbags[j]->count;
+        }
+    }
+    avg /= count;
+#endif
+    return avg;
 }
 
 void Reclaimer_debra::rotate_epoch_bag(int tid) {
     int nextIndex = (threadData[tid].index + 1) % NUMBER_OF_EPOCH_BAGS;
     LimboBag *const freeable = threadData[tid].epochbags[(nextIndex + NUMBER_OF_ALWAYS_EMPTY_EPOCH_BAGS) %
-                                                            NUMBER_OF_EPOCH_BAGS];
-
+                                                         NUMBER_OF_EPOCH_BAGS];
+#if TRACE
+    freeable->total += freeable->get_size();
+    freeable->count++;
+#endif
     //this->pool->addMoveFullBlocks(tid, freeable); // moves any full blocks (may leave a non-full block behind)
     //threadData[tid].multiLevelQueue.free_limbobag(freeable);
     threadData[tid].allocatorNew.free_limbobag(freeable);
     SOFTWARE_BARRIER;
-
 
     threadData[tid].index = nextIndex;
     threadData[tid].currentBag = threadData[tid].epochbags[nextIndex];

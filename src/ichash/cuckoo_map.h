@@ -719,6 +719,10 @@ public:
         bc.get_key_position_info(kpv, item_num);
     }
 
+    double average() {
+        return bc.average();
+    }
+
     //true hit , false miss
     bool Find(char *key, size_t key_len, char *buf) {
         const hash_value hv = hashed_key(key, key_len);

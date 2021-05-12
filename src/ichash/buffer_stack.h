@@ -30,6 +30,11 @@ public:
 
     inline uint64_t get_size();
 
+#if TRACE
+    size_t total = 0;
+    size_t count = 0;
+#endif
+
 private:
 
     uint64_t size;     //number of block memory the buffer has

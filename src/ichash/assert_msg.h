@@ -12,6 +12,9 @@
 #define debug ;
 #endif
 
+#ifndef TRACE
+#define TRACE 1
+#endif
 
 #ifndef RECORD
 #define record if(0)

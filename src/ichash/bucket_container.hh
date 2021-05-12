@@ -299,6 +299,8 @@ public:
         table_anaz_mtx.unlock();
     }
 
+    double average() { return rc.average(); }
+
 private:
     size_type hashpower_;
 
