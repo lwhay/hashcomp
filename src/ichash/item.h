@@ -7,7 +7,7 @@
 //#define FIX_LEN 1;
 
 
-typedef  uint32_t ltype;
+typedef uint32_t ltype;
 
 #define ITEM_KEY_LEN(item_ptr)  ((Item * )item_ptr)->key_len
 #define ITEM_VALUE_LEN(item_ptr)  ((Item * )item_ptr)->value_len
@@ -34,18 +34,19 @@ struct Item{
 
 #else
 
-#define ITEM_LEN_ALLOC(kl,vl) (kl+vl+2* sizeof(ltype))
+#define ITEM_LEN_ALLOC(kl, vl) (kl+vl+2* sizeof(ltype))
 
 #define ITEM_KEY(item_ptr) ((Item*)item_ptr)->buf
 #define ITEM_VALUE(item_ptr) (((Item * )item_ptr)->buf + ITEM_KEY_LEN(item_ptr))
 #define ITEM_LEN(item_ptr)  (ITEM_KEY_LEN(item_ptr) + ITEM_VALUE_LEN(item_ptr) + 2* sizeof(ltype))
 
-struct Item{
+struct Item {
     ltype key_len;
     ltype value_len;
     char buf[];
-    inline uint64_t get_struct_len(){
-        return key_len + value_len +2* sizeof(ltype);
+
+    inline uint64_t get_struct_len() {
+        return key_len + value_len + 2 * sizeof(ltype);
     }
 };
 
@@ -53,15 +54,15 @@ struct Item{
 
 //Key length and value length must be assigned firstly during initialzation
 //since we need to find the address of value based on its length
-static inline void init_item(Item * item,
-                             char * key,
+static inline void init_item(Item *item,
+                             char *key,
                              ltype key_len,
-                             char * value,
-                             ltype value_len){
+                             char *value,
+                             ltype value_len) {
     item->key_len = key_len;
     item->value_len = value_len;
-    memcpy(ITEM_KEY(item),key,key_len);
-    memcpy(ITEM_VALUE(item),value,value_len);
+    memcpy(ITEM_KEY(item), key, key_len);
+    memcpy(ITEM_VALUE(item), value, value_len);
 }
 
 

@@ -5,14 +5,16 @@
 #include "item.h"
 #include "buffer_stack.h"
 
-template <typename T>
-class AllocatorNew{
+template<typename T>
+class AllocatorNew {
 public:
     AllocatorNew();
 
-    T * allocate(uint64_t len);
-    void deallocate(T * ptr);
-    void free_limbobag(BufferStack<T> * freebag);
+    T *allocate(uint64_t len);
+
+    void deallocate(T *ptr);
+
+    void free_limbobag(BufferStack<T> *freebag);
 
 //    uint64_t get_total_size();
 //    void dump();
@@ -29,11 +31,11 @@ AllocatorNew<T>::AllocatorNew() {}
 
 
 template<typename T>
-T * AllocatorNew<T>::allocate(uint64_t len) {
+T *AllocatorNew<T>::allocate(uint64_t len) {
 
-    void * tp=malloc(len + sizeof(POINTER)); //buffer size + two pointer spaces used to construct lists
-    ((Listhead *)tp)->next= nullptr;
-    return (T*)((POINTER)tp+1);
+    void *tp = malloc(len + sizeof(POINTER)); //buffer size + two pointer spaces used to construct lists
+    ((Listhead *) tp)->next = nullptr;
+    return (T *) ((POINTER) tp + 1);
 
 }
 
@@ -42,7 +44,7 @@ T * AllocatorNew<T>::allocate(uint64_t len) {
 template<typename T>
 void AllocatorNew<T>::deallocate(T *ptr) {
 
-    void * tp = (POINTER)ptr-1;
+    void *tp = (POINTER) ptr - 1;
     free(tp);
     return;
 
@@ -50,15 +52,14 @@ void AllocatorNew<T>::deallocate(T *ptr) {
 
 
 template<typename T>
-void AllocatorNew<T>::free_limbobag(BufferStack<T> * freebag) {
+void AllocatorNew<T>::free_limbobag(BufferStack<T> *freebag) {
 
-    while(freebag->get_size() > 0){
-        T * p = freebag->pop();
+    while (freebag->get_size() > 0) {
+        T *p = freebag->pop();
         tw_info.num_mlq_reclaim++;
         deallocate(p);
     }
 }
-
 
 
 #endif //MY_RECLAIMER_ALLOCATOR_NEW_H

@@ -19,7 +19,7 @@ public:
 
     virtual void registerThread() = 0;
 
-    virtual uint64_t load(size_t tid, std::atomic<uint64_t> &ptr) = 0;
+    virtual uint64_t load(size_t tid, std::atomic <uint64_t> &ptr) = 0;
 
     virtual void read(size_t tid) = 0;
 
