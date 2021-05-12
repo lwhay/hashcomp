@@ -620,7 +620,14 @@ private:
 
             int count = 0;
             snapshoot_bucket(b.i1, item, hv, entry_snapshoot, count);
-            snapshoot_bucket(b.i2, item, hv, entry_snapshoot + SLOT_PER_BUCKET, count);
+
+            if (b.i1 != b.i2) {
+                snapshoot_bucket(b.i2, item, hv, entry_snapshoot + SLOT_PER_BUCKET, count);
+            }
+            if (twm.inquiry_need_redo()) {
+                twm.clean_redo_flag();
+                continue;
+            }
 
             if (count == 1) {
                 //insert success
