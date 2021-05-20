@@ -251,8 +251,8 @@ int main(int argc, char **argv) {
     cout << "read operations: " << read_success << " read failure: " << read_failure << " modify operations: "
          << modify_success << " modify failure: " << modify_failure << " throughput: "
          << (double) (read_success + read_failure + modify_success + modify_failure) * thread_number / total_time
-         << " hash size: " << " item: " << store->slot_num() << " capacity: " << store->bucket_num() << " reavg: "
-         << store->average() << endl;
+         << " hash size: " << " item: " << store->slot_num() << " capacity: " << store->bucket_num() << /*" reavg: "
+         << store->average() <<*/ endl;
     loads.clear();
     runs.clear();
     finish();
