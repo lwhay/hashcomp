@@ -2,8 +2,8 @@
 #define MY_RECLAIMER_RECLAIMER_DEBRA_H
 
 #include "buffer_stack.h"
-//#include "multi_level_queue.h"
-#include "allocator_new.h"
+
+#include "def.h"
 #include <atomic>
 
 #define DEBRA_DISABLE_READONLY_OPT
@@ -13,17 +13,15 @@
 #define QUIESCENT(ann) ((ann)&1)
 #define GET_WITH_QUIESCENT(ann) ((ann)|1)
 
-#define MIN_OPS_BEFORE_READ 10
+#define MIN_OPS_BEFORE_READ DEBRA_SETTING_MIN_OPS_BEFORE_READ
 
 #define NUMBER_OF_EPOCH_BAGS 3 // 9 for range query support
 #define NUMBER_OF_ALWAYS_EMPTY_EPOCH_BAGS 0 // 3 for range query support
 
-typedef Item storeType;
-typedef BufferStack<storeType> LimboBag;
 
-static uint64_t brown_ptr_mask = 0xffffffffffffull;
+typedef BufferStack LimboBag;
 
-class Reclaimer_debra {
+class Reclaimer_debra{
 
 private:
     class ThreadData {
@@ -45,8 +43,6 @@ private:
         int checked;               // how far we've come in checking the announced epochs of other threads
         int opsSinceRead;
         //MultiLevelQueue<storeType> multiLevelQueue;
-        AllocatorNew<storeType> allocatorNew;
-
         ThreadData() {}
 
     private:
@@ -56,8 +52,9 @@ private:
     PAD;
     ThreadData threadData[MAX_THREADS_POW2];
     PAD;
+    Alloc * alloc;
+    PAD;
 
-    // for epoch based reclamation
 //    PAD; // not needed after superclass layout
     volatile long epoch;
     PAD;
@@ -65,30 +62,30 @@ private:
     const int NUM_PROCESSES;
 
 
-    void retire(int tid, storeType *ptr);
 
+    void retire(int tid,storeType * ptr);
     void rotate_epoch_bag(int tid);
 
 public:
 
     Reclaimer_debra(int thread_num);
-
     void initThread(int tid = 0);
 
     bool startOp(int tid);
-
     void endOp(int tid);
 
-    inline storeType *allocate(int tid, uint64_t len);
+    //Not doing the actual work
+    inline uint64_t read(int tid,atomic<uint64_t> & a){return a.load();};
+    void clear(int tid){};
 
-    bool deallocate(int tid, storeType *ptr);
-
-    double average();
+    inline storeType * allocate(int tid, uint64_t len);
+    bool deallocate(int tid, storeType * ptr);
 
     //void dump();
 };
 
 Reclaimer_debra::Reclaimer_debra(int thread_num) : NUM_PROCESSES(thread_num) {
+    alloc = new Alloc;
     epoch = 0;
     for (int tid = 0; tid < NUM_PROCESSES; ++tid) {
         threadData[tid].index = 0;
@@ -103,7 +100,7 @@ Reclaimer_debra::Reclaimer_debra(int thread_num) : NUM_PROCESSES(thread_num) {
 void Reclaimer_debra::initThread(int tid) {
     for (int i = 0; i < NUMBER_OF_EPOCH_BAGS; ++i) {
         if (threadData[tid].epochbags[i] == NULL) {
-            threadData[tid].epochbags[i] = new LimboBag;
+            threadData[tid].epochbags[i] = new LimboBag ;
         }
     }
     threadData[tid].currentBag = threadData[tid].epochbags[0];
@@ -112,47 +109,26 @@ void Reclaimer_debra::initThread(int tid) {
 }
 
 storeType *Reclaimer_debra::allocate(int tid, uint64_t len) {
-    //return threadData[tid].multiLevelQueue.allocate(len);
-    return threadData[tid].allocatorNew.allocate(len);
+    return static_cast<storeType *>(alloc->allocate(len));
 }
 
 bool Reclaimer_debra::deallocate(int tid, storeType *ptr) {
     //TODO can rm mask here, just confirm that input ptr,not entry
     //TODO pay attention to op time
     //startOp(tid);
-    retire(tid, (storeType *) ((uint64_t) ptr & brown_ptr_mask));
+    retire(tid, ptr);
     //endOp(tid);
-}
-
-double Reclaimer_debra::average() {
-    double avg = .0;
-    size_t count = 0;
-#if TRACE
-    for (int i = 0; i < NUM_PROCESSES; i++) {
-        for (int j = 0; j < NUMBER_OF_EPOCH_BAGS; j++) {
-            avg += threadData[i].epochbags[j]->total;
-            count += threadData[i].epochbags[j]->count;
-        }
-    }
-    avg /= count;
-#endif
-    return avg;
 }
 
 void Reclaimer_debra::rotate_epoch_bag(int tid) {
     int nextIndex = (threadData[tid].index + 1) % NUMBER_OF_EPOCH_BAGS;
     LimboBag *const freeable = threadData[tid].epochbags[(nextIndex + NUMBER_OF_ALWAYS_EMPTY_EPOCH_BAGS) %
-                                                         NUMBER_OF_EPOCH_BAGS];
-#if TRACE
-    freeable->total += freeable->get_size();
-    freeable->count++;
-#endif
-    //this->pool->addMoveFullBlocks(tid, freeable); // moves any full blocks (may leave a non-full block behind)
-    //threadData[tid].multiLevelQueue.free_limbobag(freeable);
-    threadData[tid].allocatorNew.free_limbobag(freeable);
+                                                            NUMBER_OF_EPOCH_BAGS];
+    llog.bag_rotate_times ++;
+    llog.bag_rotate_length += freeable->total_size;
+    freeable->free(alloc);
     SOFTWARE_BARRIER;
 
-    threadData[tid].index = nextIndex;
     threadData[tid].currentBag = threadData[tid].epochbags[nextIndex];
 }
 
@@ -181,6 +157,7 @@ bool Reclaimer_debra::startOp(int tid) {
                                          std::memory_order_relaxed); // note: this must be written, regardless of whether the announced epochs are the same, because the quiescent bit will vary
 
     SOFTWARE_BARRIER;
+
     // note: readEpoch, when written to announcedEpoch[tid],
     //       sets the state to non-quiescent and non-neutralized
 
@@ -193,6 +170,7 @@ bool Reclaimer_debra::startOp(int tid) {
             const int c = ++threadData[tid].checked;
             if (c >= this->NUM_PROCESSES /*&& c > MIN_OPS_BEFORE_CAS_EPOCH*/) {
                 if (__sync_bool_compare_and_swap(&epoch, readEpoch, readEpoch + EPOCH_INCREMENT)) {
+                    llog.epoch_go_forward_times ++;
                 }
             }
         }

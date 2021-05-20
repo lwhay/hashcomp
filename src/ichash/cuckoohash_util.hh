@@ -74,28 +74,28 @@ namespace libcuckoo {
  */
 class load_factor_too_low : public std::exception {
 public:
-    /**
-     * Constructor
-     *
-     * @param lf the load factor of the table when the exception was thrown
-     */
-    load_factor_too_low(const double lf) noexcept : load_factor_(lf) {}
+  /**
+   * Constructor
+   *
+   * @param lf the load factor of the table when the exception was thrown
+   */
+  load_factor_too_low(const double lf) noexcept : load_factor_(lf) {}
 
-    /**
-     * @return a descriptive error message
-     */
-    virtual const char *what() const noexcept override {
-        return "Automatic expansion triggered when load factor was below "
-               "minimum threshold";
-    }
+  /**
+   * @return a descriptive error message
+   */
+  virtual const char *what() const noexcept override {
+    return "Automatic expansion triggered when load factor was below "
+           "minimum threshold";
+  }
 
-    /**
-     * @return the load factor of the table when the exception was thrown
-     */
-    double load_factor() const noexcept { return load_factor_; }
+  /**
+   * @return the load factor of the table when the exception was thrown
+   */
+  double load_factor() const noexcept { return load_factor_; }
 
 private:
-    const double load_factor_;
+  const double load_factor_;
 };
 
 /**
@@ -105,27 +105,27 @@ private:
  */
 class maximum_hashpower_exceeded : public std::exception {
 public:
-    /**
-     * Constructor
-     *
-     * @param hp the hash power we were trying to expand to
-     */
-    maximum_hashpower_exceeded(const size_t hp) noexcept : hashpower_(hp) {}
+  /**
+   * Constructor
+   *
+   * @param hp the hash power we were trying to expand to
+   */
+  maximum_hashpower_exceeded(const size_t hp) noexcept : hashpower_(hp) {}
 
-    /**
-     * @return a descriptive error message
-     */
-    virtual const char *what() const noexcept override {
-        return "Expansion beyond maximum hashpower";
-    }
+  /**
+   * @return a descriptive error message
+   */
+  virtual const char *what() const noexcept override {
+    return "Expansion beyond maximum hashpower";
+  }
 
-    /**
-     * @return the hashpower we were trying to expand to
-     */
-    size_t hashpower() const noexcept { return hashpower_; }
+  /**
+   * @return the hashpower we were trying to expand to
+   */
+  size_t hashpower() const noexcept { return hashpower_; }
 
 private:
-    const size_t hashpower_;
+  const size_t hashpower_;
 };
 
 }  // namespace libcuckoo
