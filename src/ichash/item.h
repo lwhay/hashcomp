@@ -15,8 +15,8 @@ typedef  uint32_t ltype;
 
 #ifdef FIX_LEN
 
-#define KEY_BUF_LEN 8
-#define VALUE_BUF_LEN 8
+#define KEY_BUF_LEN 19
+#define VALUE_BUF_LEN 19
 #define ITEM_LEN_FIXED (KEY_BUF_LEN + VALUE_BUF_LEN + 2* sizeof(ltype))
 #define ITEM_LEN(item_ptr)  ITEM_LEN_FIXED
 #define ITEM_LEN_ALLOC(kl,vl)   ITEM_LEN_FIXED
