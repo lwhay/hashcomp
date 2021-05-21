@@ -744,7 +744,7 @@ namespace libcuckoo {
 
 
         //true hit , false miss
-        bool Find(char *key, size_t key_len,char * buf){
+        bool Find(char *key, size_t key_len,char * buf,int round=1){
             const hash_value hv = hashed_key(key, key_len);
             TwoBuckets b = get_two_buckets(hv);
 
@@ -768,7 +768,7 @@ namespace libcuckoo {
             if (pos.status == key_hit) {
                 //do some thing
                 Item * ptr = extract_ptr(pos.entry);
-                memcpy(buf,ITEM_VALUE(ptr),ITEM_VALUE_LEN(ptr));
+                for (int r = 0; r < round; r++) memcpy(buf,ITEM_VALUE(ptr),ITEM_VALUE_LEN(ptr));
                 return true;
             }
             return false;

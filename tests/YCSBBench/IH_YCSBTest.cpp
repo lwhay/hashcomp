@@ -125,7 +125,8 @@ void *measureWorker(void *args) {
                     case 0: {
                         char result[255];
                         YCSB_request *req = runs[i];
-                        bool ret = store->Find(runs[i]->getKey(), runs[i]->keyLength(), result);
+                        bool ret = store->Find(runs[i]->getKey(), runs[i]->keyLength(), result,
+                                               (i % thread_number == work->tid) ? pow(2, skew) : 1);
                         if (ret) rhit++;
                         else rfail++;
                         break;
