@@ -97,7 +97,7 @@ public:
         do {
             entry = atomic_entry.load(std::memory_order_relaxed);
             if (entry == 0) break;
-            reclaimer->protect(brown_tid, (D *) libcuckoo::con_hp_store(entry) , callbackReturnTrue, nullptr, false);
+            reclaimer->protect(brown_tid, (D *) libcuckoo::con_hp_store(entry) , callbackReturnTrue, nullptr, true);
             entry_check= atomic_entry.load(std::memory_order_relaxed);
         } while (entry != entry_check ) ;
         return entry;
@@ -125,7 +125,7 @@ public:
             if (is_safe((T *) address)) {
                 return filter((T *) address);
             }
-            if (free_type == 0) reclaimer->protect(brown_tid, (D *) address, callbackReturnTrue, nullptr, false);
+            if (free_type == 0) reclaimer->protect(brown_tid, (D *) address, callbackReturnTrue, nullptr, true);
             else reclaimer->template startOp<T>(brown_tid, (void *const *const) &reclaimer, 1);
         } while (address != (uint64_t) res.load(std::memory_order_relaxed));
         holder = address;
