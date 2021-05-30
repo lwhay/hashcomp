@@ -95,10 +95,10 @@ public:
     uint64_t read(int tid, std::atomic<uint64_t> &atomic_entry) {
         uint64_t entry = 0, entry_check = 0;
         do {
-            entry = atomic_entry.load(std::memory_order_relaxed);
+            entry = atomic_entry.load();
             if (entry == 0) break;
             reclaimer->protect(brown_tid, (D *) libcuckoo::con_hp_store(entry) , callbackReturnTrue, nullptr, true);
-            entry_check= atomic_entry.load(std::memory_order_relaxed);
+            entry_check= atomic_entry.load();
         } while (entry != entry_check ) ;
         return entry;
     }
