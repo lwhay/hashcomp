@@ -8,6 +8,7 @@
 #include "tracer.h"
 #include "generator.h"
 #include "../../src/heavyhitter/GeneralLazySS.h"
+#include "../../src/heavyhitter/LazySpaceSaving.h"
 
 using namespace std;
 
@@ -36,7 +37,7 @@ int main(int argc, char **argv) {
         glss.push_back(new GeneralLazySS<uint64_t>(fPhi));
         loads.push_back(new vector<uint64_t>());
         threads.push_back(thread([](vector<uint64_t> *load) {
-            zipf_distribution<uint64_t> gen((1llu << 63), 1.5);
+            zipf_distribution<uint64_t> gen((1llu << 63), 0.99);
             mt19937 mt(time(0));
             for (int i = 0; i < watch; i++) load->push_back(gen(mt));
         }, loads[t++]));
@@ -45,6 +46,23 @@ int main(int argc, char **argv) {
     runtime.push_back(tracer.getRunTime());
     cout << "Generated" << endl;
     threads.clear();
+
+    tracer.startTime();
+    LazySpaceSaving lss(0.00001);
+    tracer.startTime();
+    for (int t = 0; t < degree; t++) for (auto v : *loads[t]) lss.put(v % (1llu << 31 - 1));
+    cout << "LazySS put: " << tracer.getRunTime() << ": " << lss.size() << endl;
+    tracer.startTime();
+    size_t miss = 0, found = 0, total = 0;
+    Counter *counter = nullptr;
+    for (int t = 0; t < degree; t++)
+        for (auto v: *loads[t]) {
+            total++;
+            counter = lss.find(v % (1llu << 31 - 1));
+            if (nullptr == counter) miss++;
+            else found += counter->getCount();
+        }
+    cout << "LazySS find: " << tracer.getRunTime() << ": " << miss << " " << found << " " << total << endl;
     tracer.startTime();
     for (int t = 0; t < degree; t++) {
         threads.push_back(thread([](vector<uint64_t> *load, GeneralLazySS<uint64_t> *ss) {
@@ -56,12 +74,12 @@ int main(int argc, char **argv) {
     cout << "Inserted" << endl;
     tracer.startTime();
 #ifndef NDEBUG
-    for (int i = 0; i < glss[0]->volume(); i++) {
+    /*for (int i = 0; i < glss[0]->volume(); i++) {
         for (int t = 0; t < degree; t++)
             cout << i << "\t" << glss[t]->output(true)[i].getItem() << "(" << glss[t]->output(true)[i].getCount() << ")"
                  << "\t";
         cout << endl;
-    }
+    }*/
 #endif
     for (int t = 1; t < degree; t++) {
         glss[0]->merge(*glss[t]);
@@ -70,5 +88,16 @@ int main(int argc, char **argv) {
     runtime.push_back(tracer.getRunTime());
     cout << "Merged: " << endl;
     for (auto t:runtime) cout << t << "\t";
+    miss = 0, found = 0, total = 0;
+    tracer.startTime();
+    for (int t = 0; t < degree; t++) {
+        for (auto v: *loads[t]) {
+            Item<uint64_t> *ip = glss[0]->find(v);
+            if (ip == nullptr) miss++;
+            else found += ip->getCount();
+            total++;
+        }
+    }
+    cout << "\nGeneral find: " << tracer.getRunTime() << ": " << miss << " " << found << " " << total << endl;
     cout << endl;
 }

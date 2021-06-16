@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         total_round = std::atol(argv[1]);
     }
-    zipf_distribution<uint64_t> gen((1LLU << 32), 1.5);
+    zipf_distribution<uint64_t> gen((1LLU << 32), 0.99);
     std::mt19937 mt;
     vector<uint64_t> keys;
     SS<uint64_t> ss(1000);
@@ -32,9 +32,10 @@ int main(int argc, char **argv) {
     }
     cout << tracer.getRunTime() << " with " << keys.size() << endl;
     tracer.getRunTime();
-    for (int i = 0; i < total_round; i++) {
+    /*for (int i = 0; i < total_round; i++) {
         ss.put(keys[i]);
     }
+    exit(0);*/
     cout << "Original SS:" << tracer.getRunTime() << ":" << ss.getCounterNumber() << endl;
     freq_type *ft = Freq_Init(0.00001);
     tracer.startTime();
