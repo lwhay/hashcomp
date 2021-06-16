@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
     threads.clear();
 
     tracer.startTime();
-    LazySpaceSaving lss(0.00001);
+    LazySpaceSaving lss(fPhi);
     tracer.startTime();
     for (int t = 0; t < degree; t++) for (auto v : *loads[t]) lss.put(v % (1llu << 31 - 1));
     cout << "LazySS put: " << tracer.getRunTime() << ": " << lss.size() << endl;
