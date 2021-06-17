@@ -13,6 +13,7 @@ message(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(src/cfrequent)
 include_directories(src/heavyhitter)
 include_directories(src/quantile)
+include_directories(src/replacealgo)
 include_directories(src/utils)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../../src/bench)
 
@@ -66,7 +67,8 @@ set(STREAM_EFFICIENCYTEST
         tests/heavyhitter/WOGeneralSSEfficiency.cpp
         tests/heavyhitter/ClickStreamHashEfficiency.cpp
         tests/heavyhitter/ParallelGLSSEfficiency.cpp
-        tests/heavyhitter/GeneralLazySS_MappingTest.cpp)
+        tests/heavyhitter/GeneralLazySS_MappingTest.cpp
+        tests/replacealgo/ReplacementAlgorithmTest.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
