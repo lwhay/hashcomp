@@ -59,6 +59,7 @@ set(STREAM_EFFICIENCYTEST
         tests/ZipfianVerification.cpp
         tests/QuantilePointGenerator.cpp
         tests/ClickStreamStatistics.cpp
+        tests/MCWorkloadStatistics.cpp
         tests/ClickStreamGenerator.cpp
         tests/SerialHeaveyHitterTest.cpp
         tests/cfrequent/QuantileVerification.cpp
