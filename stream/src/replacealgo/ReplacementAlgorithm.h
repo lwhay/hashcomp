@@ -215,8 +215,17 @@ public:
         if (TYPE == 0) {
             root->setDelta(root->getCount());
             root->setCount(value + root->getDelta());
+        } else {
+            root->setCount(1);
         }
+#if PRINT_TRACE
+        std::cout << ret << " " << item << std::endl;
+        print();
+#endif
         Heapify(1);
+#if PRINT_TRACE
+        print();
+#endif
         return ret;
     }
 
@@ -232,8 +241,10 @@ public:
 
     void print() {
         for (int i = 0; i <= _size; i++)
-            std::cout << (((counters[i].getItem() + 1) & 0x7fffffff) - 1) << ":" << counters[i].getCount() << ":"
-                      << counters[i].getDelta() << "->";
+            std::cout << "\033[34m" << (((counters[i].getItem() + 1) & 0x7fffffff) - 1) << "\033[0m" << ":"
+                      << "\033[33m" << hash(hasha, hashb, counters[i].getItem()) % hashsize << "\033[0m" << ":"
+                      << "\033[31m" << counters[i].getCount() << "\033[0m" << ":"
+                      << "\033[32m" << counters[i].getDelta() << "\033[0m" << "->";
         /*Item<IT> *cur = root;
         do {
             std::cout << cur->getItem() << ":" << cur->getCount() << ":" << cur->getDelta() << "->";

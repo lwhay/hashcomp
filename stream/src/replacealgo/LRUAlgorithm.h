@@ -41,6 +41,8 @@ public:
 
         while (hashptr) {
             if (hashptr->getItem() == item) {
+                hashptr->chgCount(value);
+                this->Heapify(hashptr - this->counters);
                 return ret;
             } else hashptr = hashptr->getNext();
         }
@@ -67,7 +69,7 @@ public:
             this->root->setDelta(this->root->getCount());
             this->root->setCount(value + this->root->getDelta());
         }
-        // Heapify(1);
+        this->Heapify(1);
         return ret;
     }
 };
