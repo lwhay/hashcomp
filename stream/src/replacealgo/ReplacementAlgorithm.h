@@ -22,7 +22,7 @@ private:
     IT hash;
     int count;
     int delta;
-    Item *prev, *next;
+    Item *prev, *next, *pred, *foll;
 public:
     void setitem(IT item) { this->item = item; }
 
@@ -44,11 +44,19 @@ public:
 
     void setPrev(Item *counter) { prev = counter; }
 
+    void setPred(Item *counter) { pred = counter; }
+
     Item *getPrev() { return prev; }
+
+    Item *getPred() { return pred; }
 
     void setNext(Item *counter) { next = counter; }
 
+    void setFoll(Item *counter) { foll = counter; }
+
     Item *getNext() { return next; }
+
+    Item *getFoll() { return foll; }
 
     static bool comp(Item<IT> &a, Item<IT> &b) {
         return a.getCount() > b.getCount();
@@ -69,7 +77,7 @@ class GeneralReplacement {
     constexpr static IT GLSS_NULLITEM = std::numeric_limits<IT>::max();
     constexpr static IT GLSS_MOD = std::numeric_limits<IT>::max() / 2;
     constexpr static int GLSS_HL = 8 * sizeof(IT) - 1;
-private:
+protected:
     int n;
     IT hasha, hashb, hashsize;
     int _size;
@@ -88,7 +96,7 @@ private:
         return (lresult);
     }
 
-private:
+protected:
     inline void Heapify(IT ptr) {
         Item<IT> tmp;
         Item<IT> *cpt, *minchild;
@@ -154,6 +162,7 @@ public:
     }
 
     ~GeneralReplacement() {
+        // std::cout << "clean" << std::endl;
         delete[] hashtable;
         delete[] counters;
         delete[] merged;

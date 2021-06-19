@@ -3,10 +3,37 @@
 //
 #include <cassert>
 #include <iostream>
+#include <unordered_map>
 #include "ReplacementAlgorithm.h"
+#include "LRUAlgorithm.h"
 #include "tracer.h"
 
 #define MAX_COUNT 100000000
+
+void testLRU() {
+    zipf_distribution<uint64_t> gen((1LLU << 32), 0.99);
+    std::mt19937 mt;
+    std::vector<uint64_t> keys;
+    Tracer tracer;
+    tracer.startTime();
+    std::unordered_map<uint64_t, int> freq;
+    for (int i = 0; i < MAX_COUNT; i++) {
+        uint64_t key = gen(mt);
+        keys.push_back(key);
+        if (freq.end() == freq.find(key)) freq.insert(make_pair(key, 0));
+        freq.find(key)->second++;
+    }
+    cout << tracer.getRunTime() << " with " << keys.size() << " " << freq.size() << endl;
+    tracer.getRunTime();
+    LRUAlgorithm<int, 0> lss(100000);
+    cout << lss.size() << endl;
+    tracer.startTime();
+    for (int i = 0; i < MAX_COUNT; i++) {
+        lss.put(keys[i]);
+    }
+    cout << "LRUReplacement: " << tracer.getRunTime() << ":" << lss.size() << endl;
+    cout << lss.size() << endl;
+}
 
 void testAsHeavyHitter() {
     zipf_distribution<uint64_t> gen((1LLU << 32), 0.99);
@@ -44,7 +71,8 @@ void testAsReplace() {
 }
 
 int main(int argc, char **argv) {
-    // testAsHeavyHitter();
-    testAsReplace();
+    testLRU();
+    testAsHeavyHitter();
+    // testAsReplace();
     return 0;
 }
