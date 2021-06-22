@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.6)
 #else ()
 #    set(CMAKE_CXX_STANDARD 11)
 #endif ()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DPRINT_TRACE=1")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DPRINT_TRACE=1")
 message(${CMAKE_CURRENT_BINARY_DIR})
 
 include_directories(src/cfrequent)

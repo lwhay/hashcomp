@@ -22,7 +22,7 @@ private:
     IT hash;
     int count;
     int delta;
-    Item *prev, *next, *pred, *foll;
+    Item *prev, *next, *left, *right;
 public:
     void setitem(IT item) { this->item = item; }
 
@@ -44,19 +44,19 @@ public:
 
     void setPrev(Item *counter) { prev = counter; }
 
-    void setPred(Item *counter) { pred = counter; }
+    void setLeft(Item *counter) { left = counter; }
 
     Item *getPrev() { return prev; }
 
-    Item *getPred() { return pred; }
+    Item *getLeft() { return left; }
 
     void setNext(Item *counter) { next = counter; }
 
-    void setFoll(Item *counter) { foll = counter; }
+    void setRight(Item *counter) { right = counter; }
 
     Item *getNext() { return next; }
 
-    Item *getFoll() { return foll; }
+    Item *getRight() { return right; }
 
     static bool comp(Item<IT> &a, Item<IT> &b) {
         return a.getCount() > b.getCount();
@@ -71,7 +71,7 @@ public:
     }
 };
 
-template<typename IT, int TYPE = 0>
+template<typename IT>
 class GeneralReplacement {
     constexpr static uint32_t GLSS_HASHMULT = 3;
     constexpr static IT GLSS_NULLITEM = std::numeric_limits<IT>::max();
@@ -212,12 +212,8 @@ public:
         ret = root->getItem();
         root->setitem(item);
         root->setHash(hashval);
-        if (TYPE == 0) {
-            root->setDelta(root->getCount());
-            root->setCount(value + root->getDelta());
-        } else {
-            root->setCount(1);
-        }
+        root->setDelta(root->getCount());
+        root->setCount(value + root->getDelta());
 #if PRINT_TRACE
         std::cout << ret << " " << item << std::endl;
         print();
@@ -245,11 +241,6 @@ public:
                       << "\033[33m" << hash(hasha, hashb, counters[i].getItem()) % hashsize << "\033[0m" << ":"
                       << "\033[31m" << counters[i].getCount() << "\033[0m" << ":"
                       << "\033[32m" << counters[i].getDelta() << "\033[0m" << "->";
-        /*Item<IT> *cur = root;
-        do {
-            std::cout << cur->getItem() << ":" << cur->getCount() << ":" << cur->getDelta() << "->";
-            cur = cur->getNext();
-        } while (cur != nullptr);*/
         std::cout << std::endl;
     }
 
