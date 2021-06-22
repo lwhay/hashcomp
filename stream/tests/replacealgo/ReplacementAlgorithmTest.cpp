@@ -43,7 +43,7 @@ void replaceEfficiencyTest() {
         lss.put(keys[i]);
     }
     cout << "Replace-" << typeid(T).name() << ":" << tracer.getRunTime() << ":" << lss.size() << ":" << miss << ":"
-         << hit << lss.size() << endl;
+         << hit << ":" << lss.size() << endl;
 }
 
 template<class T>
