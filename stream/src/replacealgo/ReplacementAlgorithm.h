@@ -308,13 +308,16 @@ public:
         size_t indicators[lss.size()];
         std::memset(indicators, 0, sizeof(size_t) * lss.size());
         for (int i = 0; i < lss.size(); i++) {
-            pq.push(&lss.at(i)->fetch()[0]); //issue without idx
+            pq.push(&lss.at(i)->fetch()[0]); // issue without idx
+            indicators[i]++;
         }
         int capacity = 0, size = this->_size;
         while (capacity < this->_size) {
             Item<IT> *top = pq.top();
+            Item<IT> *org = lss.at(top->getDelta())->find(top->getItem());
             pq.pop();
-            if (top->getDelta() != -1) {
+            if (org == nullptr) continue; // for substream whose items have been used up.
+            if (org->getDelta() != -1) {
                 final[capacity].setitem(top->getItem());
                 final[capacity].setCount(top->getCount());
                 for (int i = 0; i < lss.size(); i++) {
@@ -327,12 +330,10 @@ public:
                     }
                 }
                 capacity++;
-            } else {
-                int c = final[capacity].getCount();
             }
 
             size_t idx = top->getDelta();
-            pq.push(&lss.at(idx)->fetch()[indicators[idx]]); //issue without idx
+            pq.push(&lss.at(idx)->fetch()[indicators[idx]]); // issue without idx
             indicators[idx]++;
         }
         return final;
