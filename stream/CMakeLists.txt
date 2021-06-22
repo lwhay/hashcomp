@@ -70,7 +70,8 @@ set(STREAM_EFFICIENCYTEST
         tests/heavyhitter/ParallelGLSSEfficiency.cpp
         tests/heavyhitter/GeneralLazySS_MappingTest.cpp
         tests/replacealgo/ReplacementAlgorithmTest.cpp
-        tests/replacealgo/PriorityQueueTest.cpp)
+        tests/replacealgo/PriorityQueueTest.cpp
+        tests/replacealgo/MergeGeneralAltorithmTest.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)

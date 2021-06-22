@@ -5,6 +5,7 @@
 #define HASHCOMP_REPLACEMENTALGORITHM_H
 
 #include <algorithm>
+#include <functional>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -12,6 +13,8 @@
 #include <cstring>
 #include <limits>
 #include <random>
+#include <queue>
+#include <vector>
 
 #define verifyRefresh 0
 
@@ -249,6 +252,16 @@ public:
         return counters;
     }
 
+    Item<IT> *prepare(int idx) {
+        std::memcpy(merged, counters, sizeof(Item<IT>) * (_size + 1));
+        std::sort(merged + 1, merged + _size + 1, Item<IT>::comp);
+        for (size_t i = 1; i <= _size; i++)
+            merged[i].setDelta(idx);
+        return merged;
+    }
+
+    Item<IT> *fetch() { return merged + 1; }
+
     void refresh() {
 #if verifyRefresh
         for (int i = 1; i < _size + 1; i++) {
@@ -286,8 +299,43 @@ public:
 #endif
     }
 
-    Item<IT> *merge(std::vector<GeneralReplacement &> lss, bool overwrite = true) {
+    static bool comp(Item<IT> *a, Item<IT> *b) { return a->getCount() > b->getCount(); }
 
+    Item<IT> *merge(std::vector<GeneralReplacement<IT> *> lss, bool overwrite = true) {
+        std::memset(merged + _size + 1, 0, sizeof(Item<IT>) * _size);
+        Item<IT> *final = merged + _size + 1;
+        std::priority_queue<Item<IT> *, std::vector<Item<IT> *>, std::function<bool(Item<IT> *, Item<IT> *)>> pq(comp);
+        size_t indicators[lss.size()];
+        std::memset(indicators, 0, sizeof(size_t) * lss.size());
+        for (int i = 0; i < lss.size(); i++) {
+            pq.push(&lss.at(i)->fetch()[0]); //issue without idx
+        }
+        int capacity = 0, size = this->_size;
+        while (capacity < this->_size) {
+            Item<IT> *top = pq.top();
+            pq.pop();
+            if (top->getDelta() != -1) {
+                final[capacity].setitem(top->getItem());
+                final[capacity].setCount(top->getCount());
+                for (int i = 0; i < lss.size(); i++) {
+                    GeneralReplacement<IT> *who = lss.at(i);
+                    IT value = top->getItem();
+                    Item<IT> *cur = who->find(value);
+                    if (i != top->getDelta() && cur != nullptr) {
+                        final[capacity].chgCount(cur->getCount());
+                        cur->setDelta(-1);
+                    }
+                }
+                capacity++;
+            } else {
+                int c = final[capacity].getCount();
+            }
+
+            size_t idx = top->getDelta();
+            pq.push(&lss.at(idx)->fetch()[indicators[idx]]); //issue without idx
+            indicators[idx]++;
+        }
+        return final;
     }
 
     Item<IT> *merge(GeneralReplacement &lss, bool overwrite = true) {
