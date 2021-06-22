@@ -11,7 +11,7 @@
 
 #define MAX_COUNT 100000000
 #define HIT_COUNT (MAX_COUNT / 10)
-#define DATA_SKEW 0.49
+#define DATA_SKEW 0.99
 
 std::vector<uint64_t> keys;
 
