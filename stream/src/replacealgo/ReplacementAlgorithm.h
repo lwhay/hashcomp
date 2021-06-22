@@ -286,6 +286,10 @@ public:
 #endif
     }
 
+    Item<IT> *merge(std::vector<GeneralReplacement &> lss, bool overwrite = true) {
+
+    }
+
     Item<IT> *merge(GeneralReplacement &lss, bool overwrite = true) {
         assert(lss.volume() == _size);
         std::memcpy(merged, counters, sizeof(Item<IT>) * (_size + 1));
