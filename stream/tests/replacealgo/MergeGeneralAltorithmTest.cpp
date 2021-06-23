@@ -29,12 +29,12 @@ void genmerge() {
     cout << (std::numeric_limits<uint64_t>::max()) << endl;
     std::vector<GeneralReplacement<uint64_t> *> grs;
     Tracer tracer;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < total_threads_num; i++) {
         grs.push_back(new GeneralReplacement<uint64_t>(hit_count));
     }
     vector<thread> workers;
     tracer.startTime();
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < total_threads_num; i++) {
         workers.push_back(thread([](GeneralReplacement<uint64_t> *gr, int tid) {
             Tracer tracer;
             tracer.startTime();
@@ -55,7 +55,7 @@ void genmerge() {
             output[tid] << endl;
         }, grs.at(i), i));
     }
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < total_threads_num; i++) {
         workers[i].join();
         string outstr = output[i].str();
         cout << outstr;
