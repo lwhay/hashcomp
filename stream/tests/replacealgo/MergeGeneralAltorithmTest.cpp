@@ -2,31 +2,27 @@
 // Created by iclab on 6/22/21.
 //
 #include <cassert>
+#include <thread>
 #include <iostream>
+#include <sstream>
 #include <unordered_map>
 #include "ReplacementAlgorithm.h"
 #include "tracer.h"
 
-#define MAX_COUNT 100000000
-#define HIT_COUNT (MAX_COUNT / 100)
-#define DATA_SKEW 0.99f
+int total_threads_num = 10;
+size_t max_count = 100000000;
+size_t hit_count = (max_count / 100);
+float data_skew = 0.99f;
 
-std::vector<uint64_t> keys;
+uint64_t *keys;
+stringstream *output;
 
-void generate(size_t num = MAX_COUNT) {
-    keys.clear();
-    zipf_distribution<uint64_t> gen((1LLU << 32), DATA_SKEW);
-    std::mt19937 mt;
+void generate() {
+    keys = (uint64_t *) calloc(max_count, sizeof(uint64_t));
     Tracer tracer;
     tracer.startTime();
-    std::unordered_map<uint64_t, int> freq;
-    for (int i = 0; i < num; i++) {
-        uint64_t key = gen(mt);
-        keys.push_back(key);
-        if (freq.end() == freq.find(key)) freq.insert(make_pair(key, 0));
-        freq.find(key)->second++;
-    }
-    cout << tracer.getRunTime() << " with " << keys.size() << " " << freq.size() << endl;
+    RandomGenerator<uint64_t>::generate(keys, (1llu << 32), max_count, data_skew);
+    cout << tracer.getRunTime() << " with " << max_count << endl;
 }
 
 void genmerge() {
@@ -34,28 +30,57 @@ void genmerge() {
     std::vector<GeneralReplacement<uint64_t> *> grs;
     Tracer tracer;
     for (int i = 0; i < 10; i++) {
-        grs.push_back(new GeneralReplacement<uint64_t>(HIT_COUNT));
-        tracer.startTime();
-        for (int j = 0; j < MAX_COUNT / 10; j++) {
-            grs.at(i)->put(keys[i * MAX_COUNT / 10 + j]);
-        }
-        cout << i << " push: " << tracer.getRunTime() << ":" << grs.at(i)->volume() << ":" << HIT_COUNT << endl;
-        assert(grs.at(i)->volume() == HIT_COUNT + 1);
-        tracer.startTime();
-        Item<uint64_t> *partial = grs.at(i)->prepare(i);
-        cout << i << " merge: " << tracer.getRunTime() << endl;
-        /*for (int i = 0; i < 10; i++) {
-            cout << partial[i].getItem() << ":" << partial[i].getCount() << "->";
-        }
-        cout << endl;*/
+        grs.push_back(new GeneralReplacement<uint64_t>(hit_count));
     }
+    vector<thread> workers;
+    tracer.startTime();
+    for (int i = 0; i < 10; i++) {
+        workers.push_back(thread([](GeneralReplacement<uint64_t> *gr, int tid) {
+            Tracer tracer;
+            tracer.startTime();
+            size_t start = tid * max_count / total_threads_num;
+            for (int j = 0; j < max_count / total_threads_num; j++) {
+                gr->put(keys[start + j]);
+            }
+            Item<uint64_t> *partial = gr->prepare(tid);
+            output[tid] << "\t" << tid << " " << tracer.getRunTime() << " " << gr->volume() << " ";
+            for (int i = 0; i < 3; i++) {
+                output[tid] << partial[i].getItem() << ":" << partial[i].getCount() << "->";
+            }
+            output[tid] << "->...->";
+            for (int i = 0; i < 3; i++) {
+                output[tid] << partial[gr->volume() - i].getItem() << ":" << partial[gr->volume() - i].getCount()
+                            << "->";
+            }
+            output[tid] << endl;
+        }, grs.at(i), i));
+    }
+    for (int i = 0; i < 10; i++) {
+        workers[i].join();
+        string outstr = output[i].str();
+        cout << outstr;
+    }
+    cout << "push: " << tracer.getRunTime() << ":" << hit_count << endl;
     tracer.startTime();
     Item<uint64_t> *merged = grs.at(0)->merge(grs);
-    cout << "total merge:" << tracer.getRunTime() << endl;
-    /*for (int i = 0; i < 10; i++) {
+    cout << "total merge:" << tracer.getRunTime() << " " << endl;
+    tracer.startTime();
+    GeneralReplacement<uint64_t> gr(grs.at(0)->volume() - 1);
+    for (int i = 0; i < grs.at(0)->volume(); i++) gr.put(merged[i].getItem());
+    cout << "rebuild:" << tracer.getRunTime() << " ";
+    for (int i = 0; i < 3; i++) {
         cout << merged[i].getItem() << ":" << merged[i].getCount() << "->";
     }
-    cout << endl;*/
+    cout << "->...->";
+    for (int i = 3; i > 0; i--) {
+        cout << merged[grs.at(0)->volume() - i].getItem() << ":" << merged[grs.at(0)->volume() - i].getCount() << "->";
+    }
+    cout << endl;
+    for (int i = 0; i < grs.at(0)->volume(); i++) assert(gr.find(merged[i].getItem()) != nullptr);
+    //assert(grs.at(0)->find(merged[i].getItem()) != nullptr);
+    cerr << gr.volume() << ":" << grs.at(0)->volume() << endl;
+    assert(gr.volume() == grs.at(0)->volume());
+    for (auto gr: grs) delete gr;
 }
 
 void dummy() {
@@ -96,7 +121,15 @@ void dummy() {
 }
 
 int main(int argc, char **argv) {
+    if (argc > 1) {
+        total_threads_num = std::atoi(argv[1]);
+        max_count = std::atol(argv[2]);
+        hit_count = std::atoi(argv[3]);
+        data_skew = std::atof(argv[4]);
+    }
+    output = new stringstream[total_threads_num];
     dummy();
     generate();
     genmerge();
+    delete[] output;
 }

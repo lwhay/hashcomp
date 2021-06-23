@@ -260,6 +260,10 @@ public:
         return merged;
     }
 
+    /*void finish() {
+        std::memcpy(counters + 1, merged + _size + 1, sizeof(Item<IT>) * (_size));
+    }*/
+
     Item<IT> *fetch() { return merged + 1; }
 
     void refresh() {
