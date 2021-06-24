@@ -2,7 +2,6 @@
 // Created by Michael on 6/24/21.
 //
 #include <algorithm>
-#include <cassert>
 #include <iostream>
 #include <unordered_map>
 #include "RandomAlgorithm.h"
@@ -11,9 +10,10 @@
 #include "FastARCAlgorithm.h"
 #include "DefaultARCAlgorithm.h"
 #include "LRUAlgorithm.h"
+#include "ARCAlgorithm.h"
 #include "tracer.h"
 
-#define MAX_COUNT 100000//0000
+#define MAX_COUNT 1000000000
 #define DATA_SKEW 0.99
 
 size_t HIT_COUNT = (MAX_COUNT / 10);
@@ -66,6 +66,20 @@ void efficiencyTest() {
          << "\t" << hit << "\t" << lss.size() << endl;
 }
 
+void ARCEfficiencyTest() {
+    Tracer tracer;
+    tracer.getRunTime();
+    ARCAlgorithm<uint64_t> lss(HIT_COUNT);
+    tracer.startTime();
+    std::vector<uint64_t> queue;
+    for (int i = 0; i < keys.size(); i++) {
+        lss.add(keys[i]);
+    }
+    cout << "ARC-" << ":" << "\033[33m" << tracer.getRunTime() << "\033[0m" << "\t" << "\033[34m"
+         << lss.getTotalMiss() << "\033[0m" << "\t" << (size_t) (lss.getHitRatio() * keys.size() / 100) << "\t"
+         << lss.getTotalRequest() << endl;
+}
+
 void FastARCEfficiencyTest() {
     Tracer tracer;
     tracer.getRunTime();
@@ -116,12 +130,13 @@ int main(int argc, char **argv) {
             cout << "\033[33m" << "--------------------------------------------------------------" << endl;
             cout << "\t\t\t\t" << "Removing" << i << "\tc:" << c << "\033[0m" << endl;
             HIT_COUNT = c;
-            efficiencyTest<RandomAlgorithm<uint64_t >>();
-            replaceEfficiencyTest<RandomAlgorithm<uint64_t >>();
-            efficiencyTest<LRUAlgorithm<uint64_t >>();
-            replaceEfficiencyTest<LRUAlgorithm<uint64_t >>();
-            efficiencyTest<GeneralReplacement<uint64_t >>();
-            replaceEfficiencyTest<GeneralReplacement<uint64_t >>();
+            efficiencyTest<RandomAlgorithm<uint64_t>>();
+            replaceEfficiencyTest<RandomAlgorithm<uint64_t>>();
+            efficiencyTest<LRUAlgorithm<uint64_t>>();
+            replaceEfficiencyTest<LRUAlgorithm<uint64_t>>();
+            ARCEfficiencyTest();
+            efficiencyTest<GeneralReplacement<uint64_t>>();
+            replaceEfficiencyTest<GeneralReplacement<uint64_t>>();
             FastLRUEfficiencyTest();
             FastARCEfficiencyTest();
         }
