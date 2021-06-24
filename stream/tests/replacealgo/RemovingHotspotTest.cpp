@@ -152,7 +152,7 @@ void replaceEfficiencyTest() {
 int main(int argc, char **argv) {
     for (int i = 0; i <= 10000;) {
         generate(i);
-        for (int c = 100; c <= 1000000; c *= 10) {
+        for (int c = 100; c <= 10000000; c *= 10) {
             cout << "\033[33m" << "--------------------------------------------------------------" << endl;
             cout << "\t\t\t\t" << "Removing" << i << "\tc:" << c << "\033[0m" << endl;
             HIT_COUNT = c;
@@ -166,8 +166,10 @@ int main(int argc, char **argv) {
             efficiencyTest<GeneralReplacement<uint64_t>>();
             replaceEfficiencyTest<GeneralReplacement<uint64_t>>();
             rollingEfficiencyTest<GeneralReplacement<uint64_t>>();
-            FastLRUEfficiencyTest();
-            FastARCEfficiencyTest();
+            if (c <= 10000) {
+                FastLRUEfficiencyTest();
+                FastARCEfficiencyTest();
+            }
         }
         i = (i == 0) ? 1 : i *= 10;
     }
