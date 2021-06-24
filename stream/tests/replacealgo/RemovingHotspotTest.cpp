@@ -13,7 +13,7 @@
 #include "ARCAlgorithm.h"
 #include "tracer.h"
 
-#define MAX_COUNT 1000000000
+#define MAX_COUNT 1000000//000
 #define DATA_SKEW 0.99
 
 size_t HIT_COUNT = (MAX_COUNT / 10);
@@ -109,6 +109,32 @@ void FastLRUEfficiencyTest() {
 }
 
 template<class T>
+void rollingEfficiencyTest(int round = 10) {
+    Tracer tracer;
+    tracer.getRunTime();
+    T lss1(HIT_COUNT);
+    T lss2(HIT_COUNT);
+    tracer.startTime();
+    uint64_t miss = 0, hit = 0;
+    for (int k = 0; k < round; k++) {
+        size_t begin = k * keys.size() / round;
+        size_t end = (k + 1) * keys.size() / round;
+        for (int i = begin; i < end; i++) {
+            if (k % 2 == 0) {
+                if (lss2.find(keys[i]) == nullptr) miss++; else hit++;
+                lss1.put(keys[i]);
+            } else {
+                if (lss1.find(keys[i]) == nullptr) miss++; else hit++;
+                lss2.put(keys[i]);
+            }
+        }
+        if (k % 2 == 0) lss2.reset(); else lss1.reset();
+    }
+    cout << "Roll-" << typeid(T).name() << ":" << "\033[33m" << tracer.getRunTime() << "\033[0m" << ":" << lss1.size()
+         << "\t" << "\033[34m" << miss << "\033[0m" << "\t" << hit << "\t" << lss2.size() << endl;
+}
+
+template<class T>
 void replaceEfficiencyTest() {
     Tracer tracer;
     tracer.getRunTime();
@@ -132,11 +158,14 @@ int main(int argc, char **argv) {
             HIT_COUNT = c;
             efficiencyTest<RandomAlgorithm<uint64_t>>();
             replaceEfficiencyTest<RandomAlgorithm<uint64_t>>();
+            rollingEfficiencyTest<RandomAlgorithm<uint64_t>>();
             efficiencyTest<LRUAlgorithm<uint64_t>>();
             replaceEfficiencyTest<LRUAlgorithm<uint64_t>>();
+            rollingEfficiencyTest<LRUAlgorithm<uint64_t>>();
             ARCEfficiencyTest();
             efficiencyTest<GeneralReplacement<uint64_t>>();
             replaceEfficiencyTest<GeneralReplacement<uint64_t>>();
+            rollingEfficiencyTest<GeneralReplacement<uint64_t>>();
             FastLRUEfficiencyTest();
             FastARCEfficiencyTest();
         }

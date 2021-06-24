@@ -36,6 +36,18 @@ public:
 
     ~LRUAlgorithm() {}
 
+    void reset() {
+        GeneralReplacement<IT>::reset();
+        head = &this->counters[1];
+        tail = &this->counters[1];
+        // count = 0;  // accumulate it
+        capacity = 0;
+        for (int i = 1; i <= this->_size; i++) {
+            this->counters[i].setRight(&this->counters[i % this->_size + 1]);
+            this->counters[i].setLeft((i == 1) ? &this->counters[this->_size] : &this->counters[i - 1]);
+        }
+    }
+
     void verify() {
         for (int i = 0; i < this->hashsize; i++)
             assert(this->hashtable[i] == nullptr || this->hashtable[i]->getPrev() == nullptr);

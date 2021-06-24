@@ -164,6 +164,19 @@ public:
         root = &counters[1];
     }
 
+    void reset() {
+        std::memset(hashtable, 0, sizeof(Item<IT> *) * hashsize);
+        std::memset(counters, 0, sizeof(Item<IT>) * (1 + _size));
+        n = 0;
+
+        for (int i = 0; i <= _size; i++) {
+            counters[i].setNext(nullptr);
+            counters[i].setPrev(nullptr);
+            counters[i].setitem(GLSS_NULLITEM);
+        }
+        root = &counters[1];
+    }
+
     ~GeneralReplacement() {
         // std::cout << "clean" << std::endl;
         delete[] hashtable;

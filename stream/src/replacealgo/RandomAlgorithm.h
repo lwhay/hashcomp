@@ -26,6 +26,12 @@ public:
 
     ~RandomAlgorithm() {}
 
+    void reset() {
+        GeneralReplacement<IT>::reset();
+        // count = 0; // accumulate it
+        rep = -1;
+    }
+
     inline IT put(IT item, int value = 1) {
         IT hashval;
         Item<IT> *hashptr;
