@@ -1,7 +1,7 @@
 //
 // Created by Michael on 6/24/21.
 //
-
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <unordered_map>
@@ -9,11 +9,11 @@
 #include "ReplacementAlgorithm.h"
 #include "FastLRUAlgorithm.h"
 #include "FastARCAlgorithm.h"
-#include "ARCAlgorithm.h"
+#include "DefaultARCAlgorithm.h"
 #include "LRUAlgorithm.h"
 #include "tracer.h"
 
-#define MAX_COUNT 1000000000
+#define MAX_COUNT 100000//0000
 #define DATA_SKEW 0.99
 
 size_t HIT_COUNT = (MAX_COUNT / 10);
@@ -26,10 +26,24 @@ void generate(int removingK) {
     Tracer tracer;
     tracer.startTime();
     RandomGenerator<uint64_t>::generate(_keys, (1llu << 32), MAX_COUNT, DATA_SKEW);
-    cout << tracer.getRunTime() << " with " << MAX_COUNT << endl;
+    cout << "gen: " << tracer.getRunTime() << " with " << MAX_COUNT << " ";
+    unordered_map<uint64_t, uint64_t> freq;
     for (int i = 0; i < MAX_COUNT; i++) {
-        if (_keys[i] > removingK) keys.push_back(_keys[i]);
+        if (freq.find(_keys[i]) == freq.end()) freq.insert(make_pair(_keys[i], 0));
+        freq.find(_keys[i])->second++;
     }
+    cout << "map: " << tracer.getRunTime() << " with " << freq.size() << " ";
+    vector<pair<uint64_t, uint64_t>> sorted;
+    for (auto kv : freq) sorted.push_back(kv);
+    sort(sorted.begin(), sorted.end(),
+         [](pair<uint64_t, uint64_t> a, pair<uint64_t, uint64_t> b) { return a.second > b.second; });
+    cout << "sort: " << tracer.getRunTime() << " with " << freq.size() << " ";
+    freq.clear();
+    for (int i = 0; i < removingK; i++) freq.insert(sorted.at(i));
+    for (int i = 0; i < MAX_COUNT; i++) {
+        if (freq.find(_keys[i]) == freq.end()) keys.push_back(_keys[i]);
+    }
+    cout << "put: " << tracer.getRunTime() << " with " << freq.size() << " ";
 }
 
 template<class T>

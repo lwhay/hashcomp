@@ -9,7 +9,7 @@
 #include "FastLRUAlgorithm.h"
 #include "FastARCAlgorithm.h"
 #include "DefaultLRUAlgorithm.h"
-#include "ARCAlgorithm.h"
+#include "DefaultARCAlgorithm.h"
 #include "LRUAlgorithm.h"
 #include "tracer.h"
 
@@ -95,7 +95,7 @@ void DefaultLRUEfficiencyTest() {
 void ARCEfficiencyTest() {
     Tracer tracer;
     tracer.getRunTime();
-    ARCAlgorithm<uint64_t> lss(HIT_COUNT);
+    DefaultARCAlgorithm<uint64_t> lss(HIT_COUNT);
     tracer.startTime();
     for (int i = 0; i < keys.size(); i++) {
         lss.arc_lookup(keys[i]);

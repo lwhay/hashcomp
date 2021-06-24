@@ -61,18 +61,25 @@ public:
             path.insert(hashptr);*/
             count++;
             if (hashptr->getItem() == item) {
+                if (head == hashptr) head = head->getLeft();
                 /*for (int i = 0; i < this->hashsize; i++)
                     assert(this->hashtable[i] == nullptr || this->hashtable[i]->getPrev() == nullptr);*/
                 if (tail != hashptr) {
                     // pick out hashptr
+                    //if (tail == hashptr) tail = tail->getRight();
                     hashptr->getLeft()->setRight(hashptr->getRight());
                     hashptr->getRight()->setLeft(hashptr->getLeft());
-                    // replace head by hashptr
+                    // replace tail by hashptr
+                    hashptr->setRight(tail);
                     hashptr->setLeft(tail->getLeft());
+                    tail->setLeft(hashptr);
+                    tail->getLeft()->setRight(hashptr);
+                    tail = hashptr;
+                    /*hashptr->setLeft(tail->getLeft());
                     hashptr->setRight(tail);
                     tail->getLeft()->setRight(hashptr);
                     tail->setLeft(hashptr);
-                    tail = tail->getLeft()->getRight();
+                    tail = tail->getLeft()->getRight();*/
                     //std::cerr << (head - this->counters) << std::endl;
                     /*assert((tail - this->counters > 0) && (tail - this->counters) <= this->_size);
                     assert(tail->getLeft()->getRight() == tail);
@@ -134,6 +141,60 @@ public:
             cur = cur->getRight();
         } while (cur != head);
         std::cout << std::endl;
+    }
+
+    bool contains(IT k) { return this->find(k) != nullptr; }
+
+    void add(IT k) { this->put(k); }
+
+    IT moveToBack(IT item) {
+        removePage(item, false);
+    }
+
+    size_t getSize() { return this->n; }
+
+    IT removePage(IT item, bool remove = true) {
+        IT hashval;
+        Item<IT> *hashptr;
+
+        IT ret = (IT) -1;
+        this->n += 1;
+        this->counters->setitem(0);
+        hashval = this->hash(this->hasha, this->hashb, item) % this->hashsize;
+        hashptr = this->hashtable[hashval];
+
+        bool asroot = true;
+        while (hashptr) {
+            count++;
+            if (hashptr->getItem() == item) {
+                if (head == hashptr) head = head->getRight();
+                // pick out hashptr
+                hashptr->getLeft()->setRight(hashptr->getRight());
+                hashptr->getRight()->setLeft(hashptr->getLeft());
+                // replace tail by hashptr
+                hashptr->setLeft(tail->getLeft());
+                hashptr->setRight(tail);
+                tail->getLeft()->setRight(hashptr);
+                tail->setLeft(hashptr);
+                tail = tail->getLeft()->getRight();
+                if (remove) {
+                    this->n--;
+                    if (asroot) {
+                        if (hashptr->getNext() != nullptr) hashptr->getNext()->setPrev(nullptr);
+                        this->hashtable[hashval] = hashptr->getNext();
+                    } else {
+                        if (hashptr->getNext() != nullptr) hashptr->getNext()->setPrev(hashptr->getPrev());
+                        hashptr->getPrev()->setNext(hashptr->getNext());
+                    }
+                }
+                ret = item;
+                break;
+            } else {
+                hashptr = hashptr->getNext();
+                asroot = false;
+            }
+            return ret;
+        }
     }
 };
 

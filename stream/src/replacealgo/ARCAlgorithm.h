@@ -1,202 +1,180 @@
 //
-// Created by Michael on 6/23/21.
+// Created by Michael on 6/24/21.
 //
 
 #ifndef STREAM_ARCALGORITHM_H
 #define STREAM_ARCALGORITHM_H
 
-#include <cstring>
-#include <vector>
+#include "LRUAlgorithm.h"
 
 template<typename IT>
 class ARCAlgorithm {
 private:
-//creating a hash file through array
-    size_t hashSize = 10000;
-    uint64_t *Hash;
+    enum Adjustment {
+        MIN, MAX
+    };
+    LRUAlgorithm<IT> *t1, *t2, *b1, *b2;
+    float hitRatio;
+    size_t numHits, numRequests, numMisses, cacheSize, p;
 
-//we use vector(dynamic array) data structures to represent queues.
-/*
-A ARC Cache consisting of 4 Queues
- mrug (B1)- Most Recently Used Ghost
- mru (T1) - Most Recently Used
- mfu (T2) - Most Frequently Used
- mfug (B2) - Most Frequently Used Ghost
-*/
 
-    std::vector <IT> mrug, mru, mfu, mfug;
-
-    float p = 0.0;
-    size_t c, cnt = 0;
-    size_t HitCount = 0, MissCount = 0;
-//Global cache size, taken as input by user
-    unsigned int cacheSize;
-
-//A function to check whether Page x is available in 'v' queue
-    int check(std::vector <IT> v, IT x) {
-        unsigned int l = v.size(), i;
-        for (i = 0; i < l; i++) {
-            if (v[i] == x)
-                return 1;
+    bool checkCaseOne(IT page) {
+        bool retVal = false;
+        if (t1->contains(page)) {
+            t2->add(page);
+            t1->removePage(page);
+            retVal = true;
+            numHits++;
+        } else if (t2->contains(page)) {
+            t2->moveToBack(page);
+            retVal = true;
+            numHits++;
         }
-        return 0;
+
+        return retVal;
     }
 
-//A function to insert page 'i' in 'v' queue.
-    void queue_insert(std::vector <IT> &v, IT i) {
-        if (v.size() == cacheSize)
-            v.erase(v.begin());
-        v.push_back(i);
+    bool checkCaseTwo(IT page) {
+        bool retVal = false;
+
+        if (b1->contains(page)) {
+            adjust(page, MIN);
+            replace(page);
+            t2->add(page);
+            b1->removePage(page);
+            retVal = true;
+            numMisses++;
+        }
+
+        return retVal;
     }
 
-//function to pop LRU element from queue 'v'
-    void queue_delete(std::vector <IT> &v) {
-        if (v.size() > 0)
-            v.erase(v.begin());
+    bool checkCaseThree(IT page) {
+        bool retVal = false;
+
+        if (b2->contains(page)) {
+            adjust(page, MAX);
+            replace(page);
+            t2->add(page);
+            b2->removePage(page);
+            retVal = true;
+            numMisses++;
+        }
+
+        return retVal;
     }
 
-
-//function to move a particular page from one queue to another, 'x' from queue 'v' to queue 'w'
-    void movefrom(std::vector <IT> &v, std::vector <IT> &w, IT x) {
-        int i, j, l = v.size();
-        for (i = 0; i < l; i++)
-            if (v[i] == x) {
-                v.erase(v.begin() + i);
-                break;
-            }
-
-        if (w.size() == cacheSize)
-            w.erase(w.begin());
-        w.push_back(x);
-    }
-
-/*
-Replace subroutine as specified in the reference paper
-This function is called when a page with given 'pageNumber' is to be moved from
-T2 to B2 or T1 to B1. Basically this function is used to move the elements out from
-one list and add it to the another list beginning.
-*/
-    void Replace(const IT i, const float p) {
-        if ((mru.size() >= 1) && ((mru.size() > p) || (check(mfug, i)) && (p == mru.size()))) {
-            if (mru.size() > 0) {
-                movefrom(mru, mrug, mru[0]);
-            }
+    bool checkCaseFour(IT page) {
+        if (t1->getSize() + b1->getSize() == cacheSize) {
+            if (t1->getSize() < cacheSize) {
+                b1->removePage(page);
+                replace(page);
+            } else
+                t1->removePage(page);
         } else {
-            if (mfu.size() > 0) {
-                movefrom(mfu, mfug, mfu[0]);
+            size_t size = t1->getSize() + t2->getSize() + b1->getSize() + b2->getSize();
+
+            if (size >= cacheSize) {
+                if (size == 2 * cacheSize)
+                    b2->removePage(page);
+
+                replace(page);
             }
+        }
+
+        t1->add(page);
+        numMisses++;
+
+        return true;
+    }
+
+    void adjust(IT page, Adjustment adjType) {
+        size_t adj;
+
+        if (adjType == MIN) {
+            if (b1->getSize() >= b2->getSize())
+                adj = 1;
+            else {
+                if (b1->getSize() > 0)
+                    adj = b2->getSize() / b1->getSize();
+                else
+                    adj = cacheSize;
+            }
+
+            p = std::min((p + adj), cacheSize);
+        } else {
+            if (b2->getSize() >= b1->getSize())
+                adj = 1;
+            else {
+                if (b2->getSize() > 0)
+                    adj = b1->getSize() / b2->getSize();
+                else
+                    adj = 0;
+            }
+
+            p = (size_t) std::max((float) (p - adj), (float) 0);
+        }
+    }
+
+    void replace(IT page) {
+        if (t1->getSize() > 0 && (t1->getSize() > p || (b2->contains(page) && t1->getSize() == p))) {
+            t1->removePage(page);
+            b1->add(page);
+        } else {
+            t2->removePage(page);
+            b2->add(page);
         }
     }
 
 public:
-    ARCAlgorithm(size_t capacity) : cacheSize(capacity), c(capacity), hashSize(3 * capacity), Hash(new IT[hashSize]) {
-        std::memset(Hash, 0, sizeof(IT) * hashSize);
-        // std::cout << cacheSize << " " << hashSize << std::endl;
+    ARCAlgorithm(size_t cacheSize) {
+        p = 0;
+        numHits = 0;
+        numRequests = 0;
+        numMisses = 0;
+        hitRatio = 0;
+        this->cacheSize = cacheSize;
+
+        t1 = new LRUAlgorithm<IT>(cacheSize);
+        t2 = new LRUAlgorithm<IT>(cacheSize);
+
+        b1 = new LRUAlgorithm<IT>(cacheSize);
+        b2 = new LRUAlgorithm<IT>(cacheSize);
+
     }
 
-    ~ARCAlgorithm() { delete[] Hash; }
+    ~ARCAlgorithm() {}
 
-    size_t getMiss() { return MissCount; }
+    size_t getTotalMiss() { return (numRequests - numHits); }
 
-    size_t getHit() { return HitCount; }
+    size_t getTotalRequest() { return numRequests; }
 
-//function to look object through given key.
-    void arc_lookup(IT i) {
-        if (Hash[i % hashSize] > 0) {
-            //Case 1: Page found in MRU
-            if (check(mru, i)) {
-                HitCount++;
-                movefrom(mru, mfu, i);
-            }
-                //Case 1: Part B:Page found in MFU
-            else if (check(mfu, i)) {
-                HitCount++;
-                movefrom(mfu, mfu, i);
-            }
-                //Case 2: Page found in MRUG
-            else if (check(mrug, i)) {
-                MissCount++;
-                p = (float) std::min((float) c, (float) (p + std::max((mfug.size() * 1.0) / mrug.size(), 1.0)));
-                Replace(i, p);
-                movefrom(mrug, mfu, i);
-            }
-                //Case 3: Page found in MFUG
-            else if (check(mfug, i)) {
-                MissCount++;
-                p = (float) std::max((float) 0.0, (float) (p - std::max((mrug.size() * 1.0) / mfug.size(), 1.0)));
-                Replace(i, p);
-                movefrom(mfug, mfu, i);
-            }
+    void add(IT page) {
+        numRequests++;
 
-                //Case 4:  Page not found in any of the queues.
-            else {
-                MissCount++;
-                //Case 4: Part A: When L1 has c pages
-                if ((mru.size() + mrug.size()) == c) {
-                    if (mru.size() < c) {
-                        Hash[mrug[0] % hashSize]--;
+        if (checkCaseOne(page))
+            return;
 
+        if (checkCaseTwo(page))
+            return;
 
-                        queue_delete(mrug);
-                        Replace(i, p);
-                    } else {
+        if (checkCaseThree(page))
+            return;
 
-                        Hash[mru[0] % hashSize]--;
+        if (checkCaseFour(page))
+            return;
 
-                        queue_delete(mru);
-                    }
-                }
-                    // Case 4: Part B: L1 has less than c pages
-                else if ((mru.size() + mrug.size()) < c) {
-                    if ((mru.size() + mfu.size() + mrug.size() + mfug.size()) >= c) {
-                        if ((mru.size() + mfu.size() + mrug.size() + mfug.size()) == (2 * c)) {
+        printf("There is a problem!\n");
+    }
 
-                            Hash[mfug[0] % hashSize]--;
+    float getHitRatio() {
+        calculateHitRatio();
 
-                            queue_delete(mfug);
-                        }
-                        Replace(i, p);
-                    }
+        return hitRatio;
+    }
 
-                }
-                //Move the page to the most recently used position
-                queue_insert(mru, i);
-                Hash[i % hashSize]++;
-            }
-        } else {
-            //Page not found, increase miss count
-            MissCount++;
-
-            //Case 4: Part A: L1 has c pages
-            if ((mru.size() + mrug.size()) == c) {
-                if (mru.size() < c) {
-                    Hash[mrug[0] % hashSize]--;
-
-                    queue_delete(mrug);
-                    Replace(i, p);
-                } else {
-                    size_t idx = mru[0];
-                    Hash[mru[0] % hashSize]--;
-                    queue_delete(mru);
-                }
-            }
-
-                //Case 4: Part B: L1 less than c pages
-            else if ((mru.size() + mrug.size()) < c) {
-                if ((mru.size() + mfu.size() + mrug.size() + mfug.size()) >= c) {
-                    if ((mru.size() + mfu.size() + mrug.size() + mfug.size()) == 2 * c) {
-                        Hash[mfug[0] % hashSize]--;
-
-                        queue_delete(mfug);
-                    }
-                    Replace(i, p);
-                }
-            }
-
-            //Move the page to the most recently used position
-            queue_insert(mru, i);
-            Hash[i % hashSize]++;
-        }
+    void calculateHitRatio() {
+        hitRatio = (float) numHits / (float) numRequests * 100;
     }
 };
 
