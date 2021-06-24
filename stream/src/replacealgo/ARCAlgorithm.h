@@ -5,6 +5,7 @@
 #ifndef STREAM_ARCALGORITHM_H
 #define STREAM_ARCALGORITHM_H
 
+#include <cstring>
 #include <vector>
 
 template<typename IT>
@@ -23,7 +24,7 @@ A ARC Cache consisting of 4 Queues
  mfug (B2) - Most Frequently Used Ghost
 */
 
-    std::vector<IT> mrug, mru, mfu, mfug;
+    std::vector <IT> mrug, mru, mfu, mfug;
 
     float p = 0.0;
     size_t c, cnt = 0;
@@ -32,7 +33,7 @@ A ARC Cache consisting of 4 Queues
     unsigned int cacheSize;
 
 //A function to check whether Page x is available in 'v' queue
-    int check(std::vector<IT> v, IT x) {
+    int check(std::vector <IT> v, IT x) {
         unsigned int l = v.size(), i;
         for (i = 0; i < l; i++) {
             if (v[i] == x)
@@ -42,21 +43,21 @@ A ARC Cache consisting of 4 Queues
     }
 
 //A function to insert page 'i' in 'v' queue.
-    void queue_insert(std::vector<IT> &v, IT i) {
+    void queue_insert(std::vector <IT> &v, IT i) {
         if (v.size() == cacheSize)
             v.erase(v.begin());
         v.push_back(i);
     }
 
 //function to pop LRU element from queue 'v'
-    void queue_delete(std::vector<IT> &v) {
+    void queue_delete(std::vector <IT> &v) {
         if (v.size() > 0)
             v.erase(v.begin());
     }
 
 
 //function to move a particular page from one queue to another, 'x' from queue 'v' to queue 'w'
-    void movefrom(std::vector<IT> &v, std::vector<IT> &w, IT x) {
+    void movefrom(std::vector <IT> &v, std::vector <IT> &w, IT x) {
         int i, j, l = v.size();
         for (i = 0; i < l; i++)
             if (v[i] == x) {
