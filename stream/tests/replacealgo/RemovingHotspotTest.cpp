@@ -102,7 +102,6 @@ int main(int argc, char **argv) {
             cout << "\033[33m" << "--------------------------------------------------------------" << endl;
             cout << "\t\t\t\t" << "Removing" << i << "\tc:" << c << "\033[0m" << endl;
             HIT_COUNT = c;
-            HIT_COUNT = MAX_COUNT / 10;
             efficiencyTest<RandomAlgorithm<uint64_t >>();
             replaceEfficiencyTest<RandomAlgorithm<uint64_t >>();
             efficiencyTest<LRUAlgorithm<uint64_t >>();
