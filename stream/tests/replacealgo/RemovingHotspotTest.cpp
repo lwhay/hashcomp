@@ -13,7 +13,7 @@
 #include "ARCAlgorithm.h"
 #include "tracer.h"
 
-#define MAX_COUNT 1000000//000
+#define MAX_COUNT 1000000000
 #define DATA_SKEW 0.99
 
 size_t HIT_COUNT = (MAX_COUNT / 10);
