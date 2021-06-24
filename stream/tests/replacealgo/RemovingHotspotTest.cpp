@@ -21,6 +21,7 @@ size_t HIT_COUNT = (MAX_COUNT / 10);
 std::vector<uint64_t> keys;
 
 void generate(int removingK) {
+    keys.clear();
     uint64_t *_keys = (uint64_t *) calloc(MAX_COUNT, sizeof(uint64_t));
     Tracer tracer;
     tracer.startTime();
@@ -96,11 +97,11 @@ void replaceEfficiencyTest() {
 
 int main(int argc, char **argv) {
     for (int i = 0; i <= 10000;) {
+        generate(i);
         for (int c = 100; c <= 1000000; c *= 10) {
             cout << "\033[33m" << "--------------------------------------------------------------" << endl;
             cout << "\t\t\t\t" << "Removing" << i << "\tc:" << c << "\033[0m" << endl;
             HIT_COUNT = c;
-            generate(i);
             HIT_COUNT = MAX_COUNT / 10;
             efficiencyTest<RandomAlgorithm<uint64_t >>();
             replaceEfficiencyTest<RandomAlgorithm<uint64_t >>();
