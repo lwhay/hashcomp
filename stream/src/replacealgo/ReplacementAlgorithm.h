@@ -76,11 +76,11 @@ public:
 
 template<typename IT>
 class GeneralReplacement {
+protected:
     constexpr static uint32_t GLSS_HASHMULT = 3;
     constexpr static IT GLSS_NULLITEM = std::numeric_limits<IT>::max();
     constexpr static IT GLSS_MOD = std::numeric_limits<IT>::max() / 2;
     constexpr static int GLSS_HL = 8 * sizeof(IT) - 1;
-protected:
     int n;
     IT hasha, hashb, hashsize;
     int _size;

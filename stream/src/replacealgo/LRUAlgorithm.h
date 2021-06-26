@@ -63,7 +63,6 @@ public:
         hashval = this->hash(this->hasha, this->hashb, item) % this->hashsize;
         hashptr = this->hashtable[hashval];
 
-        IT change = std::numeric_limits<int>::min();
         while (hashptr) {
             count++;
             if (hashptr->getItem() == item) {
@@ -86,14 +85,10 @@ public:
             } else hashptr = hashptr->getNext();
         }
         if (this->n > value && head == tail) {
-            tail = tail->getRight();
-            change = tail->getItem();
-        }
-        ret = tail->getItem();
-        IT hashret = this->hash(this->hasha, this->hashb, ret) % this->hashsize;
-        Item<IT> *cur = this->hashtable[hashret];
-        bool asroot = true;
-        if (change != std::numeric_limits<int>::min()) {
+            ret = tail->getItem();
+            IT hashret = this->hash(this->hasha, this->hashb, ret) % this->hashsize;
+            Item<IT> *cur = this->hashtable[hashret];
+            bool asroot = true;
             while (cur != nullptr) {
                 count++;
                 if (cur == tail) {
@@ -109,6 +104,7 @@ public:
                 } else asroot = false;
                 cur = cur->getNext();
             }
+            tail = tail->getRight();
         }
 
         if (this->hashtable[hashval] != nullptr) {
@@ -136,7 +132,7 @@ public:
             cout << "\033[34m" << (((cur->getItem() + 1) & 0x7fffffff) - 1) << normal << ":"
                  << "\033[33m" << this->hash(this->hasha, this->hashb, cur->getItem()) % this->hashsize << normal << ":"
                  << "\033[31m" << cur->getCount() << normal << ":"
-                 << "\033[32m" << cur->getDelta() << normal << "->";
+                 << "\033[32m" << cur->getDelta() << normal << ":" << (cur - this->counters) << "->";
             cur = cur->getRight();
             if (retrieved++ > this->_size) exit(-1);
         } while (cur != head);
@@ -145,7 +141,7 @@ public:
 
     bool contains(IT k) { return this->find(k) != nullptr; }
 
-    void add(IT k) { this->put(k); }
+    IT add(IT k) { return this->put(k); }
 
     IT moveToBack(IT item) { removePage(item, false); }
 
@@ -163,20 +159,6 @@ public:
         while (hashptr) {
             count++;
             if (hashptr->getItem() == item) {
-                if (head != hashptr) {
-                    // pick out hashptr
-                    hashptr->getLeft()->setRight(hashptr->getRight());
-                    hashptr->getRight()->setLeft(hashptr->getLeft());
-                    // replace tail by hashptr
-                    hashptr->setRight(head);
-                    hashptr->setLeft(head->getLeft());
-                    head->getLeft()->setRight(hashptr);
-                    head->setLeft(hashptr);
-                    // std::cout << "--------------------------------------" << std::endl;
-                } else if (tail == hashptr) {
-                    tail = tail->getRight();
-                    head = tail;
-                }
                 if (remove) {
                     this->capacity--;
                     if (asroot) {
@@ -185,6 +167,48 @@ public:
                     } else {
                         if (hashptr->getNext() != nullptr) hashptr->getNext()->setPrev(hashptr->getPrev());
                         hashptr->getPrev()->setNext(hashptr->getNext());
+                    }
+                    if (head->getLeft() == hashptr) head = head->getLeft();
+                    else {
+                        //if (tail == hashptr) tail = tail->getRight();
+                        // pick out hashptr
+                        hashptr->getLeft()->setRight(hashptr->getRight());
+                        hashptr->getRight()->setLeft(hashptr->getLeft());
+                        // replace tail by hashptr
+                        hashptr->setRight(head);
+                        hashptr->setLeft(head->getLeft());
+                        head->getLeft()->setRight(hashptr);
+                        head->setLeft(hashptr);
+                        head = hashptr;
+                    }
+                    /*if (tail != hashptr) {
+                        // pick out hashptr
+                        hashptr->getLeft()->setRight(hashptr->getRight());
+                        hashptr->getRight()->setLeft(hashptr->getLeft());
+                        // replace tail by hashptr
+                        hashptr->setLeft(tail);
+                        hashptr->setRight(tail->getRight());
+                        tail->getRight()->setLeft(hashptr);
+                        tail->setRight(hashptr);
+                        // std::cout << "--------------------------------------" << std::endl;
+                    } else {
+                        tail = tail->getLeft();
+                    }*/
+                } else {
+                    if (tail == hashptr) tail = tail->getRight();
+                    if (head != hashptr) {
+                        // pick out hashptr
+                        hashptr->getLeft()->setRight(hashptr->getRight());
+                        hashptr->getRight()->setLeft(hashptr->getLeft());
+                        // replace tail by hashptr
+                        hashptr->setRight(head);
+                        hashptr->setLeft(head->getLeft());
+                        head->getLeft()->setRight(hashptr);
+                        head->setLeft(hashptr);
+                        // std::cout << "--------------------------------------" << std::endl;
+                    } else {
+                        head = head->getRight();
+                        //std::cout << "++++++++++++++++++++++++++++++++++++++" << std::endl;
                     }
                 }
                 ret = item;
