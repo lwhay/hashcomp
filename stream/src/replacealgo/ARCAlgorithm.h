@@ -149,20 +149,20 @@ public:
 
     size_t getTotalRequest() { return numRequests; }
 
-    void add(IT page) {
+    bool add(IT page) {
         numRequests++;
 
         if (checkCaseOne(page))
-            return;
+            return true;
 
         if (checkCaseTwo(page))
-            return;
+            return true;
 
         if (checkCaseThree(page))
-            return;
+            return true;
 
         if (checkCaseFour(page))
-            return;
+            return false;
 
         printf("There is a problem!\n");
     }

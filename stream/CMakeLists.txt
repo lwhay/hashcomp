@@ -73,7 +73,8 @@ set(STREAM_EFFICIENCYTEST
         tests/replacealgo/PriorityQueueTest.cpp
         tests/replacealgo/MergeGeneralAltorithmTest.cpp
         tests/replacealgo/ARCAlgorithmTest.cpp
-        tests/replacealgo/RemovingHotspotTest.cpp)
+        tests/replacealgo/RemovingHotspotTest.cpp
+        tests/replacealgo/HotspotDiffHitTest.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
