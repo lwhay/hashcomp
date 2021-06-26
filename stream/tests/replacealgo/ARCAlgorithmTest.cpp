@@ -110,6 +110,26 @@ int main(int argc, char **argv) {
     lru.put(7);
     std::cout << 7 << "&" << lru.getSize() << "&";
     lru.print();
+    lru.removePage(7, true);
+    assert(!lru.contains(7));
+    std::cout << 7 << "-" << lru.getSize() << "&";
+    lru.print();
+    lru.put(8);
+    std::cout << 8 << "&" << lru.getSize() << "&";
+    lru.print();
+    lru.put(9);
+    std::cout << 9 << "&" << lru.getSize() << "&";
+    lru.print();
+    lru.removePage(6, true);
+    assert(!lru.contains(6));
+    std::cout << 6 << "-" << lru.getSize() << "&";
+    lru.print();
+    lru.put(10);
+    std::cout << 10 << "&" << lru.getSize() << "&";
+    lru.print();
+    lru.put(11);
+    std::cout << 11 << "&" << lru.getSize() << "&";
+    lru.print();
 
     for (int i = 0; i < 129; i++) std::cout << "=";
     std::cout << std::endl;

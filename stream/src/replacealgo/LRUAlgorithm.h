@@ -169,7 +169,7 @@ public:
                         hashptr->getPrev()->setNext(hashptr->getNext());
                     }
                     if (head->getLeft() == hashptr) head = head->getLeft();
-                    else {
+                    else if (head != hashptr) {
                         //if (tail == hashptr) tail = tail->getRight();
                         // pick out hashptr
                         hashptr->getLeft()->setRight(hashptr->getRight());
@@ -180,7 +180,7 @@ public:
                         head->getLeft()->setRight(hashptr);
                         head->setLeft(hashptr);
                         head = hashptr;
-                    }
+                    } // Remember in case of tail == hashptr, there might be a bug
                     /*if (tail != hashptr) {
                         // pick out hashptr
                         hashptr->getLeft()->setRight(hashptr->getRight());
