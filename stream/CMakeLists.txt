@@ -15,6 +15,7 @@ include_directories(src/cfrequent)
 include_directories(src/heavyhitter)
 include_directories(src/quantile)
 include_directories(src/replacealgo)
+include_directories(src/concisereplacement)
 include_directories(src/utils)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../../src/bench)
 
@@ -74,7 +75,9 @@ set(STREAM_EFFICIENCYTEST
         tests/replacealgo/MergeGeneralAltorithmTest.cpp
         tests/replacealgo/ARCAlgorithmTest.cpp
         tests/replacealgo/RemovingHotspotTest.cpp
-        tests/replacealgo/HotspotDiffHitTest.cpp)
+        tests/replacealgo/HotspotDiffHitTest.cpp
+        tests/replacealgo/ConciseTest.cpp
+        tests/replacealgo/MaxDeltaTest.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
