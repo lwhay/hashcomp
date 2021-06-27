@@ -49,116 +49,121 @@ public:
     void chgCount(int value) {
         uint32_t oldCount = (deltaCount >> 12);
         deltaCount &= COUNT_MASK;
-        if (value + oldCount < 0x100000) deltaCount |= ((value + oldCount) << 12); else deltaCount |= 0xfffff000;
+        if (value + oldCount < 0x100000) deltaCount |= ((value + oldCount) << 12); else deltaCount |= COUNT_BITS;
     }
 
     int getCount() { return (deltaCount >> 12); }
 
     void setDelta(int delta) {
         deltaCount &= DELTA_MASK;
-        if (deltaCount < 0x1000) deltaCount |= delta; else deltaCount |= 0xfff;
+        if (delta < 0x1000) deltaCount |= delta; else deltaCount |= DELTA_BITS;
     }
 
-    int getDelta() { return delta; }
+    int getDelta() { return (deltaCount & DELTA_BITS); }
 
     void setLeft(int offset) {
-        points &= (LEFT_MASK);
+        points &= LEFT_MASK;
         points |= ((uint64_t) offset << 20);
     }
 
     int getLeft() { return ((points & LEFT_BITS) >> 20); }
 
     void setRight(int offset) {
-        points &= (RIGHT_MASK);
+        points &= RIGHT_MASK;
         points |= ((uint64_t) offset << 40);
     }
 
     int getRight() { return ((points & RIGHT_BITS) >> 40); }
 
     void setNext(int offset) {
-        points &= (NEXT_MASK);
+        points &= NEXT_MASK;
         points |= offset;
     }
 
     int getNext() { return (points & NEXT_BITS); }
 
-    static bool freqComp(FreqItem<IT> &a, FreqItem<IT> &b) {
+    static bool freqComp(FreqItem &a, FreqItem &b) {
         return a.getCount() > b.getCount();
     }
 
-    static bool freqPrec(FreqItem<IT> &a, FreqItem<IT> &b) {
+    static bool freqPrec(FreqItem &a, FreqItem &b) {
         return a.getItem() < b.getItem();
     }
 
-    bool operator==(FreqItem<IT> &target) const {
+    bool operator==(FreqItem &target) const {
         return item == target.getItem();
     }
 };
 
-template<typename IT>
+//#define PART_BITS 0xff000000
+#define PART_MASK 0x00ffffff
+#define SUM_BITS 0x00ffffff
+#define SUM_MASK 0xff000000
+
 class PartItem {
 private:
-    IT item;
-    int count;
-    int part;
+    uint32_t item;
+    uint32_t partCount;
 public:
-    void setitem(IT item) { this->item = item; }
+    void setitem(uint32_t item) { this->item = item; }
 
-    IT getItem() { return item; }
+    uint32_t getItem() { return item; }
 
-    void setCount(int count) { this->count = count; }
+    void setCount(int count) {
+        partCount &= SUM_MASK;
+        if (count < 0x1000000) partCount |= count; else partCount |= SUM_BITS;
+    }
 
-    void chgCount(int value) { this->count += value; }
+    void chgCount(int value) {
+        int sum = (partCount & SUM_BITS) + value;
+        partCount &= SUM_MASK;
+        if (sum < 0x1000000) partCount |= sum; else partCount |= SUM_BITS;
+    }
 
-    int getCount() { return count; }
+    int getCount() { return partCount & SUM_BITS; }
 
-    void setPart(int part) { this->part = part; }
+    void setPart(int part) {
+        assert(part < 0x100);
+        partCount &= PART_MASK;
+        partCount |= (part << 24);
+    }
 
-    int getPart() { return part; }
+    int getPart() { return (partCount >> 24); }
 
-    static bool partComp(PartItem<IT> &a, PartItem<IT> &b) {
+    static bool partComp(PartItem &a, PartItem &b) {
         return a.getCount() > b.getCount();
     }
 
-    static bool partPrec(PartItem<IT> &a, PartItem<IT> &b) {
+    static bool partPrec(PartItem &a, PartItem &b) {
         return a.getItem() < b.getItem();
     }
 
-    bool operator==(PartItem<IT> &target) const {
+    bool operator==(PartItem &target) const {
         return item == target.getItem();
     }
 };
 
-template<typename IT>
-class GeneralReplacement {
+class ConciseLFUAlgorithm {
 protected:
     constexpr static uint32_t GLSS_HASHMULT = 3;
-    constexpr static IT GLSS_NULLITEM = std::numeric_limits<IT>::max();
-    constexpr static IT GLSS_MOD = std::numeric_limits<IT>::max() / 2;
-    constexpr static int GLSS_HL = 8 * sizeof(IT) - 1;
+    constexpr static uint32_t GLSS_NULLITEM = std::numeric_limits<uint32_t>::max();
+    constexpr static uint32_t GLSS_MOD = std::numeric_limits<uint32_t>::max() / 2;
+    constexpr static int GLSS_HL = 8 * sizeof(uint32_t) - 1;
     int n;
-    IT hasha, hashb, hashsize;
+    uint32_t hashsize;
     int _size;
-    int *root;
-    FreqItem<IT> *counters;
-    FreqItem<IT> *merged;
-    int *hashtable;
-
-    inline IT hash(IT a, IT b, IT x) {
-        IT result;
-        IT lresult;
-        result = (a * x) + b;
-        result = ((result >> GLSS_HL) + result) & GLSS_MOD;
-        lresult = result;
-
-        return (lresult);
-    }
+    FreqItem *root;
+    FreqItem *counters;
+    PartItem *merged;
+    uint32_t *hashtable;
 
 protected:
-    inline void Heapify(IT ptr) {
-        Item <IT> tmp;
-        Item <IT> *cpt, *minchild;
-        IT mc;
+    inline uint32_t hk(uint32_t hash) { return ((hash % (hashsize - 1)) + 1); }
+
+    inline void Heapify(uint32_t ptr) {
+        FreqItem tmp;
+        FreqItem *cpt, *minchild;
+        uint32_t mc;
         while (1) {
             if ((ptr << 1) + 1 > _size) break;
 
@@ -171,50 +176,58 @@ protected:
             *cpt = *minchild;
             *minchild = tmp;
 
-            if (cpt->getHash() == minchild->getHash()) {
-                minchild->setPrev(cpt->getPrev());
-                cpt->setPrev(tmp.getPrev());
+            if (hk(cpt->getItem()) == hk(minchild->getItem())) {
                 minchild->setNext(cpt->getNext());
                 cpt->setNext(tmp.getNext());
             } else {
-                if (!cpt->getPrev()) {
-                    if (cpt->getItem() != GLSS_NULLITEM) hashtable[cpt->getHash()] = cpt;
-                } else cpt->getPrev()->setNext(cpt);
+                FreqItem *cur = counters + hashtable[hk(cpt->getItem())], *prev = nullptr;
+                while (cur != counters) {
+                    if (cur == cpt) {
+                        if (prev == nullptr) {
+                            if (cpt->getItem() != GLSS_NULLITEM)
+                                hashtable[hk(cpt->getItem())] = (cpt - counters);
+                        } else {
+                            prev->setNext(cpt - counters);
+                        }
+                        break;
+                    }
+                    prev = cur;
+                    cur = (counters + cur->getNext());
+                }
+                // assert(cur != counters);
 
-                if (cpt->getNext()) cpt->getNext()->setPrev(cpt);
-
-                if (!minchild->getPrev()) hashtable[minchild->getHash()] = minchild;
-                else minchild->getPrev()->setNext(minchild);
-
-                if (minchild->getNext()) minchild->getNext()->setPrev(minchild);
+                cur = counters + hashtable[hk(minchild->getItem())];
+                prev = nullptr;
+                while (cur != counters) {
+                    if (cur == minchild) {
+                        if (prev == nullptr) {
+                            hashtable[hk(minchild->getItem())] = (minchild - counters);
+                        } else {
+                            prev->setNext(minchild - counters);
+                        }
+                        break;
+                    }
+                    prev = cur;
+                    cur = (counters + cur->getNext());
+                }
+                // assert(cur != counters);
             }
             ptr = mc;
         }
     }
 
 public:
-    GeneralReplacement(int K) {
+    ConciseLFUAlgorithm(int K) {
         int k = K;
         _size = (1 + k) | 1;
         hashsize = GLSS_HASHMULT * _size;
-        hashtable = (Item < IT > **)
-        new Item <IT> *[hashsize];
-        std::memset(hashtable, 0, sizeof(Item < IT > *) * hashsize);
-        counters = (Item < IT > *)
-        new Item<IT>[1 + _size];
-        merged = new Item<IT>[2 * _size + 1];
-        std::memset(counters, 0, sizeof(Item < IT > ) * (1 + _size));
-
-        /*srand(time(NULL));
-        hasha = (IT) lrand48();
-        hashb = (IT) lrand48();*/
-        hasha = (IT) (151261303 % std::numeric_limits<IT>::max());
-        hashb = (IT) (6722461 % std::numeric_limits<IT>::max());
+        hashtable = new uint32_t[hashsize];
+        std::memset(hashtable, 0, sizeof(uint32_t) * hashsize);
+        counters = (FreqItem *) new FreqItem[1 + _size];
+        merged = nullptr;
         n = 0;
 
         for (int i = 0; i <= _size; i++) {
-            counters[i].setNext(nullptr);
-            counters[i].setPrev(nullptr);
             counters[i].setitem(GLSS_NULLITEM);
         }
 
@@ -222,23 +235,21 @@ public:
     }
 
     void reset() {
-        std::memset(hashtable, 0, sizeof(Item < IT > *) * hashsize);
-        std::memset(counters, 0, sizeof(Item < IT > ) * (1 + _size));
+        std::memset(hashtable, 0, sizeof(uint32_t) * hashsize);
+        std::memset(counters, 0, sizeof(FreqItem) * (1 + _size));
+        if (merged != nullptr) std::memset(merged, 0, sizeof(PartItem) * (1 + _size));
         n = 0;
 
         for (int i = 0; i <= _size; i++) {
-            counters[i].setNext(nullptr);
-            counters[i].setPrev(nullptr);
             counters[i].setitem(GLSS_NULLITEM);
         }
         root = &counters[1];
     }
 
-    ~GeneralReplacement() {
-        // std::cout << "clean" << std::endl;
+    ~ConciseLFUAlgorithm() {
         delete[] hashtable;
         delete[] counters;
-        delete[] merged;
+        if (merged != nullptr) delete[] merged;
     }
 
     int range() {
@@ -250,41 +261,52 @@ public:
     }
 
     int size() {
-        return sizeof(GeneralReplacement) + hashsize * sizeof(IT) + _size * sizeof(Item < IT > );
+        return sizeof(ConciseLFUAlgorithm) + hashsize * sizeof(uint32_t) + _size * sizeof(FreqItem);
     }
 
-    inline IT put(IT item, int value = 1) {
-        IT hashval;
-        Item <IT> *hashptr;
+    inline uint32_t put(uint32_t item, int value = 1) {
+        uint32_t hashval;
+        FreqItem *hashptr;
 
-        IT ret = item;
+        uint32_t ret = item;
         n += value;
         counters->setitem(0);
-        hashval = hash(hasha, hashb, item) % hashsize;
-        hashptr = hashtable[hashval];
+        hashval = hk(item);
+        hashptr = counters + hashtable[hashval];
 
-        while (hashptr) {
+        while (hashptr != counters) {
             if (hashptr->getItem() == item) {
                 hashptr->chgCount(value);
                 Heapify(hashptr - counters);
                 return ret;
-            } else hashptr = hashptr->getNext();
+            } else hashptr = (counters + hashptr->getNext());
         }
 
-        if (!root->getPrev()) hashtable[root->getHash()] = root->getNext();
-        else root->getPrev()->setNext(root->getNext());
+        uint32_t roothash = hk(root->getItem());
+        FreqItem *cur = counters + hashtable[roothash], *prev = nullptr;
+        while (cur != counters) {
+            if (cur == root) {
+                if (prev == nullptr) {
+                    hashtable[roothash] = root->getNext();
+                } else {
+                    prev->setNext(root->getNext());
+                }
+                break;
+            }
+            prev = cur;
+            cur = (counters + cur->getNext());
+        }
 
-        if (root->getNext()) root->getNext()->setPrev(root->getPrev());
+        //for (int i = 0; i < _size + 1; i++) assert(counters[i].getNext() != 1);
+        root->setNext(hashtable[hashval]);
+        //for (int i = 0; i < _size + 1; i++) assert(counters[i].getNext() != 1);
+        if (root->getNext() == (root - counters))
+            int aa = 0;
+        hashtable[hashval] = (root - counters);
+        assert(hashtable[hashval] != 0);
 
-        hashptr = hashtable[hashval];
-        root->setNext(hashptr);
-        if (hashptr) hashptr->setPrev(root);
-        hashtable[hashval] = root;
-
-        root->setPrev(nullptr);
         ret = root->getItem();
         root->setitem(item);
-        root->setHash(hashval);
         root->setDelta(root->getCount());
         root->setCount(value + root->getDelta());
 #if PRINT_TRACE
@@ -295,15 +317,15 @@ public:
 #if PRINT_TRACE
         print();
 #endif
+        assert(hashtable[hashval] != 1);
         return ret;
     }
 
-    Item <IT> *find(IT item) {
-        IT hashval = hash(hasha, hashb, item) % hashsize;
-        Item <IT> *hashptr = hashtable[hashval];
+    FreqItem *find(uint32_t item) {
+        FreqItem *hashptr = counters + hashtable[hk(item)];
         while (hashptr) {
             if (hashptr->getItem() == item) break;
-            else hashptr = hashptr->getNext();
+            else hashptr = (counters + hashptr->getNext());
         }
         return hashptr;
     }
@@ -311,75 +333,33 @@ public:
     void print() {
         for (int i = 0; i <= _size; i++)
             std::cout << "\033[34m" << (((counters[i].getItem() + 1) & 0x7fffffff) - 1) << "\033[0m" << ":"
-                      << "\033[33m" << hash(hasha, hashb, counters[i].getItem()) % hashsize << "\033[0m" << ":"
+                      << "\033[33m" << hk(counters[i].getItem()) << "\033[0m" << ":"
                       << "\033[31m" << counters[i].getCount() << "\033[0m" << ":"
                       << "\033[32m" << counters[i].getDelta() << "\033[0m" << "->";
         std::cout << std::endl;
     }
 
-    Item <IT> *output(bool sorting = false) {
-        if (sorting) std::sort(counters + 1, counters + _size, Item<IT>::comp);
+    FreqItem *output(bool sorting = false) {
+        if (sorting) std::sort(counters + 1, counters + _size, FreqItem::freqComp);
         return counters;
     }
 
-    Item <IT> *prepare(int idx) {
-        std::memcpy(merged, counters, sizeof(Item < IT > ) * (_size + 1));
+    PartItem *prepare(int idx) {
+        /*std::memcpy(merged, counters, sizeof(Item < IT > ) * (_size + 1));
         std::sort(merged + 1, merged + _size + 1, Item<IT>::comp);
         for (size_t i = 1; i <= _size; i++)
-            merged[i].setDelta(idx);
+            merged[i].setDelta(idx);*/
         return merged;
     }
 
-    /*void finish() {
-        std::memcpy(counters + 1, merged + _size + 1, sizeof(Item<IT>) * (_size));
-    }*/
+    PartItem *fetch() { return merged + 1; }
 
-    Item <IT> *fetch() { return merged + 1; }
+    static bool comp(PartItem *a, PartItem *b) { return a->getCount() > b->getCount(); }
 
-    void refresh() {
-#if verifyRefresh
-        for (int i = 1; i < _size + 1; i++) {
-            if (!find(counters[i].getItem()))
-                std::cout << "***\t\t" << i << " " << counters[i].getItem() << " " << counters[i].getCount() << "<->"
-                          << std::endl;
-            else if (counters[i].getItem() == 72183 || i % 16384 == 0)
-                std::cout << "---\t\t" << i << " " << counters[i].getItem() << " " << counters[i].getCount() << "<->"
-                          << find(merged[i].getItem())->getCount() << std::endl;
-        }
-#endif
-        std::memcpy(merged, counters, sizeof(Item < IT > ) * (_size + 1));
-        //std::sort(merged + 1, merged + _size + 1, Item<IT>::comp);
-        std::memset(counters, 0, sizeof(Item < IT > ) * (_size + 1));
-        std::memset(hashtable, 0, sizeof(Item < IT > *) * hashsize);
-        n = 0;
-        for (int i = 0; i <= _size; i++) {
-            counters[i].setitem(GLSS_NULLITEM);
-        }
-        root = &counters[1];
-        for (int i = 1; i < _size + 1; i++) put(merged[i].getItem(), merged[i].getCount());
-        for (int i = 1; i < _size + 1; i++) {
-            Item <IT> *ptr = find(merged[i].getItem());
-            if (ptr) ptr->setDelta(merged[i].getDelta());
-        }
-#if verifyRefresh
-        for (int i = 1; i < _size + 1; i++) {
-            if (!find(merged[i].getItem()))
-                std::cout << "***\t\t" << i << " " << merged[i].getItem() << " " << merged[i].getCount() << "<->"
-                          << std::endl;
-            else if (merged[i].getItem() == 72183 || i % 16384 == 0)
-                std::cout << "---\t\t" << i << " " << merged[i].getItem() << " " << merged[i].getCount() << "<->"
-                          << find(merged[i].getItem())->getCount() << std::endl;
-        }
-#endif
-    }
-
-    static bool comp(Item <IT> *a, Item <IT> *b) { return a->getCount() > b->getCount(); }
-
-    Item <IT> *merge(std::vector<GeneralReplacement<IT> *> lss, bool overwrite = true) {
-        std::memset(merged + _size + 1, 0, sizeof(Item < IT > ) * _size);
-        Item <IT> *final = merged + _size + 1;
-        std::priority_queue<Item < IT> *, std::vector<Item < IT> *>, std::function<bool(Item < IT > *, Item < IT > *)>>
-        pq(comp);
+    PartItem *merge(std::vector<ConciseLFUAlgorithm *> lss, bool overwrite = true) {
+        std::memset(merged + _size + 1, 0, sizeof(PartItem) * _size);
+        PartItem *final = merged + _size + 1;
+        std::priority_queue<PartItem *, std::vector<PartItem *>, std::function<bool(PartItem *, PartItem *)>> pq(comp);
         size_t indicators[lss.size()];
         std::memset(indicators, 0, sizeof(size_t) * lss.size());
         for (int i = 0; i < lss.size(); i++) {
@@ -388,18 +368,18 @@ public:
         }
         int capacity = 0, size = this->_size;
         while (capacity < this->_size) {
-            Item <IT> *top = pq.top();
-            Item <IT> *org = lss.at(top->getDelta())->find(top->getItem());
+            PartItem *top = pq.top();
+            FreqItem *org = lss.at(top->getPart())->find(top->getItem());
             pq.pop();
             if (org == nullptr) continue; // for substream whose items have been used up.
             if (org->getDelta() != -1) {
                 final[capacity].setitem(top->getItem());
                 final[capacity].setCount(top->getCount());
                 for (int i = 0; i < lss.size(); i++) {
-                    GeneralReplacement<IT> *who = lss.at(i);
-                    IT value = top->getItem();
-                    Item <IT> *cur = who->find(value);
-                    if (i != top->getDelta() && cur != nullptr) {
+                    ConciseLFUAlgorithm *who = lss.at(i);
+                    uint32_t value = top->getItem();
+                    FreqItem *cur = who->find(value);
+                    if (i != top->getPart() && cur != nullptr) {
                         final[capacity].chgCount(cur->getCount());
                         cur->setDelta(-1);
                     }
@@ -407,14 +387,14 @@ public:
                 capacity++;
             }
 
-            size_t idx = top->getDelta();
+            size_t idx = top->getPart();
             pq.push(&lss.at(idx)->fetch()[indicators[idx]]); // issue without idx
             indicators[idx]++;
         }
         return final;
     }
 
-    Item <IT> *merge(GeneralReplacement &lss, bool overwrite = true) {
+    /*Item <IT> *merge(GeneralReplacement &lss, bool overwrite = true) {
         assert(lss.volume() == _size);
         std::memcpy(merged, counters, sizeof(Item < IT > ) * (_size + 1));
         std::memset(merged + _size + 1, 0, sizeof(Item < IT > ) * _size);
@@ -460,7 +440,7 @@ public:
             }
         }
         return merged;
-    }
+    }*/
 };
 
 #endif //HASHCOMP_CONCISELRU_H
