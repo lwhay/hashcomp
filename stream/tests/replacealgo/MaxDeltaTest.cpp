@@ -43,4 +43,28 @@ int main(int argc, char **argv) {
         if ((root + i)->getDelta() < minDelta) minDelta = (root + i)->getDelta();
     }
     cout << gr.size() << ":" << maxCounter << ":" << minCounter << ":" << maxDelta << ":" << minDelta << endl;
+    priority_queue<uint64_t, vector<uint64_t>, less<uint64_t>> topCounter, topDelta;
+    tracer.startTime();
+    for (int i = 0; i < gr.volume() + 1; i++) {
+        topCounter.push((root + i)->getCount());
+        topDelta.push((root + i)->getDelta());
+    }
+    cout << tracer.getRunTime() << endl;
+    for (int i = 0; i < 1000; i++) {
+        if (i >= topCounter.size()) break;
+        else {
+            cout << topCounter.top() << " ";
+            if ((i + 1) % 32 == 0) cout << endl;
+            topCounter.pop();
+        }
+    }
+    cout << "-----------------------------" << endl;
+    for (int i = 0; i < 1000; i++) {
+        if (i >= topDelta.size()) break;
+        else {
+            cout << topDelta.top() << " ";
+            if ((i + 1) % 32 == 0) cout << endl;
+            topDelta.pop();
+        }
+    }
 }
