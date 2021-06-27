@@ -37,7 +37,7 @@ private:
     uint32_t deltaCount;
     uint64_t points; // 0-19: *next, 20-39: *left, 40:59 *right;
 public:
-    void setitem(uint32_t item) { this->item = item; }
+    void setitem(uint32_t ihash) { this->item = ihash; }
 
     uint32_t getItem() { return item; }
 
@@ -80,7 +80,11 @@ public:
         points |= offset;
     }
 
-    int getNext() { return (points & NEXT_BITS); }
+    int getNext() {
+        uint64_t copy = points;
+        uint32_t off = points & NEXT_BITS;
+        return (points & NEXT_BITS);
+    }
 
     static bool freqComp(FreqItem &a, FreqItem &b) {
         return a.getCount() > b.getCount();
@@ -164,6 +168,7 @@ protected:
         FreqItem tmp;
         FreqItem *cpt, *minchild;
         uint32_t mc;
+
         while (1) {
             if ((ptr << 1) + 1 > _size) break;
 
@@ -175,17 +180,24 @@ protected:
             tmp = *cpt;
             *cpt = *minchild;
             *minchild = tmp;
+            uint32_t hcpt = hk(cpt->getItem()), hmin = hk(minchild->getItem());
 
-            if (hk(cpt->getItem()) == hk(minchild->getItem())) {
+            if (hcpt == hmin) {
                 minchild->setNext(cpt->getNext());
                 cpt->setNext(tmp.getNext());
             } else {
-                FreqItem *cur = counters + hashtable[hk(cpt->getItem())], *prev = nullptr;
+                // cpt (in hmin) and minchild (in hcpt) should be found in hashtable when they are not GLSS_NULLITEM
+                FreqItem *cur = counters + hashtable[hmin], *prev = nullptr;
+                uint32_t oldhcpt = hashtable[hcpt];
+                // assert(hk(minchild->getItem()) == hmin);
+                int count = 0;
                 while (cur != counters) {
                     if (cur == cpt) {
                         if (prev == nullptr) {
-                            if (cpt->getItem() != GLSS_NULLITEM)
-                                hashtable[hk(cpt->getItem())] = (cpt - counters);
+                            if (cpt->getItem() != GLSS_NULLITEM) {
+                                oldhcpt = hashtable[hcpt];
+                                hashtable[hcpt] = (cpt - counters);
+                            }
                         } else {
                             prev->setNext(cpt - counters);
                         }
@@ -193,37 +205,57 @@ protected:
                     }
                     prev = cur;
                     cur = (counters + cur->getNext());
-                }
-                // assert(cur != counters);
-
-                cur = counters + hashtable[hk(minchild->getItem())];
-                prev = nullptr;
-                while (cur != counters) {
-                    if (cur == minchild) {
-                        if (prev == nullptr) {
-                            hashtable[hk(minchild->getItem())] = (minchild - counters);
-                        } else {
-                            prev->setNext(minchild - counters);
-                        }
-                        break;
+                    if (count++ > 20) {
+                        std::cerr << "error" << 204 << std::endl;
+                        exit(-1);
                     }
-                    prev = cur;
-                    cur = (counters + cur->getNext());
                 }
                 // assert(cur != counters);
+                FreqItem *tt = counters + oldhcpt;
+                if (cpt->getItem() == GLSS_NULLITEM) {
+                    uint32_t tt = hashtable[hmin];
+                    // assert(hashtable[hmin] == ptr);
+                    hashtable[hmin] = (minchild - counters);
+                } else {
+                    cur = counters + oldhcpt, prev = nullptr;
+                    count = 0;
+                    while (cur != counters) {
+                        if (cur == minchild) {
+                            if (prev == nullptr) {
+                                hashtable[hmin] = (minchild - counters);
+                            } else {
+                                prev->setNext(minchild - counters);
+                            }
+                            break;
+                        }
+                        prev = cur;
+                        cur = (counters + cur->getNext());
+                        if (count++ > 20) {
+                            std::cerr << "error" << 229 << std::endl;
+                            exit(-1);
+                        }
+                    }
+                    //assert(cur != counters);
+                }
             }
             ptr = mc;
         }
+        for (int i = 0; i < hashsize; i++) assert(hashtable[i] != 1 || root->getNext() != 1);
     }
 
 public:
     ConciseLFUAlgorithm(int K) {
+        if (K >= ((1 << 20) - 1)) {
+            std::cerr << "Concise HT can not support capacity larger than 1M and k number half billion" << std::endl;
+            exit(-1);
+        }
         int k = K;
         _size = (1 + k) | 1;
         hashsize = GLSS_HASHMULT * _size;
         hashtable = new uint32_t[hashsize];
         std::memset(hashtable, 0, sizeof(uint32_t) * hashsize);
         counters = (FreqItem *) new FreqItem[1 + _size];
+        std::memset(counters, 0, sizeof(FreqItem) * (1 + _size));
         merged = nullptr;
         n = 0;
 
@@ -273,7 +305,7 @@ public:
         counters->setitem(0);
         hashval = hk(item);
         hashptr = counters + hashtable[hashval];
-
+        // assert(hashtable[hashval] != 1); // permit here
         while (hashptr != counters) {
             if (hashptr->getItem() == item) {
                 hashptr->chgCount(value);
@@ -281,7 +313,7 @@ public:
                 return ret;
             } else hashptr = (counters + hashptr->getNext());
         }
-
+        assert(hashtable[hashval] != 1);
         uint32_t roothash = hk(root->getItem());
         FreqItem *cur = counters + hashtable[roothash], *prev = nullptr;
         while (cur != counters) {
@@ -296,14 +328,12 @@ public:
             prev = cur;
             cur = (counters + cur->getNext());
         }
-
-        //for (int i = 0; i < _size + 1; i++) assert(counters[i].getNext() != 1);
+        assert(hashtable[hashval] != 1);
+        FreqItem *tt = counters + hashtable[hashval];
         root->setNext(hashtable[hashval]);
-        //for (int i = 0; i < _size + 1; i++) assert(counters[i].getNext() != 1);
-        if (root->getNext() == (root - counters))
-            int aa = 0;
+        uint32_t hk1 = hk((counters + hashtable[hashval])->getItem()), hk2 = hk(counters[1].getItem());
+        assert(hashtable[hashval] != 1 || (counters + hashtable[hashval])->getNext() != 1);
         hashtable[hashval] = (root - counters);
-        assert(hashtable[hashval] != 0);
 
         ret = root->getItem();
         root->setitem(item);
@@ -317,7 +347,6 @@ public:
 #if PRINT_TRACE
         print();
 #endif
-        assert(hashtable[hashval] != 1);
         return ret;
     }
 
@@ -332,10 +361,12 @@ public:
 
     void print() {
         for (int i = 0; i <= _size; i++)
-            std::cout << "\033[34m" << (((counters[i].getItem() + 1) & 0x7fffffff) - 1) << "\033[0m" << ":"
+            std::cout << "\033[34m" << counters[i].getItem() << "\033[0m" << ":"
                       << "\033[33m" << hk(counters[i].getItem()) << "\033[0m" << ":"
                       << "\033[31m" << counters[i].getCount() << "\033[0m" << ":"
-                      << "\033[32m" << counters[i].getDelta() << "\033[0m" << "->";
+                      << "\033[32m" << counters[i].getDelta() << "\033[0m" << ":"
+                      << "\033[31m" << counters[i].getNext() << "\033[0m" << ":"
+                      << "\033[31m" << i << "\033[0m" << "->";
         std::cout << std::endl;
     }
 

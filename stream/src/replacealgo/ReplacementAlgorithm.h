@@ -135,6 +135,7 @@ protected:
             }
             ptr = mc;
         }
+        // for (int i = 0; i < hashsize; i++) assert(hashtable[i] != nullptr || hashtable[i] != root);
     }
 
 public:
@@ -205,7 +206,7 @@ public:
         counters->setitem(0);
         hashval = hash(hasha, hashb, item) % hashsize;
         hashptr = hashtable[hashval];
-
+        //assert(hashtable[hashval] != root); // might be
         while (hashptr) {
             if (hashptr->getItem() == item) {
                 hashptr->chgCount(value);
@@ -213,14 +214,22 @@ public:
                 return ret;
             } else hashptr = hashptr->getNext();
         }
-
+        //assert(hashtable[hashval] != root); // must not
         if (!root->getPrev()) hashtable[root->getHash()] = root->getNext();
         else root->getPrev()->setNext(root->getNext());
 
         if (root->getNext()) root->getNext()->setPrev(root->getPrev());
 
+        // assert(hashtable[hashval] != root);
         hashptr = hashtable[hashval];
         root->setNext(hashptr);
+        /*assert(hashptr != root);
+        for (int i = 1; i <= _size; i++) {
+            if ((counters[i]).getNext() == &counters[i]) {
+                std::cout << i << ":" << i << counters[i].getItem() << std::endl;
+            }
+            assert((counters[i]).getNext() != &counters[i]);
+        }*/
         if (hashptr) hashptr->setPrev(root);
         hashtable[hashval] = root;
 
@@ -238,6 +247,12 @@ public:
 #if PRINT_TRACE
         print();
 #endif
+        /*for (int i = 0; i < hashsize; i++)
+            if (hashtable[i]) {
+                assert(!(hashtable[i] == root && hashtable[i]->getNext() == root));
+                //if (hashtable[i] == root) std::cout << hashtable[i]->getNext() << ":" << root << std::endl;
+                assert(hashtable[i]->getNext() != hashtable[i]);
+            }*/
         return ret;
     }
 
