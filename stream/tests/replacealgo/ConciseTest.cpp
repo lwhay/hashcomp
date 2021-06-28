@@ -8,7 +8,7 @@
 #include "tracer.h"
 
 int total_threads_num = 10;
-size_t max_count = 2500000;//000;
+size_t max_count = 1200000;//000;
 size_t hit_count = 6; //(max_count / 10);
 float data_skew = 0.99f;
 
@@ -18,25 +18,30 @@ stringstream *output;
 using namespace std;
 
 void generate() {
-    keys = (uint32_t *) calloc(max_count, sizeof(uint64_t));
+    keys = (uint32_t *) calloc(max_count, sizeof(uint32_t));
     Tracer tracer;
     tracer.startTime();
+    cout << "begin" << endl;
     RandomGenerator<uint32_t>::generate(keys, (1llu << 32), max_count, data_skew);
     cout << tracer.getRunTime() << " with " << max_count << endl;
 }
 
 void fullGeneralTest() {
-    GeneralReplacement<uint64_t> gr(hit_count);
+    GeneralReplacement<uint32_t> gr(hit_count);
     Tracer tracer;
     tracer.startTime();
     for (int i = 0; i < max_count; i++) {
+        //cout << i << ":" << keys[i] << "&" << endl;
+        if (i == 20)
+            int bb = 0;
         gr.put(keys[i]);
+        //gr.print();
         // if (i % 1000 == 0) cout << ".";
     }
     cout << endl;
     cout << tracer.getRunTime() << endl;
     int maxCounter = 0, minCounter = 10000000, maxDelta = 0, minDelta = 100000000;
-    Item<uint64_t> *root = gr.output(false);
+    Item<uint32_t> *root = gr.output(false);
     for (int i = 0; i < gr.volume() + 1; i++) {
         if ((root + i)->getCount() > maxCounter) maxCounter = (root + i)->getCount();
         if ((root + i)->getCount() < minCounter) minCounter = (root + i)->getCount();
@@ -50,7 +55,7 @@ void fullGeneralTest() {
         topCounter.push((root + i)->getCount());
         topDelta.push((root + i)->getDelta());
     }
-    cout << tracer.getRunTime() << endl;
+    cout << "time: " << tracer.getRunTime() << endl;
     for (int i = 0; i < 1000; i++) {
         if (i >= topCounter.size()) break;
         else {
@@ -59,7 +64,7 @@ void fullGeneralTest() {
             topCounter.pop();
         }
     }
-    cout << "-----------------------------" << endl;
+    cout << endl << "-----------------------------" << endl;
     for (int i = 0; i < 1000; i++) {
         if (i >= topDelta.size()) break;
         else {
@@ -75,13 +80,13 @@ void fullConciseTest() {
     Tracer tracer;
     tracer.startTime();
     for (int i = 0; i < max_count; i++) {
-        cout << i << ":" << keys[i] << "&" << endl;
-        if (i == 17) {
+        //cout << i << ":" << keys[i] << "&" << endl;
+        if (i == 20) {
             uint32_t aa = keys[i];
             aa = 1;
         }
         gr.put(keys[i]);
-        gr.print();
+        //gr.print();
     }
     cout << tracer.getRunTime() << endl;
     int maxCounter = 0, minCounter = 10000000, maxDelta = 0, minDelta = 100000000;
@@ -99,7 +104,7 @@ void fullConciseTest() {
         topCounter.push((root + i)->getCount());
         topDelta.push((root + i)->getDelta());
     }
-    cout << tracer.getRunTime() << endl;
+    cout << "time: " << tracer.getRunTime() << endl;
     for (int i = 0; i < 1000; i++) {
         if (i >= topCounter.size()) break;
         else {
@@ -108,7 +113,7 @@ void fullConciseTest() {
             topCounter.pop();
         }
     }
-    cout << "-----------------------------" << endl;
+    cout << endl << "-----------------------------" << endl;
     for (int i = 0; i < 1000; i++) {
         if (i >= topDelta.size()) break;
         else {
@@ -183,7 +188,8 @@ int main(int argc, char **argv) {
     // naiveTest();
     // dumpTest();
     generate();
-    //fullGeneralTest();
+    fullGeneralTest();
+    cout << endl << endl << "===========================================================" << endl << endl;
     fullConciseTest();
     return 0;
 }

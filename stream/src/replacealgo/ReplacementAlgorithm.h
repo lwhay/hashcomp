@@ -217,13 +217,13 @@ public:
             } else hashptr = hashptr->getNext();
         }
         // assert(hashtable[hashval] != root); // might be
-        assert(root->getNext() != root);
+        // assert(root->getNext() != root);
         if (!root->getPrev()) hashtable[root->getHash()] = root->getNext();
         else root->getPrev()->setNext(root->getNext());
 
         if (root->getNext()) root->getNext()->setPrev(root->getPrev());
 
-        assert(hashtable[hashval] != root); // must not
+        // assert(hashtable[hashval] != root); // must not
         hashptr = hashtable[hashval];
         root->setNext(hashptr);
         /*assert(hashptr != root);
@@ -250,9 +250,9 @@ public:
 #if PRINT_TRACE
         print();
 #endif
-        if (hashtable[hashval] == root)
+        /*if (hashtable[hashval] == root)
             assert(root->getHash() == hashval);
-        /*for (int i = 0; i < hashsize; i++)
+        for (int i = 0; i < hashsize; i++)
             if (hashtable[i]) {
                 assert(!(hashtable[i] == root && hashtable[i]->getNext() == root));
                 //if (hashtable[i] == root) std::cout << hashtable[i]->getNext() << ":" << root << std::endl;
