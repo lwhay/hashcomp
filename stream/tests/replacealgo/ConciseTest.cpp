@@ -8,6 +8,8 @@
 #include <sstream>
 #include "ReplacementAlgorithm.h"
 #include "ConciseLFUAlgorithm.h"
+#include "ConciseLRUAlgorithm.h"
+#include "ConciseARCAlgorithm.h"
 #include "tracer.h"
 
 int total_threads_num = 10;
@@ -89,16 +91,18 @@ void fullConciseTest() {
     ConciseLFUAlgorithm gr(hit_count);
     Tracer tracer;
     tracer.startTime();
+    size_t miss = 0, hit = 0;
     for (int i = 0; i < max_count; i++) {
         //cout << i << ":" << keys[i] << "&" << endl;
         if (i == 20) {
             uint32_t aa = keys[i];
             aa = 1;
         }
+        if (gr.find(keys[i]) != nullptr) hit++; else miss++;
         gr.put(keys[i]);
         //gr.print();
     }
-    cout << tracer.getRunTime() << endl;
+    cout << "time: " << tracer.getRunTime() << " c: " << gr.volume() << " miss: " << miss << " hit: " << hit << endl;
     int maxCounter = 0, minCounter = 10000000, maxDelta = 0, minDelta = 100000000;
     FreqItem *root = gr.output(false);
     for (int i = 0; i < gr.volume() + 1; i++) {
@@ -132,7 +136,7 @@ void fullConciseTest() {
             topDelta.pop();
         }
     }
-    size_t miss = 0, hit = 0;
+    miss = 0, hit = 0;
     tracer.startTime();
     for (int i = 0; i < max_count; i++) {
         if (gr.find(keys[i]) != nullptr) hit++;
@@ -259,10 +263,53 @@ void parallelConciseTest() {
     delete[] output;
 }
 
+void naiveConciseARCTest() {
+    ConciseARCAlgorithm clru(10);
+    for (int i = 0; i < 100; i++) {
+        cout << i << " ";
+        if ((i + 1) % 50 == 0) cout << endl;
+        clru.add(i);
+    }
+}
+
+void naiveConciseLRUTest() {
+    ConciseLRUAlgorithm clru(10);
+    for (int i = 0; i < 100; i++) {
+        clru.add(i);
+        clru.print();
+    }
+}
+
+void conciseLRUTest() {
+    ConciseLRUAlgorithm clru(hit_count);
+    Tracer tracer;
+    tracer.startTime();
+    size_t miss = 0, hit = 0;
+    for (int i = 0; i < max_count; i++) {
+        //cout << i << ":" << keys[i] << endl;
+        if (clru.contains(keys[i])) hit++; else miss++;
+        clru.add(keys[i]);
+    }
+    cout << "time: " << tracer.getRunTime() << " c: " << clru.getSize() << " miss " << miss << " hit: " << hit << endl;
+}
+
+void conciseARCTest() {
+    ConciseARCAlgorithm r(hit_count);
+    Tracer tracer;
+    tracer.startTime();
+    for (int i = 0; i < max_count; i++) {
+        //cout << i << ":" << keys[i] << endl;
+        r.add(keys[i]);
+    }
+    cout << "time: " << tracer.getRunTime() << " miss: " << r.getTotalMiss() << " all: " << r.getTotalRequest() << endl;
+}
+
 int main(int argc, char **argv) {
+    naiveConciseARCTest();
     if (argc == 1) {
         naiveTest();
         dumpTest();
+        naiveConciseLRUTest();
         return 0;
     }
     if (argc != 5) {
@@ -281,10 +328,19 @@ int main(int argc, char **argv) {
             fullConciseTest();
             break;
         case 1:
+            cerr << "merge still issues a bug" << endl;
             cout << "parallel total: " << max_count << " c: " << hit_count << " trd: " << total_threads_num << endl;
             generate();
             parallelConciseTest();
             break;
+        case 2:
+            cout << "conciselru test: " << max_count << " c: " << hit_count << " dum: " << total_threads_num << endl;
+            generate();
+            conciseLRUTest();
+        case 3:
+            cout << "concisearc test: " << max_count << " c: " << hit_count << " dum: " << total_threads_num << endl;
+            generate();
+            conciseARCTest();
         default:
             cout << "command: type:0/verification,1/parallel, total_count, capacity, thread_number/1(parallel)" << endl;
     }

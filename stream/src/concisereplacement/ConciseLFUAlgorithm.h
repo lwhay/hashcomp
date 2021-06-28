@@ -39,7 +39,7 @@ private:
     uint32_t deltaCount;
     uint64_t points; // 0-19: *next, 20-39: *left, 40:59 *right, 63 root in hashtable, 60:62 reserved.
 public:
-    void setitem(uint32_t ihash) { this->item = ihash; }
+    void setItem(uint32_t ihash) { this->item = ihash; }
 
     uint32_t getItem() { return item; }
 
@@ -267,7 +267,7 @@ public:
         n = 0;
 
         for (int i = 0; i <= _size; i++) {
-            counters[i].setitem(GLSS_NULLITEM);
+            counters[i].setItem(GLSS_NULLITEM);
         }
 
         root = &counters[1];
@@ -280,7 +280,7 @@ public:
         n = 0;
 
         for (int i = 0; i <= _size; i++) {
-            counters[i].setitem(GLSS_NULLITEM);
+            counters[i].setItem(GLSS_NULLITEM);
         }
         root = &counters[1];
     }
@@ -309,7 +309,7 @@ public:
 
         uint32_t ret = item;
         n += value;
-        counters->setitem(0);
+        counters->setItem(0);
         hashval = hk(item);
         hashptr = counters + hashtable[hashval];
         // assert(hashtable[hashval] != 1); // permit here
@@ -357,7 +357,7 @@ public:
 
         root->clearPrev();
         ret = root->getItem();
-        root->setitem(item);
+        root->setItem(item);
         root->setDelta(root->getCount());
         root->setCount(value + root->getDelta());
 #if PRINT_TRACE
@@ -495,7 +495,7 @@ public:
                 merged[i].setCount(counters[i].getCount() + cptr->getCount());
                 merged[i].setDelta(counters[i].getDelta() + cptr->getDelta());
             } else {
-                merged[i].setitem(counters[i].getItem());
+                merged[i].setItem(counters[i].getItem());
                 merged[i].setCount(counters[i].getCount());
                 merged[i].setDelta(counters[i].getDelta());
             }
