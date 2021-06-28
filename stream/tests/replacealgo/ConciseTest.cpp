@@ -3,13 +3,16 @@
 //
 
 #include <iostream>
+#include <thread>
+#include <vector>
+#include <sstream>
 #include "ReplacementAlgorithm.h"
 #include "ConciseLFUAlgorithm.h"
 #include "tracer.h"
 
 int total_threads_num = 10;
-size_t max_count = 1200000;//000;
-size_t hit_count = 6; //(max_count / 10);
+size_t max_count = 1000000000;
+size_t hit_count = (max_count / 10);
 float data_skew = 0.99f;
 
 uint32_t *keys;
@@ -73,6 +76,13 @@ void fullGeneralTest() {
             topDelta.pop();
         }
     }
+    size_t miss = 0, hit = 0;
+    tracer.startTime();
+    for (int i = 0; i < max_count; i++) {
+        if (gr.find(keys[i]) != nullptr) hit++;
+        else miss++;
+    }
+    cout << endl << "find: " << tracer.getRunTime() << " miss: " << miss << " hit: " << hit << endl;
 }
 
 void fullConciseTest() {
@@ -122,6 +132,13 @@ void fullConciseTest() {
             topDelta.pop();
         }
     }
+    size_t miss = 0, hit = 0;
+    tracer.startTime();
+    for (int i = 0; i < max_count; i++) {
+        if (gr.find(keys[i]) != nullptr) hit++;
+        else miss++;
+    }
+    cout << endl << "find: " << tracer.getRunTime() << " miss: " << miss << " hit: " << hit << endl;
 }
 
 void naiveTest() {
@@ -184,12 +201,92 @@ void dumpTest() {
     }
 }
 
+void parallelConciseTest() {
+    output = new stringstream[total_threads_num];
+    vector<thread> workers;
+    std::vector<ConciseLFUAlgorithm *> grs;
+    Tracer tracer;
+    for (int i = 0; i < total_threads_num; i++) {
+        grs.push_back(new ConciseLFUAlgorithm(hit_count));
+    }
+    for (int i = 0; i < total_threads_num; i++) {
+        workers.push_back(thread([](ConciseLFUAlgorithm *gr, int tid) {
+            Tracer tracer;
+            tracer.startTime();
+            size_t begin = max_count / (total_threads_num) * tid, end = max_count / (total_threads_num) * (tid + 1);
+            for (size_t i = begin; i < end; i++) {
+                gr->put(keys[i]);
+            }
+            PartItem *partial = gr->prepare(tid);
+            output[tid] << "\t" << tid << " " << tracer.getRunTime() << " " << gr->volume() << " ";
+            for (int i = 0; i < 3; i++) {
+                output[tid] << partial[i].getItem() << ":" << partial[i].getCount() << "->";
+            }
+            output[tid] << "->...->";
+            for (int i = 0; i < 3; i++) {
+                output[tid] << partial[gr->volume() - i].getItem() << ":" << partial[gr->volume() - i].getCount()
+                            << "->";
+            }
+        }, grs.at(i), i));
+    }
+    for (int i = 0; i < total_threads_num; i++) {
+        workers.at(i).join();
+        string outstr = output[i].str();
+        cout << outstr;
+        cout << endl;
+    }
+    cout << "push: " << tracer.getRunTime() << ":" << hit_count << endl;
+    tracer.startTime();
+    PartItem *merged = grs.at(0)->merge(grs);
+    cout << "total merge:" << tracer.getRunTime() << " " << endl;
+    tracer.startTime();
+    GeneralReplacement<uint64_t> gr(grs.at(0)->volume() - 1);
+    for (int i = 0; i < grs.at(0)->volume(); i++) gr.put(merged[i].getItem());
+    cout << "rebuild:" << tracer.getRunTime() << " ";
+    for (int i = 0; i < 3; i++) {
+        cout << merged[i].getItem() << ":" << merged[i].getCount() << "->";
+    }
+    cout << "->...->";
+    for (int i = 3; i > 0; i--) {
+        cout << merged[grs.at(0)->volume() - i].getItem() << ":" << merged[grs.at(0)->volume() - i].getCount() << "->";
+    }
+    cout << endl;
+    for (int i = 0; i < grs.at(0)->volume(); i++) assert(gr.find(merged[i].getItem()) != nullptr);
+    //assert(grs.at(0)->find(merged[i].getItem()) != nullptr);
+    cerr << gr.volume() << ":" << grs.at(0)->volume() << endl;
+    assert(gr.volume() == grs.at(0)->volume());
+    for (auto gr: grs) delete gr;
+    delete[] output;
+}
+
 int main(int argc, char **argv) {
-    // naiveTest();
-    // dumpTest();
-    generate();
-    fullGeneralTest();
-    cout << endl << endl << "===========================================================" << endl << endl;
-    fullConciseTest();
+    if (argc == 1) {
+        naiveTest();
+        dumpTest();
+        return 0;
+    }
+    if (argc != 5) {
+        cout << "command: type:0/verification,1/parallel, total_count, capacity, thread_number/1(parallel)" << endl;
+        exit(-1);
+    }
+    int type = std::atoi(argv[1]);
+    max_count = std::atol(argv[2]);
+    hit_count = std::atol(argv[3]);
+    total_threads_num = std::atoi(argv[4]);
+    switch (type) {
+        case 0:
+            generate();
+            fullGeneralTest();
+            cout << endl << endl << "===========================================================" << endl << endl;
+            fullConciseTest();
+            break;
+        case 1:
+            cout << "parallel total: " << max_count << " c: " << hit_count << " trd: " << total_threads_num << endl;
+            generate();
+            parallelConciseTest();
+            break;
+        default:
+            cout << "command: type:0/verification,1/parallel, total_count, capacity, thread_number/1(parallel)" << endl;
+    }
     return 0;
 }

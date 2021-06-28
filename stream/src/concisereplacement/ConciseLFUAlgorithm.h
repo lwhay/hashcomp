@@ -376,16 +376,11 @@ public:
 
     FreqItem *find(uint32_t item) {
         FreqItem *hashptr = counters + hashtable[hk(item)];
-        int iter = 0;
-        while (hashptr) {
-            if (hashptr->getItem() == item) break;
+        while (hashptr != counters) {
+            if (hashptr->getItem() == item) return hashptr;
             else hashptr = (counters + hashptr->getNext());
-            if (iter++ > 10) {
-                std::cout << "error" << 462 << std::endl;
-                exit(-1);
-            }
         }
-        return hashptr;
+        return nullptr;
     }
 
     void print() {
@@ -405,10 +400,16 @@ public:
     }
 
     PartItem *prepare(int idx) {
-        /*std::memcpy(merged, counters, sizeof(Item < IT > ) * (_size + 1));
-        std::sort(merged + 1, merged + _size + 1, Item<IT>::comp);
-        for (size_t i = 1; i <= _size; i++)
-            merged[i].setDelta(idx);*/
+        if (merged == nullptr) {
+            if (idx == 0) merged = new PartItem[2 * _size + 1];
+            else merged = new PartItem[_size + 1];
+        }
+        for (size_t i = 1; i <= _size; i++) {
+            merged[i].setitem(counters[i].getItem());
+            merged[i].setCount(counters[i].getCount());
+            merged[i].setPart(idx);
+        }
+        std::sort(merged + 1, merged + _size + 1, PartItem::partComp);
         return merged;
     }
 
