@@ -135,7 +135,8 @@ protected:
             }
             ptr = mc;
         }
-        // for (int i = 0; i < hashsize; i++) assert(hashtable[i] != nullptr || hashtable[i] != root);
+        /*for (int i = 0; i < hashsize; i++)
+            if (hashtable[i] == root) assert(root->getHash() == i);*/
     }
 
 public:
@@ -201,12 +202,13 @@ public:
         IT hashval;
         Item<IT> *hashptr;
 
+        // assert((root - counters) == 1 && root->getNext() != root);
         IT ret = item;
         n += value;
         counters->setitem(0);
         hashval = hash(hasha, hashb, item) % hashsize;
         hashptr = hashtable[hashval];
-        //assert(hashtable[hashval] != root); // might be
+        // assert(hashtable[hashval] != root); // might be
         while (hashptr) {
             if (hashptr->getItem() == item) {
                 hashptr->chgCount(value);
@@ -214,13 +216,14 @@ public:
                 return ret;
             } else hashptr = hashptr->getNext();
         }
-        //assert(hashtable[hashval] != root); // must not
+        // assert(hashtable[hashval] != root); // might be
+        assert(root->getNext() != root);
         if (!root->getPrev()) hashtable[root->getHash()] = root->getNext();
         else root->getPrev()->setNext(root->getNext());
 
         if (root->getNext()) root->getNext()->setPrev(root->getPrev());
 
-        // assert(hashtable[hashval] != root);
+        assert(hashtable[hashval] != root); // must not
         hashptr = hashtable[hashval];
         root->setNext(hashptr);
         /*assert(hashptr != root);
@@ -247,6 +250,8 @@ public:
 #if PRINT_TRACE
         print();
 #endif
+        if (hashtable[hashval] == root)
+            assert(root->getHash() == hashval);
         /*for (int i = 0; i < hashsize; i++)
             if (hashtable[i]) {
                 assert(!(hashtable[i] == root && hashtable[i]->getNext() == root));

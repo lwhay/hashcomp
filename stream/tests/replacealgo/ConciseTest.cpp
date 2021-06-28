@@ -8,7 +8,7 @@
 #include "tracer.h"
 
 int total_threads_num = 10;
-size_t max_count = 25;//000;
+size_t max_count = 2500000;//000;
 size_t hit_count = 6; //(max_count / 10);
 float data_skew = 0.99f;
 
@@ -31,7 +31,7 @@ void fullGeneralTest() {
     tracer.startTime();
     for (int i = 0; i < max_count; i++) {
         gr.put(keys[i]);
-        if (i % 1000 == 0) cout << ".";
+        // if (i % 1000 == 0) cout << ".";
     }
     cout << endl;
     cout << tracer.getRunTime() << endl;
@@ -70,14 +70,13 @@ void fullGeneralTest() {
     }
 }
 
-
 void fullConciseTest() {
     ConciseLFUAlgorithm gr(hit_count);
     Tracer tracer;
     tracer.startTime();
     for (int i = 0; i < max_count; i++) {
         cout << i << ":" << keys[i] << "&" << endl;
-        if (i == 20) {
+        if (i == 17) {
             uint32_t aa = keys[i];
             aa = 1;
         }
@@ -184,7 +183,7 @@ int main(int argc, char **argv) {
     // naiveTest();
     // dumpTest();
     generate();
-    fullGeneralTest();
+    //fullGeneralTest();
     fullConciseTest();
     return 0;
 }

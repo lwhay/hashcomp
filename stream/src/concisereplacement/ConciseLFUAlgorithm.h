@@ -81,8 +81,8 @@ public:
     }
 
     int getNext() {
-        uint64_t copy = points;
-        uint32_t off = points & NEXT_BITS;
+        /*uint64_t copy = points;
+        uint32_t off = points & NEXT_BITS;*/
         return (points & NEXT_BITS);
     }
 
@@ -168,6 +168,86 @@ protected:
         FreqItem tmp;
         FreqItem *cpt, *minchild;
         uint32_t mc;
+        int iter = 0;
+        while (1) {
+            if ((ptr << 1) + 1 > _size) break;
+
+            cpt = &counters[ptr];
+            mc = (ptr << 1) + ((counters[ptr << 1].getCount() < counters[(ptr << 1) + 1].getCount()) ? 0 : 1);
+            minchild = &counters[mc];
+
+            if (cpt->getCount() < minchild->getCount()) break;
+            tmp = *cpt;
+            *cpt = *minchild;
+            *minchild = tmp;
+
+            uint32_t hcpt = hk(cpt->getItem()), hmin = hk(minchild->getItem());
+            if (hcpt == hmin) {
+                minchild->setNext(cpt->getNext());
+                cpt->setNext(tmp.getNext());
+            } else {
+                uint32_t htcpt = hashtable[hcpt], htmin = hashtable[hmin];
+                if (htmin == 0) {
+                    if (cpt->getItem() != GLSS_NULLITEM) hashtable[hcpt] = cpt - counters;
+                } else {
+                    FreqItem *cur = counters + htmin, *prev = nullptr;
+                    int count = 0;
+                    while (cur != counters) {
+                        if (prev == nullptr) {
+                            if (cpt->getItem() != GLSS_NULLITEM) hashtable[hcpt] = cpt - counters;
+                        } else {
+                            prev->setNext(cpt - counters);
+                        }
+                        prev = cur;
+                        cur = counters + cur->getNext();
+                        if (count++ > 3) {
+                            std::cout << "error" << 204 << std::endl;
+                            exit(-1);
+                        }
+                    }
+                }
+
+                if (htcpt == 0) {
+                    hashtable[hmin] = minchild - counters;
+                } else {
+                    FreqItem *cur = counters + htcpt, *prev = nullptr;
+                    int count = 0;
+                    while (cur != counters) {
+                        if (prev == nullptr) {
+                            hashtable[hmin] = minchild - counters;
+                        } else {
+                            prev->setNext(minchild - counters);
+                        }
+                        prev = cur;
+                        cur = counters + cur->getNext();
+                        if (count++ > 3) {
+                            std::cout << "error" << 224 << std::endl;
+                            exit(-1);
+                        }
+                    }
+                }
+                /*if (!cpt->getPrev()) {
+                    if (cpt->getItem() != GLSS_NULLITEM) hashtable[cpt->getHash()] = cpt;
+                } else cpt->getPrev()->setNext(cpt);*/
+
+                /*if (!minchild->getPrev()) hashtable[minchild->getHash()] = minchild;
+                else minchild->getPrev()->setNext(minchild);*/
+            }
+            ptr = mc;
+            if (iter++ > 10) {
+                std::cout << "error" << 238 << std::endl;
+                exit(-1);
+            }
+        }
+        for (int i = 0; i < hashsize; i++)
+            if (hashtable[i] == 1)
+                assert(i == hk(root->getItem()));
+    }
+
+    /*inline void Heapify1(uint32_t ptr) {
+        FreqItem tmp;
+        FreqItem *cpt, *minchild;
+        uint32_t mc;
 
         while (1) {
             if ((ptr << 1) + 1 > _size) break;
@@ -197,6 +277,8 @@ protected:
                             if (cpt->getItem() != GLSS_NULLITEM) {
                                 oldhcpt = hashtable[hcpt];
                                 hashtable[hcpt] = (cpt - counters);
+                                if (hashtable[hcpt] == 1)
+                                    int aa = 0;
                             }
                         } else {
                             prev->setNext(cpt - counters);
@@ -205,7 +287,7 @@ protected:
                     }
                     prev = cur;
                     cur = (counters + cur->getNext());
-                    if (count++ > 20) {
+                    if (count++ > 3) {
                         std::cerr << "error" << 204 << std::endl;
                         exit(-1);
                     }
@@ -216,6 +298,8 @@ protected:
                     uint32_t tt = hashtable[hmin];
                     // assert(hashtable[hmin] == ptr);
                     hashtable[hmin] = (minchild - counters);
+                    if (hashtable[hmin] == 1)
+                        int aa = 0;
                 } else {
                     cur = counters + oldhcpt, prev = nullptr;
                     count = 0;
@@ -223,6 +307,8 @@ protected:
                         if (cur == minchild) {
                             if (prev == nullptr) {
                                 hashtable[hmin] = (minchild - counters);
+                                if (hashtable[hmin] == 1)
+                                    int aa = 0;
                             } else {
                                 prev->setNext(minchild - counters);
                             }
@@ -230,7 +316,7 @@ protected:
                         }
                         prev = cur;
                         cur = (counters + cur->getNext());
-                        if (count++ > 20) {
+                        if (count++ > 3) {
                             std::cerr << "error" << 229 << std::endl;
                             exit(-1);
                         }
@@ -240,8 +326,10 @@ protected:
             }
             ptr = mc;
         }
-        for (int i = 0; i < hashsize; i++) assert(hashtable[i] != 1 || root->getNext() != 1);
-    }
+        for (int i = 0; i < hashsize; i++)
+            if (hashtable[i] == 1)
+                assert(i == hk(root->getItem()));
+    }*/
 
 public:
     ConciseLFUAlgorithm(int K) {
@@ -306,16 +394,24 @@ public:
         hashval = hk(item);
         hashptr = counters + hashtable[hashval];
         // assert(hashtable[hashval] != 1); // permit here
+        int count = 0;
         while (hashptr != counters) {
             if (hashptr->getItem() == item) {
                 hashptr->chgCount(value);
                 Heapify(hashptr - counters);
                 return ret;
             } else hashptr = (counters + hashptr->getNext());
+            if (count++ > 3) {
+                std::cout << "error" << 405 << std::endl;
+                exit(-1);
+            }
         }
-        assert(hashtable[hashval] != 1);
+        // assert(hashtable[hashval] != 1); // might be
+        if (hashtable[hashval] == 1)
+            int aa = 0;
         uint32_t roothash = hk(root->getItem());
         FreqItem *cur = counters + hashtable[roothash], *prev = nullptr;
+        // assert((root - counters) == 1 && root->getNext() != 1);
         while (cur != counters) {
             if (cur == root) {
                 if (prev == nullptr) {
@@ -327,8 +423,12 @@ public:
             }
             prev = cur;
             cur = (counters + cur->getNext());
+            if (count++ > 3) {
+                std::cout << "error" << 427 << std::endl;
+                exit(-1);
+            }
         }
-        assert(hashtable[hashval] != 1);
+        assert(hashtable[hashval] != 1); // must not
         FreqItem *tt = counters + hashtable[hashval];
         root->setNext(hashtable[hashval]);
         uint32_t hk1 = hk((counters + hashtable[hashval])->getItem()), hk2 = hk(counters[1].getItem());
@@ -347,14 +447,21 @@ public:
 #if PRINT_TRACE
         print();
 #endif
+        if (hashtable[hashval] == 1)
+            assert(hk(root->getItem()) == hashval);
         return ret;
     }
 
     FreqItem *find(uint32_t item) {
         FreqItem *hashptr = counters + hashtable[hk(item)];
+        int iter = 0;
         while (hashptr) {
             if (hashptr->getItem() == item) break;
             else hashptr = (counters + hashptr->getNext());
+            if (iter++ > 10) {
+                std::cout << "error" << 462 << std::endl;
+                exit(-1);
+            }
         }
         return hashptr;
     }
