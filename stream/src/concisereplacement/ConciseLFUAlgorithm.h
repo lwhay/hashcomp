@@ -178,6 +178,17 @@ protected:
     //FreqItem *rootprev;
 
 protected:
+    inline uint32_t hk1(uint32_t hash) {
+        /*7402854 142571 1786309 2078863*/
+        uint32_t result;
+        uint32_t lresult;
+        result = (151261303 * hash) + 6722461;
+        result = ((result >> GLSS_HL) + result) & GLSS_MOD;
+        lresult = result;
+        return lresult % (hashsize - 1) + 1;
+    }
+
+    /*7410979 142369 1786195 2079680*/
     inline uint32_t hk(uint32_t hash) { return hash % (hashsize - 1) + 1; }
 
     inline void Heapify(uint32_t ptr) {
