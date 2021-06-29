@@ -27,7 +27,7 @@ void generate() {
     Tracer tracer;
     tracer.startTime();
     cout << "begin" << endl;
-    RandomGenerator<uint32_t>::generate(keys, (1llu << 32), max_count, data_skew);
+    RandomGenerator<uint32_t>::generate(keys, (1llu << 30), max_count, data_skew);
     cout << tracer.getRunTime() << " with " << max_count << endl;
 }
 
@@ -90,21 +90,23 @@ void fullGeneralTest() {
 void verificationTest() {
     GeneralReplacement<uint32_t> gr(hit_count);
     for (int i = 0; i < max_count; i++) {
-        if (i > 18532 && i < 18536) cout << i << ":" << keys[i] << endl;
+        //if (i > 18532 && i < 18536) cout << i << ":" << keys[i] << endl;
         if (i == 18534)
             int aa = 0;
         gr.put(keys[i]);
-        if (i > 18532 && i < 18536) gr.print();
+        //if (i > 18532 && i < 18536) gr.print();
     }
+    gr.print();
     cout << "=================================================================================================" << endl;
     ConciseLFUAlgorithm cgr(hit_count);
     for (int i = 0; i < max_count; i++) {
-        /*if (i > 18532 && i < 18536)*/ cout << i << ":" << keys[i] << endl;
+        ///*if (i > 18532 && i < 18536)*/ cout << i << ":" << keys[i] << endl;
         if (i == 71388)
             int aa = 0;
         cgr.put(keys[i]);
-        /*if (i > 18532 && i < 18536)*/ cgr.print();
+        ///*if (i > 18532 && i < 18536)*/ cgr.print();
     }
+    cgr.print();
 }
 
 void fullConciseTest() {
@@ -245,8 +247,10 @@ void parallelConciseTest() {
                     int aa = 0;
                 gr->put(keys[i]);
             }
+            size_t *tick = gr->gettick();
             PartItem *partial = gr->prepare(tid);
-            output[tid] << "\t" << tid << " " << tracer.getRunTime() << " " << gr->volume() << " ";
+            output[tid] << "\t" << tid << " " << tracer.getRunTime() << " " << gr->volume() << " " << tick[0] << " "
+                        << tick[1] << " " << tick[2] << " " << tick[3] << " ";
             for (int i = 0; i < 3; i++) {
                 output[tid] << partial[i].getItem() << ":" << partial[i].getCount() << "->";
             }

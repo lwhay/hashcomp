@@ -174,6 +174,7 @@ protected:
     FreqItem *counters;
     PartItem *merged;
     uint32_t *hashtable;
+    size_t tick[8];
     //FreqItem *rootprev;
 
 protected:
@@ -195,6 +196,7 @@ protected:
             uint32_t hcpt = hk(cpt->getItem()), hmin = hk(minchild->getItem());
             FreqItem *cur = counters + hashtable[hcpt], *cptprev = nullptr;
             while (cur != counters) {
+                tick[2]++;
                 if (cur == cpt) break;
                 cptprev = cur;
                 cur = counters + cur->getNext();
@@ -202,6 +204,7 @@ protected:
             cur = counters + hashtable[hmin];
             FreqItem *minprev = nullptr;
             while (cur != counters) {
+                tick[3]++;
                 if (cur == minchild) break;
                 minprev = cur;
                 cur = counters + cur->getNext();
@@ -270,6 +273,7 @@ public:
         std::memset(counters, 0, sizeof(FreqItem) * (1 + _size));
         merged = nullptr;
         n = 0;
+        for (int i = 0; i < 8; i++)tick[i] = 0;
 
         for (int i = 0; i <= _size; i++) {
             counters[i].setItem(GLSS_NULLITEM);
@@ -283,6 +287,7 @@ public:
         std::memset(counters, 0, sizeof(FreqItem) * (1 + _size));
         if (merged != nullptr) std::memset(merged, 0, sizeof(PartItem) * (1 + _size));
         n = 0;
+        for (int i = 0; i < 8; i++)tick[i] = 0;
 
         for (int i = 0; i <= _size; i++) {
             counters[i].setItem(GLSS_NULLITEM);
@@ -304,6 +309,8 @@ public:
         return _size;
     }
 
+    size_t *gettick() { return tick; }
+
     int size() {
         return sizeof(ConciseLFUAlgorithm) + hashsize * sizeof(uint32_t) + _size * sizeof(FreqItem);
     }
@@ -319,6 +326,7 @@ public:
         hashptr = counters + hashtable[hashval];
         // assert(hashtable[hashval] != 1); // permit here
         while (hashptr != counters) {
+            tick[0]++;
             if (hashptr->getItem() == item) {
                 hashptr->chgCount(value);
                 Heapify(hashptr - counters);
@@ -344,6 +352,7 @@ public:
                 rootprev->setNext(root->getNext());
             } else {*/
             while (cur != counters) {
+                tick[1]++;
                 if (cur == root) {
                     if (prev == nullptr) {
                         int next = root->getNext();

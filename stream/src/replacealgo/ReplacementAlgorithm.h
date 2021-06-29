@@ -90,14 +90,13 @@ protected:
     Item<IT> **hashtable;
 
     inline IT hash(IT a, IT b, IT x) {
-        /*IT result;
+        IT result;
         IT lresult;
         result = (a * x) + b;
         result = ((result >> GLSS_HL) + result) & GLSS_MOD;
         lresult = result;
 
-        return (lresult);*/
-        return (x % (hashsize - 1) + 1);
+        return (lresult);
     }
 
 protected:
