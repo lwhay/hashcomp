@@ -174,10 +174,10 @@ protected:
     FreqItem *counters;
     PartItem *merged;
     uint32_t *hashtable;
-    FreqItem *rootprev;
+    //FreqItem *rootprev;
 
 protected:
-    inline uint32_t hk(uint32_t hash) { return ((hash % (hashsize - 1)) + 1); }
+    inline uint32_t hk(uint32_t hash) { return hash % (hashsize - 1) + 1; }
 
     inline void Heapify(uint32_t ptr) {
         FreqItem tmp;
@@ -213,8 +213,8 @@ protected:
 
             // minchild and cpt are swapped hereafter
             if (hcpt == hmin) {
-                if (minchild->getNext() == 1) rootprev = minchild;
-                if (cpt->getNext() == 1) rootprev = cpt;
+                /*if (minchild->getNext() == 1) rootprev = minchild;
+                if (cpt->getNext() == 1) rootprev = cpt;*/
                 minchild->markPrev();
                 cpt->markPrev();
                 minchild->setNext(cpt->getNext());
@@ -225,10 +225,10 @@ protected:
                     if (cpt->getItem() != GLSS_NULLITEM) hashtable[hmin] = cpt - counters;
                 } else {
                     minprev->setNext(cpt - counters);
-                    if (cpt == root) rootprev = minprev;
+                    //if (cpt == root) rootprev = minprev;
                 }
                 if (cpt->getNext()) {
-                    if (cpt->getNext() == 1) rootprev = cpt;
+                    //if (cpt->getNext() == 1) rootprev = cpt;
                     (counters + cpt->getNext())->markPrev();
                 }
 
@@ -236,14 +236,19 @@ protected:
                     hashtable[hcpt] = minchild - counters;
                 } else {
                     cptprev->setNext(minchild - counters);
-                    if (minchild == root) rootprev = cptprev;
+                    //if (minchild == root) rootprev = cptprev;
                 }
                 if (minchild->getNext()) {
-                    if (minchild->getNext() == 1) rootprev = minchild;
+                    //if (minchild->getNext() == 1) rootprev = minchild;
                     (counters + minchild->getNext())->markPrev();
                 }
             }
             ptr = mc;
+            /*int t = 0;
+            for (int i = 0; i < hashsize; i++)
+                if (hashtable[i] == 1)
+                    t++;
+            assert(t <= 1);*/
         }
         /*for (int i = 0; i < hashsize; i++)
             if (hashtable[i] == 1)
@@ -324,31 +329,46 @@ public:
         uint32_t roothash = hk(root->getItem());
         FreqItem *cur = counters + hashtable[roothash], *prev = nullptr;
         // assert((root - counters) == 1 && root->getNext() != 1);
+        //rootprev = nullptr;
+        /*int t = 0;
+        for (int i = 0; i < hashsize; i++)
+            if (hashtable[i] == 1)
+                t++;
+        if (t > 1)
+            int aa = 0;*/
         if (!root->hasPrev()) {
             hashtable[roothash] = root->getNext();
         } else {
             //assert(rootprev != nullptr);
-            if (rootprev != nullptr) {
+            /*if (rootprev != nullptr) {
                 rootprev->setNext(root->getNext());
-            } else {
-                while (cur != counters) {
-                    if (cur == root) {
-                        if (prev == nullptr) {
-                            hashtable[roothash] = root->getNext();
-                        } else {
-                            prev->setNext(root->getNext());
-                        }
-                        break;
+            } else {*/
+            while (cur != counters) {
+                if (cur == root) {
+                    if (prev == nullptr) {
+                        int next = root->getNext();
+                        hashtable[roothash] = root->getNext();
+                    } else {
+                        prev->setNext(root->getNext());
                     }
-                    prev = cur;
-                    cur = (counters + cur->getNext());
+                    break;
                 }
-                // assert(cur == root);
+                prev = cur;
+                cur = (counters + cur->getNext());
             }
+            // assert(cur == root);
+            /*}*/
         }
+        //rootprev = nullptr;
+        /*t = 0;
+        for (int i = 0; i < hashsize; i++)
+            if (hashtable[i] == 1)
+                t++;
+        if (t > 1)
+            int aa = 0;*/
         if (root->getNext()) (counters + root->getNext())->markPrev();
 
-        // assert(hashtable[hashval] != 1); // must not
+        //assert(hashtable[hashval] != 1); // must not
         hashptr = counters + hashtable[hashval];
         root->setNext(hashtable[hashval]);
         if (hashptr != counters) hashptr->clearPrev();
@@ -364,13 +384,18 @@ public:
         std::cout << ret << " " << item << std::endl;
         print();
 #endif
-        rootprev = nullptr;
         Heapify(1);
 #if PRINT_TRACE
         print();
 #endif
         /*if (hashtable[hashval] == 1)
             assert(hk(root->getItem()) == hashval);*/
+        /*for (int i = 0; i < hashsize; i++)
+            if (hashtable[i]) {
+                assert(!(hashtable[i] == 1 && (counters + hashtable[i])->getNext() == (root - counters)));
+                //if (hashtable[i] == root) std::cout << hashtable[i]->getNext() << ":" << root << std::endl;
+                assert((counters + hashtable[i])->getNext() != hashtable[i]);
+            }*/
         return ret;
     }
 
@@ -388,9 +413,9 @@ public:
             std::cout << "\033[34m" << counters[i].getItem() << "\033[0m" << ":"
                       << "\033[33m" << hk(counters[i].getItem()) << "\033[0m" << ":"
                       << "\033[31m" << counters[i].getCount() << "\033[0m" << ":"
-                      << "\033[32m" << counters[i].getDelta() << "\033[0m" << ":"
+                      << "\033[32m" << counters[i].getDelta() << "\033[0m" /*<< ":"
                       << "\033[31m" << counters[i].getNext() << "\033[0m" << ":"
-                      << "\033[31m" << i << "\033[0m" << "->";
+                      << "\033[31m" << i << "\033[0m" <<*/ "->";
         std::cout << std::endl;
     }
 

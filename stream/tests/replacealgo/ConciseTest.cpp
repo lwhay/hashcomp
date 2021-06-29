@@ -87,6 +87,26 @@ void fullGeneralTest() {
     cout << endl << "find: " << tracer.getRunTime() << " miss: " << miss << " hit: " << hit << endl;
 }
 
+void verificationTest() {
+    GeneralReplacement<uint32_t> gr(hit_count);
+    for (int i = 0; i < max_count; i++) {
+        if (i > 18532 && i < 18536) cout << i << ":" << keys[i] << endl;
+        if (i == 18534)
+            int aa = 0;
+        gr.put(keys[i]);
+        if (i > 18532 && i < 18536) gr.print();
+    }
+    cout << "=================================================================================================" << endl;
+    ConciseLFUAlgorithm cgr(hit_count);
+    for (int i = 0; i < max_count; i++) {
+        /*if (i > 18532 && i < 18536)*/ cout << i << ":" << keys[i] << endl;
+        if (i == 71388)
+            int aa = 0;
+        cgr.put(keys[i]);
+        /*if (i > 18532 && i < 18536)*/ cgr.print();
+    }
+}
+
 void fullConciseTest() {
     ConciseLFUAlgorithm gr(hit_count);
     Tracer tracer;
@@ -210,6 +230,7 @@ void parallelConciseTest() {
     vector<thread> workers;
     std::vector<ConciseLFUAlgorithm *> grs;
     Tracer tracer;
+    tracer.getRunTime();
     for (int i = 0; i < total_threads_num; i++) {
         grs.push_back(new ConciseLFUAlgorithm(hit_count));
     }
@@ -219,6 +240,9 @@ void parallelConciseTest() {
             tracer.startTime();
             size_t begin = max_count / (total_threads_num) * tid, end = max_count / (total_threads_num) * (tid + 1);
             for (size_t i = begin; i < end; i++) {
+                //if (i > 9600) cout << i << ":" << keys[i] << endl;
+                if (i == 9602)
+                    int aa = 0;
                 gr->put(keys[i]);
             }
             PartItem *partial = gr->prepare(tid);
@@ -341,6 +365,11 @@ int main(int argc, char **argv) {
             cout << "concisearc test: " << max_count << " c: " << hit_count << " dum: " << total_threads_num << endl;
             generate();
             conciseARCTest();
+        case 4:
+            cout << "verification test: " << max_count << " c: " << hit_count << " dum: " << total_threads_num << endl;
+            generate();
+            verificationTest();
+            break;
         default:
             cout << "command: type:0/verification,1/parallel, total_count, capacity, thread_number/1(parallel)" << endl;
     }

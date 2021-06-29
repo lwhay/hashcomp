@@ -90,13 +90,14 @@ protected:
     Item<IT> **hashtable;
 
     inline IT hash(IT a, IT b, IT x) {
-        IT result;
+        /*IT result;
         IT lresult;
         result = (a * x) + b;
         result = ((result >> GLSS_HL) + result) & GLSS_MOD;
         lresult = result;
 
-        return (lresult);
+        return (lresult);*/
+        return (x % (hashsize - 1) + 1);
     }
 
 protected:
@@ -134,6 +135,9 @@ protected:
                 if (minchild->getNext()) minchild->getNext()->setPrev(minchild);
             }
             ptr = mc;
+            /*int t = 0;
+                for (int i = 0; i < hashsize; i++) if (hashtable[i] == root) t++;
+                assert((t <= 1));*/
         }
         /*for (int i = 0; i < hashsize; i++)
             if (hashtable[i] == root) assert(root->getHash() == i);*/
@@ -273,7 +277,7 @@ public:
 
     void print() {
         for (int i = 0; i <= _size; i++)
-            std::cout << "\033[34m" << (((counters[i].getItem() + 1) & 0x7fffffff) - 1) << "\033[0m" << ":"
+            std::cout << "\033[34m" << counters[i].getItem() << "\033[0m" << ":"
                       << "\033[33m" << hash(hasha, hashb, counters[i].getItem()) % hashsize << "\033[0m" << ":"
                       << "\033[31m" << counters[i].getCount() << "\033[0m" << ":"
                       << "\033[32m" << counters[i].getDelta() << "\033[0m" << "->";

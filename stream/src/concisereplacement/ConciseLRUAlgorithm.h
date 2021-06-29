@@ -43,7 +43,6 @@ public:
     int getNext() {
         return (points & LRU_NEXT_BITS);
     }
-
 };
 
 class ConciseLRUAlgorithm {
@@ -57,7 +56,7 @@ public:
     ConciseLRUAlgorithm(int K) : lrulist(new CommonItem[K + 2]), head(&lrulist[1]), tail(&lrulist[1]), _size(K + 1),
                                  count(0), capacity(0), hashsize(3 * _size) {
         hashtable = new uint32_t[hashsize];
-        std::memset(lrulist, 0, sizeof(CommonItem) * (2 + _size));
+        std::memset(lrulist, 0, sizeof(CommonItem) * (1 + _size));
         std::memset(hashtable, 0, sizeof(uint32_t) * hashsize);
         for (int i = 1; i <= this->_size; i++) {
             this->lrulist[i].setRight(i % _size + 1);
