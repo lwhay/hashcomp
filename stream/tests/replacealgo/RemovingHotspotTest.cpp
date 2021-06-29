@@ -119,6 +119,7 @@ void rollingEfficiencyTest(int round = 10) {
     for (int k = 0; k < round; k++) {
         size_t begin = k * keys.size() / round;
         size_t end = (k + 1) * keys.size() / round;
+        if (k == 0) for (int i = keys.size() - begin; i < keys.size(); i++) lss2.put(keys[i]);
         for (int i = begin; i < end; i++) {
             if (k % 2 == 0) {
                 if (lss2.find(keys[i]) == nullptr) miss++; else hit++;
