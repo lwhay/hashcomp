@@ -365,10 +365,12 @@ int main(int argc, char **argv) {
             cout << "conciselru test: " << max_count << " c: " << hit_count << " dum: " << total_threads_num << endl;
             generate();
             conciseLRUTest();
+            break;
         case 3:
             cout << "concisearc test: " << max_count << " c: " << hit_count << " dum: " << total_threads_num << endl;
             generate();
             conciseARCTest();
+            break;
         case 4:
             cout << "verification test: " << max_count << " c: " << hit_count << " dum: " << total_threads_num << endl;
             generate();
