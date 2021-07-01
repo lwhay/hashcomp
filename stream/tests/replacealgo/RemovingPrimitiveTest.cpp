@@ -52,8 +52,14 @@ public:
 };
 
 void generate(int removingK) {
-    if (core != nullptr) delete[] core;
-    if (nore != nullptr) delete[] nore;
+    if (core != nullptr) {
+        delete[] core;
+        core = nullptr;
+    }
+    if (nore != nullptr) {
+        delete[] nore;
+        nore = nullptr;
+    }
     hkeys.clear();
     lkeys.clear();
     uint64_t *_keys = (uint64_t *) calloc(max_count, sizeof(uint64_t));
