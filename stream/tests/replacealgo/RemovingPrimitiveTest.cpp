@@ -11,7 +11,7 @@
 #include <mutex>
 #include "tracer.h"
 
-#define MAX_COUNT 1000000000
+#define MAX_COUNT 1000000
 #define DATA_SKEW 0.99
 
 using namespace std;
@@ -87,13 +87,15 @@ void primitiveFA(vector<uint64_t> loads, size_t trd) {
     timer.start();
     for (int i = 0; i < trd; i++) {
         workers.push_back(thread([](vector<uint64_t> &loads, uint64_t &optcount, int tid, int trd) {
-            for (int i = tid; i < loads.size(); i += trd) {
-                core[loads.at(i) % unique_keys].fetch_add(1);
-                optcount++;
+            while (stopMeasure.load() == 0) {
+                for (int i = tid; i < loads.size(); i += trd) {
+                    core[loads.at(i) % unique_keys].fetch_add(1);
+                    optcount++;
+                }
             }
         }, ref(loads), ref(opcounts[i]), i, trd));
     }
-    while (timer.elapsedSeconds() < 60) {
+    while (timer.elapsedSeconds() < 120) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
@@ -114,13 +116,15 @@ void primitiveCAS(vector<uint64_t> loads, size_t trd) {
     timer.start();
     for (int i = 0; i < trd; i++) {
         workers.push_back(thread([](vector<uint64_t> &loads, uint64_t &optcount, int tid, int trd) {
-            for (int i = tid; i < loads.size(); i += trd) {
-                size_t idx = loads.at(i) % unique_keys;
-                uint64_t old;
-                do {
-                    old = core[idx].load();
-                } while (!core[idx].compare_exchange_strong(old, old + 1));
-                optcount++;
+            while (stopMeasure.load() == 0) {
+                for (int i = tid; i < loads.size(); i += trd) {
+                    size_t idx = loads.at(i) % unique_keys;
+                    uint64_t old;
+                    do {
+                        old = core[idx].load();
+                    } while (!core[idx].compare_exchange_strong(old, old + 1));
+                    optcount++;
+                }
             }
         }, ref(loads), ref(opcounts[i]), i, trd));
     }
@@ -149,13 +153,15 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
     timer.start();
     for (int i = 0; i < trd; i++) {
         workers.push_back(thread([](vector<uint64_t> &loads, spin_mutex *&locks, uint64_t &optcount, int tid, int trd) {
-            for (int i = tid; i < loads.size(); i += trd) {
-                size_t idx = loads.at(i) % unique_keys;
-                uint64_t old;
-                do {
-                    old = core[idx].load();
-                } while (!core[idx].compare_exchange_strong(old, old + 1));
-                optcount++;
+            while (stopMeasure.load() == 0) {
+                for (int i = tid; i < loads.size(); i += trd) {
+                    size_t idx = loads.at(i) % unique_keys;
+                    uint64_t old;
+                    do {
+                        old = core[idx].load();
+                    } while (!core[idx].compare_exchange_strong(old, old + 1));
+                    optcount++;
+                }
             }
         }, ref(loads), ref(locks), ref(opcounts[i]), i, trd));
     }
@@ -185,13 +191,15 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
     timer.start();
     for (int i = 0; i < trd; i++) {
         workers.push_back(thread([](vector<uint64_t> &loads, mutex *&locks, uint64_t &optcount, int tid, int trd) {
-            for (int i = tid; i < loads.size(); i += trd) {
-                size_t idx = loads.at(i) % unique_keys;
-                uint64_t old;
-                do {
-                    old = core[idx].load();
-                } while (!core[idx].compare_exchange_strong(old, old + 1));
-                optcount++;
+            while (stopMeasure.load() == 0) {
+                for (int i = tid; i < loads.size(); i += trd) {
+                    size_t idx = loads.at(i) % unique_keys;
+                    uint64_t old;
+                    do {
+                        old = core[idx].load();
+                    } while (!core[idx].compare_exchange_strong(old, old + 1));
+                    optcount++;
+                }
             }
         }, ref(loads), ref(locks), ref(opcounts[i]), i, trd));
     }
