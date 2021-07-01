@@ -23,7 +23,7 @@ std::vector<uint64_t> lkeys;
 
 alignas(64) atomic<uint64_t> *core;
 
-uint64 *nore;
+uint64_t *nore;
 
 size_t unique_keys = 0;
 
