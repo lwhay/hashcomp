@@ -23,6 +23,8 @@ std::vector<uint64_t> lkeys;
 
 alignas(64) atomic<uint64_t> *core;
 
+uint64 *nore;
+
 size_t unique_keys = 0;
 
 atomic<int> stopMeasure(0);
@@ -51,6 +53,7 @@ public:
 
 void generate(int removingK) {
     if (core != nullptr) delete[] core;
+    if (nore != nullptr) delete[] nore;
     hkeys.clear();
     lkeys.clear();
     uint64_t *_keys = (uint64_t *) calloc(max_count, sizeof(uint64_t));
@@ -78,10 +81,11 @@ void generate(int removingK) {
     cout << "put: " << tracer.getRunTime() << " with " << freq.size() << " " << endl;
 
     if (core == nullptr) core = new atomic<uint64_t>[unique_keys * ALIGN_CNT];
+    if (nore == nullptr) nore = new uint64_t[unique_keys * ALIGN_CNT];
 }
 
 void primitiveFA(vector<uint64_t> loads, size_t trd) {
-    for (int i = 0; i < unique_keys; i++) core[i].store(0);
+    for (int i = 0; i < unique_keys; i++) core[i * ALIGN_CNT].store(0);
     vector<thread> workers;
     stopMeasure.store(0, memory_order_relaxed);
     uint64_t opcounts[trd];
@@ -113,7 +117,7 @@ void primitiveFA(vector<uint64_t> loads, size_t trd) {
 }
 
 void primitiveCAS(vector<uint64_t> loads, size_t trd) {
-    for (int i = 0; i < unique_keys; i++) core[i].store(0);
+    for (int i = 0; i < unique_keys; i++) core[i * ALIGN_CNT].store(0);
     vector<thread> workers;
     stopMeasure.store(0, memory_order_relaxed);
     uint64_t opcounts[trd];
@@ -149,7 +153,8 @@ void primitiveCAS(vector<uint64_t> loads, size_t trd) {
 }
 
 void primitiveSpin(vector<uint64_t> loads, size_t trd) {
-    spin_mutex *locks = new spin_mutex[unique_keys];
+    std::memset(nore, 0, sizeof(uint64_t) * (unique_keys * ALIGN_CNT));
+    spin_mutex *locks = new spin_mutex[unique_keys * ALIGN_CNT];
     for (int i = 0; i < unique_keys; i++) {
         core[i].store(0);
         locks->unlock();
@@ -166,10 +171,9 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
             while (stopMeasure.load() == 0) {
                 for (int i = tid; i < loads.size(); i += trd) {
                     size_t idx = (loads.at(i) % unique_keys) * ALIGN_CNT;
-                    uint64_t old;
-                    do {
-                        old = core[idx].load();
-                    } while (!core[idx].compare_exchange_strong(old, old + 1));
+                    locks[idx].lock();
+                    nore[idx]++;
+                    locks[idx].unlock();
                     tick++;
                     if (tick % 100000 == 0 && stopMeasure.load() == 1) break;
                 }
@@ -190,10 +194,11 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
 }
 
 void primitiveMutex(vector<uint64_t> loads, size_t trd) {
-    mutex *locks = new mutex[unique_keys];
+    std::memset(nore, 0, sizeof(uint64_t) * (unique_keys * ALIGN_CNT));
+    mutex *locks = new mutex[unique_keys * ALIGN_CNT];
     for (int i = 0; i < unique_keys; i++) {
         core[i].store(0);
-        locks->unlock();
+        //locks->unlock();
     }
     vector<thread> workers;
     stopMeasure.store(0, memory_order_relaxed);
@@ -207,10 +212,9 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
             while (stopMeasure.load() == 0) {
                 for (int i = tid; i < loads.size(); i += trd) {
                     size_t idx = (loads.at(i) % unique_keys) * ALIGN_CNT;
-                    uint64_t old;
-                    do {
-                        old = core[idx].load();
-                    } while (!core[idx].compare_exchange_strong(old, old + 1));
+                    locks[idx].lock();
+                    nore[idx]++;
+                    locks[idx].unlock();
                     tick++;
                     if (tick % 100000 == 0 && stopMeasure.load() == 1) break;
                 }
