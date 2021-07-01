@@ -167,7 +167,7 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
         workers.at(i).join();
         if (i > 1) opcounts[0] += opcounts[i];
     }
-    cout << "CAS:\t" << trd << "\t" << opcounts[0] << endl;
+    cout << "Spin:\t" << trd << "\t" << opcounts[0] << endl;
     delete[] locks;
 }
 
@@ -203,7 +203,7 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
         workers.at(i).join();
         if (i > 1) opcounts[0] += opcounts[i];
     }
-    cout << "CAS:\t" << trd << "\t" << opcounts[0] << endl;
+    cout << "Mutex:\t" << trd << "\t" << opcounts[0] << endl;
     delete[] locks;
 }
 
