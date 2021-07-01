@@ -17,8 +17,6 @@
 
 using namespace std;
 
-size_t HIT_COUNT = (MAX_COUNT / 10);
-
 std::vector<uint64_t> hkeys;
 
 std::vector<uint64_t> lkeys;
@@ -28,6 +26,10 @@ alignas(64) atomic<uint64_t> *core;
 size_t unique_keys = 0;
 
 atomic<int> stopMeasure(0);
+
+size_t test_duration = 30;
+
+size_t max_count = MAX_COUNT;
 
 class spin_mutex {
     std::atomic<bool> flag = ATOMIC_VAR_INIT(false);
@@ -51,13 +53,13 @@ void generate(int removingK) {
     if (core != nullptr) delete[] core;
     hkeys.clear();
     lkeys.clear();
-    uint64_t *_keys = (uint64_t *) calloc(MAX_COUNT, sizeof(uint64_t));
+    uint64_t *_keys = (uint64_t *) calloc(max_count, sizeof(uint64_t));
     Tracer tracer;
     tracer.startTime();
-    RandomGenerator<uint64_t>::generate(_keys, (1llu << 32), MAX_COUNT, DATA_SKEW);
-    cout << "gen: " << tracer.getRunTime() << " with " << MAX_COUNT << " ";
+    RandomGenerator<uint64_t>::generate(_keys, (1llu << 32), max_count, DATA_SKEW);
+    cout << "gen: " << tracer.getRunTime() << " with " << max_count << " ";
     unordered_map<uint64_t, uint64_t> freq;
-    for (int i = 0; i < MAX_COUNT; i++) {
+    for (int i = 0; i < max_count; i++) {
         if (freq.find(_keys[i]) == freq.end()) freq.insert(make_pair(_keys[i], 0));
         freq.find(_keys[i])->second++;
     }
@@ -70,7 +72,7 @@ void generate(int removingK) {
     cout << "sort: " << tracer.getRunTime() << " with " << freq.size() << " ";
     freq.clear();
     for (int i = 0; i < removingK; i++) freq.insert(sorted.at(i));
-    for (int i = 0; i < MAX_COUNT; i++) {
+    for (int i = 0; i < max_count; i++) {
         if (freq.find(_keys[i]) == freq.end()) hkeys.push_back(_keys[i]); else lkeys.push_back(_keys[i]);
     }
     cout << "put: " << tracer.getRunTime() << " with " << freq.size() << " " << endl;
@@ -93,12 +95,13 @@ void primitiveFA(vector<uint64_t> loads, size_t trd) {
                 for (int i = tid; i < loads.size(); i += trd) {
                     core[(loads.at(i) % unique_keys) * ALIGN_CNT].fetch_add(1);
                     tick++;
+                    if (tick % 100000 == 0 && stopMeasure.load() == 1) break;
                 }
             }
             optcount = tick;
         }, ref(loads), ref(opcounts[i]), i, trd));
     }
-    while (timer.elapsedSeconds() < 120) {
+    while (timer.elapsedSeconds() < test_duration) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
@@ -128,12 +131,13 @@ void primitiveCAS(vector<uint64_t> loads, size_t trd) {
                         old = core[idx].load();
                     } while (!core[idx].compare_exchange_strong(old, old + 1));
                     tick++;
+                    if (tick % 100000 == 0 && stopMeasure.load() == 1) break;
                 }
             }
             optcount = tick;
         }, ref(loads), ref(opcounts[i]), i, trd));
     }
-    while (timer.elapsedSeconds() < 120) {
+    while (timer.elapsedSeconds() < test_duration) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
@@ -167,12 +171,13 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
                         old = core[idx].load();
                     } while (!core[idx].compare_exchange_strong(old, old + 1));
                     tick++;
+                    if (tick % 100000 == 0 && stopMeasure.load() == 1) break;
                 }
             }
             optcount = tick;
         }, ref(loads), ref(locks), ref(opcounts[i]), i, trd));
     }
-    while (timer.elapsedSeconds() < 120) {
+    while (timer.elapsedSeconds() < test_duration) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
@@ -207,12 +212,13 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
                         old = core[idx].load();
                     } while (!core[idx].compare_exchange_strong(old, old + 1));
                     tick++;
+                    if (tick % 100000 == 0 && stopMeasure.load() == 1) break;
                 }
             }
             optcount = tick;
         }, ref(loads), ref(locks), ref(opcounts[i]), i, trd));
     }
-    while (timer.elapsedSeconds() < 120) {
+    while (timer.elapsedSeconds() < test_duration) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
@@ -225,6 +231,10 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
 }
 
 int main(int argc, char **argv) {
+    if (argc > 1) {
+        max_count = std::atol(argv[1]);
+        test_duration = std::atol(argv[2]);
+    }
     for (int i = 1; i <= 10000000; i *= 100) {
         generate(i);
         for (int t = 1; t <= 100; t += 3) primitiveFA(hkeys, t);
