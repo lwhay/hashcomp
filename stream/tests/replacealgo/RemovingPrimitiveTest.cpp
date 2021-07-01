@@ -275,10 +275,8 @@ int main(int argc, char **argv) {
         for (int t = 1; t <= 100; t += 3) primitiveCAS(hkeys, t);
         for (int t = 1; t <= 100; t += 3) primitiveSpin(hkeys, t);
         for (int t = 1; t <= 100; t += 3) primitiveMutex(hkeys, t);
-    }
-
-    for (int i = 1000000; i > 1; i /= 100) {
-        generate(i);
+        for (int k = 0; k < 100; k++) cout << "-";
+        cout << endl;
         for (int t = 1; t <= 100; t += 3) primitiveFA(lkeys, t);
         for (int t = 1; t <= 100; t += 3) primitiveCAS(lkeys, t);
         for (int t = 1; t <= 100; t += 3) primitiveSpin(lkeys, t);
