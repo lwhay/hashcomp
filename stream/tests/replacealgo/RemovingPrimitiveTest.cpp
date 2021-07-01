@@ -43,6 +43,26 @@ public:
     spin_mutex &operator=(const spin_mutex &) = delete;
 
     void lock() {
+        bool expected = false;
+        while (!flag.compare_exchange_strong(expected, true))
+            expected = false;
+    }
+
+    void unlock() {
+        flag.store(false);
+    }
+};
+
+class spin_mutex1 {
+    std::atomic<bool> flag = ATOMIC_VAR_INIT(false);
+public:
+    spin_mutex1() = default;
+
+    spin_mutex1(const spin_mutex &) = delete;
+
+    spin_mutex1 &operator=(const spin_mutex &) = delete;
+
+    void lock() {
         while (flag.exchange(true, std::memory_order_acquire));
     }
 
