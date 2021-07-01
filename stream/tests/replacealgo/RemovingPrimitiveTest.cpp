@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
         max_count = std::atol(argv[1]);
         test_duration = std::atol(argv[2]);
     }
-    for (int i = 100000; i >= 100000; i /= 100000) {
+    for (int i = 100000; i >= 1; i /= 10) {
         generate(i);
         for (int t = 1; t <= 100; t += 3) primitiveFA(hkeys, t);
         for (int t = 1; t <= 100; t += 3) primitiveCAS(hkeys, t);
