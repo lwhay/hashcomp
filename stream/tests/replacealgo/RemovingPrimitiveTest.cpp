@@ -87,12 +87,14 @@ void primitiveFA(vector<uint64_t> loads, size_t trd) {
     timer.start();
     for (int i = 0; i < trd; i++) {
         workers.push_back(thread([](vector<uint64_t> &loads, uint64_t &optcount, int tid, int trd) {
+            size_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (int i = tid; i < loads.size(); i += trd) {
                     core[loads.at(i) % unique_keys].fetch_add(1);
-                    optcount++;
+                    tick++;
                 }
             }
+            optcount = tick;
         }, ref(loads), ref(opcounts[i]), i, trd));
     }
     while (timer.elapsedSeconds() < 120) {
@@ -101,9 +103,9 @@ void primitiveFA(vector<uint64_t> loads, size_t trd) {
     stopMeasure.store(1, memory_order_relaxed);
     for (int i = 0; i < trd; i++) {
         workers.at(i).join();
-        if (i > 1) opcounts[0] += opcounts[i];
+        if (i > 0) opcounts[0] += opcounts[i];
     }
-    cout << "FA:\t" << trd << "\t" << opcounts[0] << endl;
+    cout << "FA:\t" << trd << "\t" << opcounts[0] << "\t" << timer.elapsedMilliseconds() << endl;
 }
 
 void primitiveCAS(vector<uint64_t> loads, size_t trd) {
@@ -116,6 +118,7 @@ void primitiveCAS(vector<uint64_t> loads, size_t trd) {
     timer.start();
     for (int i = 0; i < trd; i++) {
         workers.push_back(thread([](vector<uint64_t> &loads, uint64_t &optcount, int tid, int trd) {
+            size_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (int i = tid; i < loads.size(); i += trd) {
                     size_t idx = loads.at(i) % unique_keys;
@@ -123,9 +126,10 @@ void primitiveCAS(vector<uint64_t> loads, size_t trd) {
                     do {
                         old = core[idx].load();
                     } while (!core[idx].compare_exchange_strong(old, old + 1));
-                    optcount++;
+                    tick++;
                 }
             }
+            optcount = tick;
         }, ref(loads), ref(opcounts[i]), i, trd));
     }
     while (timer.elapsedSeconds() < 120) {
@@ -134,9 +138,9 @@ void primitiveCAS(vector<uint64_t> loads, size_t trd) {
     stopMeasure.store(1, memory_order_relaxed);
     for (int i = 0; i < trd; i++) {
         workers.at(i).join();
-        if (i > 1) opcounts[0] += opcounts[i];
+        if (i > 0) opcounts[0] += opcounts[i];
     }
-    cout << "CAS:\t" << trd << "\t" << opcounts[0] << endl;
+    cout << "CAS:\t" << trd << "\t" << opcounts[0] << "\t" << timer.elapsedMilliseconds() << endl;
 }
 
 void primitiveSpin(vector<uint64_t> loads, size_t trd) {
@@ -153,6 +157,7 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
     timer.start();
     for (int i = 0; i < trd; i++) {
         workers.push_back(thread([](vector<uint64_t> &loads, spin_mutex *&locks, uint64_t &optcount, int tid, int trd) {
+            size_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (int i = tid; i < loads.size(); i += trd) {
                     size_t idx = loads.at(i) % unique_keys;
@@ -160,9 +165,10 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
                     do {
                         old = core[idx].load();
                     } while (!core[idx].compare_exchange_strong(old, old + 1));
-                    optcount++;
+                    tick++;
                 }
             }
+            optcount = tick;
         }, ref(loads), ref(locks), ref(opcounts[i]), i, trd));
     }
     while (timer.elapsedSeconds() < 120) {
@@ -171,9 +177,9 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
     stopMeasure.store(1, memory_order_relaxed);
     for (int i = 0; i < trd; i++) {
         workers.at(i).join();
-        if (i > 1) opcounts[0] += opcounts[i];
+        if (i > 0) opcounts[0] += opcounts[i];
     }
-    cout << "Spin:\t" << trd << "\t" << opcounts[0] << endl;
+    cout << "Spin:\t" << trd << "\t" << opcounts[0] << "\t" << timer.elapsedMilliseconds() << endl;
     delete[] locks;
 }
 
@@ -191,6 +197,7 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
     timer.start();
     for (int i = 0; i < trd; i++) {
         workers.push_back(thread([](vector<uint64_t> &loads, mutex *&locks, uint64_t &optcount, int tid, int trd) {
+            size_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (int i = tid; i < loads.size(); i += trd) {
                     size_t idx = loads.at(i) % unique_keys;
@@ -198,9 +205,10 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
                     do {
                         old = core[idx].load();
                     } while (!core[idx].compare_exchange_strong(old, old + 1));
-                    optcount++;
+                    tick++;
                 }
             }
+            optcount = tick;
         }, ref(loads), ref(locks), ref(opcounts[i]), i, trd));
     }
     while (timer.elapsedSeconds() < 120) {
@@ -209,9 +217,9 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
     stopMeasure.store(1, memory_order_relaxed);
     for (int i = 0; i < trd; i++) {
         workers.at(i).join();
-        if (i > 1) opcounts[0] += opcounts[i];
+        if (i > 0) opcounts[0] += opcounts[i];
     }
-    cout << "Mutex:\t" << trd << "\t" << opcounts[0] << endl;
+    cout << "Mutex:\t" << trd << "\t" << opcounts[0] << "\t" << timer.elapsedMilliseconds() << endl;
     delete[] locks;
 }
 
