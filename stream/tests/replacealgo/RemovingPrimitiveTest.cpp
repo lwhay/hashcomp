@@ -12,6 +12,7 @@
 #include "tracer.h"
 
 #define MAX_COUNT 1000000000
+#define ALIGN_CNT 8
 #define DATA_SKEW 0.99
 
 using namespace std;
@@ -74,7 +75,7 @@ void generate(int removingK) {
     }
     cout << "put: " << tracer.getRunTime() << " with " << freq.size() << " " << endl;
 
-    if (core == nullptr) core = new atomic<uint64_t>[unique_keys];
+    if (core == nullptr) core = new atomic<uint64_t>[unique_keys * ALIGN_CNT];
 }
 
 void primitiveFA(vector<uint64_t> loads, size_t trd) {
@@ -90,7 +91,7 @@ void primitiveFA(vector<uint64_t> loads, size_t trd) {
             size_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (int i = tid; i < loads.size(); i += trd) {
-                    core[loads.at(i) % unique_keys].fetch_add(1);
+                    core[(loads.at(i) % unique_keys) * ALIGN_CNT].fetch_add(1);
                     tick++;
                 }
             }
@@ -121,7 +122,7 @@ void primitiveCAS(vector<uint64_t> loads, size_t trd) {
             size_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (int i = tid; i < loads.size(); i += trd) {
-                    size_t idx = loads.at(i) % unique_keys;
+                    size_t idx = (loads.at(i) % unique_keys) * ALIGN_CNT;
                     uint64_t old;
                     do {
                         old = core[idx].load();
@@ -160,7 +161,7 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
             size_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (int i = tid; i < loads.size(); i += trd) {
-                    size_t idx = loads.at(i) % unique_keys;
+                    size_t idx = (loads.at(i) % unique_keys) * ALIGN_CNT;
                     uint64_t old;
                     do {
                         old = core[idx].load();
@@ -200,7 +201,7 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
             size_t tick = 0;
             while (stopMeasure.load() == 0) {
                 for (int i = tid; i < loads.size(); i += trd) {
-                    size_t idx = loads.at(i) % unique_keys;
+                    size_t idx = (loads.at(i) % unique_keys) * ALIGN_CNT;
                     uint64_t old;
                     do {
                         old = core[idx].load();
