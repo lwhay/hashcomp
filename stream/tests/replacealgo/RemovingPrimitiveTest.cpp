@@ -269,7 +269,7 @@ int main(int argc, char **argv) {
         max_count = std::atol(argv[1]);
         test_duration = std::atol(argv[2]);
     }
-    for (int i = 1; i <= 10000000; i *= 100) {
+    for (int i = 1000000; i > 1; i /= 100) {
         generate(i);
         for (int t = 1; t <= 100; t += 3) primitiveFA(hkeys, t);
         for (int t = 1; t <= 100; t += 3) primitiveCAS(hkeys, t);
@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
         for (int t = 1; t <= 100; t += 3) primitiveMutex(hkeys, t);
     }
 
-    for (int i = 1; i <= 1000000; i *= 100) {
+    for (int i = 1000000; i > 1; i /= 100) {
         generate(i);
         for (int t = 1; t <= 100; t += 3) primitiveFA(lkeys, t);
         for (int t = 1; t <= 100; t += 3) primitiveCAS(lkeys, t);
