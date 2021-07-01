@@ -33,14 +33,14 @@ size_t test_duration = 30;
 
 size_t max_count = MAX_COUNT;
 
-class spin_mutex {
+class spin_mutex1 {
     std::atomic<bool> flag = ATOMIC_VAR_INIT(false);
 public:
-    spin_mutex() = default;
+    spin_mutex1() = default;
 
-    spin_mutex(const spin_mutex &) = delete;
+    spin_mutex1(const spin_mutex1 &) = delete;
 
-    spin_mutex &operator=(const spin_mutex &) = delete;
+    spin_mutex1 &operator=(const spin_mutex1 &) = delete;
 
     void lock() {
         bool expected = false;
@@ -53,14 +53,14 @@ public:
     }
 };
 
-class spin_mutex1 {
+class spin_mutex2 {
     std::atomic<bool> flag = ATOMIC_VAR_INIT(false);
 public:
-    spin_mutex1() = default;
+    spin_mutex2() = default;
 
-    spin_mutex1(const spin_mutex &) = delete;
+    spin_mutex2(const spin_mutex2 &) = delete;
 
-    spin_mutex1 &operator=(const spin_mutex &) = delete;
+    spin_mutex2 &operator=(const spin_mutex2 &) = delete;
 
     void lock() {
         while (flag.exchange(true, std::memory_order_acquire));
@@ -70,6 +70,26 @@ public:
         flag.store(false, std::memory_order_release);
     }
 };
+
+class spin_mutex3 {
+    std::atomic_flag flag = ATOMIC_FLAG_INIT;
+public:
+    spin_mutex3() = default;
+
+    spin_mutex3(const spin_mutex3 &) = delete;
+
+    spin_mutex3 &operator=(const spin_mutex3 &) = delete;
+
+    void lock() {
+        while (flag.test_and_set(std::memory_order_acquire));
+    }
+
+    void unlock() {
+        flag.clear(std::memory_order_release);
+    }
+};
+
+using spin_mutex = spin_mutex3;
 
 void generate(int removingK) {
     if (core != nullptr) {
