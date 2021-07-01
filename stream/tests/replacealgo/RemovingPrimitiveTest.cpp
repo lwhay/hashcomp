@@ -97,7 +97,7 @@ void primitiveFA(vector<uint64_t> &loads, size_t trd) {
         workers.push_back(thread([](vector<uint64_t> &loads, uint64_t &optcount, int tid, int trd) {
             size_t tick = 0;
             while (stopMeasure.load() == 0) {
-                for (int i = tid; i < loads.size(); i += trd) {
+                for (int i = tid % loads.size(); i < loads.size(); i += trd) {
                     core[(loads.at(i) % unique_keys) * ALIGN_CNT].fetch_add(1);
                     tick++;
                     if (tick % 100000 == 0 && stopMeasure.load() == 1) break;
@@ -130,7 +130,7 @@ void primitiveCAS(vector<uint64_t> &loads, size_t trd) {
         workers.push_back(thread([](vector<uint64_t> &loads, uint64_t &optcount, int tid, int trd) {
             size_t tick = 0;
             while (stopMeasure.load() == 0) {
-                for (int i = tid; i < loads.size(); i += trd) {
+                for (int i = tid % loads.size(); i < loads.size(); i += trd) {
                     size_t idx = (loads.at(i) % unique_keys) * ALIGN_CNT;
                     uint64_t old;
                     do {
@@ -172,7 +172,7 @@ void primitiveSpin(vector<uint64_t> &loads, size_t trd) {
         workers.push_back(thread([](vector<uint64_t> &loads, spin_mutex *&locks, uint64_t &optcount, int tid, int trd) {
             size_t tick = 0;
             while (stopMeasure.load() == 0) {
-                for (int i = tid; i < loads.size(); i += trd) {
+                for (int i = tid % loads.size(); i < loads.size(); i += trd) {
                     size_t idx = (loads.at(i) % unique_keys) * ALIGN_CNT;
                     locks[idx].lock();
                     nore[idx]++;
@@ -214,7 +214,7 @@ void primitiveMutex(vector<uint64_t> &loads, size_t trd) {
         workers.push_back(thread([](vector<uint64_t> &loads, mutex *&locks, uint64_t &optcount, int tid, int trd) {
             size_t tick = 0;
             while (stopMeasure.load() == 0) {
-                for (int i = tid; i < loads.size(); i += trd) {
+                for (int i = tid % loads.size(); i < loads.size(); i += trd) {
                     size_t idx = (loads.at(i) % unique_keys) * ALIGN_CNT;
                     locks[idx].lock();
                     nore[idx]++;
