@@ -11,7 +11,7 @@
 #include <mutex>
 #include "tracer.h"
 
-#define MAX_COUNT 1000000
+#define MAX_COUNT 1000000000
 #define DATA_SKEW 0.99
 
 using namespace std;
@@ -128,7 +128,7 @@ void primitiveCAS(vector<uint64_t> loads, size_t trd) {
             }
         }, ref(loads), ref(opcounts[i]), i, trd));
     }
-    while (timer.elapsedSeconds() < 60) {
+    while (timer.elapsedSeconds() < 120) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
@@ -165,7 +165,7 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
             }
         }, ref(loads), ref(locks), ref(opcounts[i]), i, trd));
     }
-    while (timer.elapsedSeconds() < 60) {
+    while (timer.elapsedSeconds() < 120) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
@@ -203,7 +203,7 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
             }
         }, ref(loads), ref(locks), ref(opcounts[i]), i, trd));
     }
-    while (timer.elapsedSeconds() < 60) {
+    while (timer.elapsedSeconds() < 120) {
         sleep(1);
     }
     stopMeasure.store(1, memory_order_relaxed);
@@ -216,7 +216,7 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
 }
 
 int main(int argc, char **argv) {
-    for (int i = 1; i <= 100000; i *= 10) {
+    for (int i = 100000; i <= 100000; i *= 10) {
         generate(i);
         for (int t = 1; t <= 100; t += 3) primitiveFA(hkeys, t);
         for (int t = 1; t <= 100; t += 3) primitiveCAS(hkeys, t);
