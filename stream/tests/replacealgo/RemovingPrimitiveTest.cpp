@@ -84,12 +84,13 @@ void generate(int removingK) {
     if (nore == nullptr) nore = new uint64_t[unique_keys * ALIGN_CNT];
 }
 
-void primitiveFA(vector<uint64_t> loads, size_t trd) {
+void primitiveFA(vector<uint64_t> &loads, size_t trd) {
     for (int i = 0; i < unique_keys; i++) core[i * ALIGN_CNT].store(0);
     vector<thread> workers;
     stopMeasure.store(0, memory_order_relaxed);
     uint64_t opcounts[trd];
     std::memset(opcounts, 0, sizeof(uint64_t) * trd);
+    cout << loads.size() << "\t";
     Timer timer;
     timer.start();
     for (int i = 0; i < trd; i++) {
@@ -116,12 +117,13 @@ void primitiveFA(vector<uint64_t> loads, size_t trd) {
     cout << "FA:\t" << trd << "\t" << opcounts[0] << "\t" << timer.elapsedMilliseconds() << endl;
 }
 
-void primitiveCAS(vector<uint64_t> loads, size_t trd) {
+void primitiveCAS(vector<uint64_t> &loads, size_t trd) {
     for (int i = 0; i < unique_keys; i++) core[i * ALIGN_CNT].store(0);
     vector<thread> workers;
     stopMeasure.store(0, memory_order_relaxed);
     uint64_t opcounts[trd];
     std::memset(opcounts, 0, sizeof(uint64_t) * trd);
+    cout << loads.size() << "\t";
     Timer timer;
     timer.start();
     for (int i = 0; i < trd; i++) {
@@ -152,7 +154,7 @@ void primitiveCAS(vector<uint64_t> loads, size_t trd) {
     cout << "CAS:\t" << trd << "\t" << opcounts[0] << "\t" << timer.elapsedMilliseconds() << endl;
 }
 
-void primitiveSpin(vector<uint64_t> loads, size_t trd) {
+void primitiveSpin(vector<uint64_t> &loads, size_t trd) {
     std::memset(nore, 0, sizeof(uint64_t) * (unique_keys * ALIGN_CNT));
     spin_mutex *locks = new spin_mutex[unique_keys * ALIGN_CNT];
     for (int i = 0; i < unique_keys; i++) {
@@ -163,6 +165,7 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
     stopMeasure.store(0, memory_order_relaxed);
     uint64_t opcounts[trd];
     std::memset(opcounts, 0, sizeof(uint64_t) * trd);
+    cout << loads.size() << "\t";
     Timer timer;
     timer.start();
     for (int i = 0; i < trd; i++) {
@@ -193,7 +196,7 @@ void primitiveSpin(vector<uint64_t> loads, size_t trd) {
     delete[] locks;
 }
 
-void primitiveMutex(vector<uint64_t> loads, size_t trd) {
+void primitiveMutex(vector<uint64_t> &loads, size_t trd) {
     std::memset(nore, 0, sizeof(uint64_t) * (unique_keys * ALIGN_CNT));
     mutex *locks = new mutex[unique_keys * ALIGN_CNT];
     for (int i = 0; i < unique_keys; i++) {
@@ -204,6 +207,7 @@ void primitiveMutex(vector<uint64_t> loads, size_t trd) {
     stopMeasure.store(0, memory_order_relaxed);
     uint64_t opcounts[trd];
     std::memset(opcounts, 0, sizeof(uint64_t) * trd);
+    cout << loads.size() << "\t";
     Timer timer;
     timer.start();
     for (int i = 0; i < trd; i++) {
