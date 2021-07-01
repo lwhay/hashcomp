@@ -77,7 +77,8 @@ set(STREAM_EFFICIENCYTEST
         tests/replacealgo/RemovingHotspotTest.cpp
         tests/replacealgo/HotspotDiffHitTest.cpp
         tests/replacealgo/ConciseTest.cpp
-        tests/replacealgo/MaxDeltaTest.cpp)
+        tests/replacealgo/MaxDeltaTest.cpp
+        tests/replacealgo/RemovingPrimitiveTest.cpp)
 
 foreach (sourcefile ${STREAM_EFFICIENCYTEST})
     get_filename_component(exename ${sourcefile} NAME_WE)
