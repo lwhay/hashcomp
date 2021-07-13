@@ -12,7 +12,7 @@
 #include "generator.h"
 #include "tracer.h"
 
-uint32_t range = 1000000000;
+uint64_t range = 1000000000;
 
 double percentage = 0.5;
 
@@ -24,27 +24,27 @@ using namespace std;
 
 bool second = true;
 
-uint32_t total = -1;
+uint64_t total = -1;
 
-uint32_t satisfied = 0;
+uint64_t satisfied = 0;
 
-uint32_t ticks = 0;
+uint64_t ticks = 0;
 
-bool comp(pair<uint32_t, uint32_t> a, pair<uint32_t, uint32_t> b) {
+bool comp(pair<uint64_t, uint64_t> a, pair<uint64_t, uint64_t> b) {
     if (second)
         return a.second > b.second;
     else
         return a.first > b.first;
 }
 
-void offer(unordered_map<uint32_t, uint32_t> &freqmap, uint32_t k) {
+void offer(unordered_map<uint64_t, uint64_t> &freqmap, uint64_t k) {
     if (freqmap.find(k) == freqmap.end()) {
         freqmap.insert(make_pair<>(k, 0));
     }
     freqmap.find(k)->second++;
 }
 
-void tick(unordered_map<uint32_t, uint32_t> &freqmap, pair<uint32_t, uint32_t> p) {
+void tick(unordered_map<uint64_t, uint64_t> &freqmap, pair<uint64_t, uint64_t> p) {
     if (freqmap.find(p.second) == freqmap.end()) {
         freqmap.insert(make_pair<>(p.second, 0));
     }
@@ -53,7 +53,7 @@ void tick(unordered_map<uint32_t, uint32_t> &freqmap, pair<uint32_t, uint32_t> p
 
 ofstream fout;
 
-bool print(std::pair<uint32_t, uint32_t> p) {
+bool print(std::pair<uint64_t, uint64_t> p) {
     fout << p.first << "\t" << p.second << endl;
 }
 
@@ -70,9 +70,9 @@ int main(int argc, char **argv) {
 
     Tracer tracer;
     tracer.startTime();
-    zipf_distribution<uint32_t> gen((1LLU << 32), zipffactor);
+    zipf_distribution<uint64_t> gen((1LLU << 32), zipffactor);
     std::mt19937 mt;
-    vector<uint32_t> v;
+    vector<uint64_t> v;
     for (int i = 0; i < range; i++) {
         if (dis(prob) < samplingrate)
             v.push_back(gen(mt));
@@ -84,13 +84,13 @@ int main(int argc, char **argv) {
     total *= percentage;
 
     tracer.startTime();
-    unordered_map<uint32_t, uint32_t> freqmap;
+    unordered_map<uint64_t, uint64_t> freqmap;
     for_each(v.begin(), v.end(), boost::bind(offer, ref(freqmap), _1));
     cout << tracer.getRunTime() << "<->" << freqmap.size() << endl;
 
     second = true;
     tracer.startTime();
-    std::vector<std::pair<uint32_t, uint32_t>> elems(freqmap.begin(), freqmap.end());
+    std::vector<std::pair<uint64_t, uint64_t>> elems(freqmap.begin(), freqmap.end());
     std::sort(elems.begin(), elems.end(), comp);
     cout << tracer.getRunTime() << "<->" << elems.size() << endl;
 
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
     for_each(elems.begin(), elems.end(), print);
     fout.close();
 
-    for_each(elems.begin(), elems.end(), [](pair<uint32_t, uint32_t> &p) {
+    for_each(elems.begin(), elems.end(), [](pair<uint64_t, uint64_t> &p) {
         if ((satisfied += (p.first * p.second)) < total) ticks += p.second;
     });
 
