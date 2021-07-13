@@ -12,11 +12,13 @@
 #include "generator.h"
 #include "tracer.h"
 
-constexpr uint32_t range = 1000000000;
+uint32_t range = 1000000000;
 
-constexpr double percentage = 0.5;
+double percentage = 0.5;
 
-constexpr double zipffactor = 1.0;
+double zipffactor = 1.0;
+
+double samplingrate = 1.0;
 
 using namespace std;
 
@@ -56,17 +58,22 @@ bool print(std::pair<uint32_t, uint32_t> p) {
 }
 
 int main(int argc, char **argv) {
+    if (argc > 1) {
+        range = std::atoi(argv[1]);
+        percentage = std::atof(argv[2]);
+        zipffactor = std::atof(argv[3]);
+    }
     std::random_device rd;  //Will be used to obtain a seed for the random number engine
     std::mt19937 prob(rd()); //Standard mersenne_twister_engine seeded with rd()
     std::uniform_real_distribution<> dis(0.0, 1.0);
 
     Tracer tracer;
     tracer.startTime();
-    zipf_distribution<uint32_t> gen(range, zipffactor);
+    zipf_distribution<uint32_t> gen((1LLU << 32), zipffactor);
     std::mt19937 mt;
     vector<uint32_t> v;
     for (int i = 0; i < range; i++) {
-        if (dis(prob) < 0.1)
+        if (dis(prob) < samplingrate)
             v.push_back(gen(mt));
     }
     cout << tracer.getRunTime() << "<->" << v.size() << endl;
