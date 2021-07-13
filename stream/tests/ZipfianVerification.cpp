@@ -62,6 +62,7 @@ int main(int argc, char **argv) {
         range = std::atoi(argv[1]);
         percentage = std::atof(argv[2]);
         zipffactor = std::atof(argv[3]);
+        samplingrate = std::atof(argv[4]);
     }
     std::random_device rd;  //Will be used to obtain a seed for the random number engine
     std::mt19937 prob(rd()); //Standard mersenne_twister_engine seeded with rd()
