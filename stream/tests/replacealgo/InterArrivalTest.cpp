@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         max_count = std::atol(argv[1]);
         cutoff_f = std::atof(argv[2]);
+        DATA_SKEW = std::atof(argv[3]);
     }
     unordered_map<uint64_t, vector<uint64_t>> keyOffset;
     unordered_map<uint64_t, uint64_t> curKeyCnt;
