@@ -166,6 +166,10 @@ public:
         printf("There is a problem!\n");
     }
 
+    bool contains(uint32_t page) {
+        return t1->contains(page) || t2->contains(page) || b1->contains(page) || b2->contains(page);
+    }
+
     float getHitRatio() {
         calculateHitRatio();
 
