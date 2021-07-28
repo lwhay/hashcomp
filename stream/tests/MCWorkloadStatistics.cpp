@@ -1,6 +1,8 @@
 //
 // Created by iclab on 6/17/21.
 //
+#include <cmath>
+#include <unordered_set>
 #include <cassert>
 #include <iostream>
 #include <ostream>
@@ -14,6 +16,8 @@
 using namespace std;
 
 string path("../../res/load.dat");
+
+#define MAX_WINDOW_SIZE 11
 
 template<typename type>
 void print(pair<type, uint64_t> p) {
@@ -48,6 +52,9 @@ int main(int argc, char **argv) {
     if (argc > 2) pos = std::atoi(argv[2]);
     ifstream input;
     input.open(path);
+    uint64_t wdSize[MAX_WINDOW_SIZE], lineCount = 0;
+    memset(wdSize, 0, MAX_WINDOW_SIZE * sizeof(uint64_t));
+    unordered_set<string> wdCount[MAX_WINDOW_SIZE];
     FCCount<string> fcCount;
     FCCount<int> klCount;
     FCCount<int> vlCount;
@@ -63,11 +70,19 @@ int main(int argc, char **argv) {
         // cout << hex << fields[pos].find(" ") << endl;
         assert(fields[pos].find(" ") == (std::size_t) -1);
         // cout << fields[pos] << endl;
+        for (int i = 0; i < MAX_WINDOW_SIZE; i++) {
+            if (lineCount % (int) (pow(2, i)) == 0) {
+                wdSize[i] += wdCount[i].size();
+                wdCount[i].clear();
+            }
+            wdCount[i].insert(fields[pos]);
+        }
         fcCount.offer(fields[pos]);
         klCount.offer(stoi(fields[3].substr(4)));
         vlCount.offer(stoi(fields[4].substr(4)));
         opCount.offer(stoi(fields[5].substr(2)));
         ttlCount.offer(stoi(fields[6].substr(3)));
+        lineCount++;
     }
     fcCount.wind();
     klCount.wind();
@@ -79,5 +94,7 @@ int main(int argc, char **argv) {
     genstat<int>(vlCount, "vl");
     genstat<int>(opCount, "op");
     genstat<int>(ttlCount, "ttl");
+    for (int i = 0; i < MAX_WINDOW_SIZE; i++)
+        cout << (pow(2, i)) << ":" << (double) wdSize[i] / lineCount << ":" << wdSize[i] << ":" << lineCount << endl;
     input.close();
 }
